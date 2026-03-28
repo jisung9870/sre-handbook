@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinOps & Cloud Cost Optimization — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--green);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--green)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="principle"].on{color:var(--green)}.T[data-t="principle"].on::after{background:var(--green);left:8%;right:8%}
+.T[data-t="k8s-cost"].on{color:var(--blue)}.T[data-t="k8s-cost"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="compute"].on{color:var(--orange)}.T[data-t="compute"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="network"].on{color:var(--purple)}.T[data-t="network"].on::after{background:var(--purple);left:8%;right:8%}
+.T[data-t="storage"].on{color:var(--teal)}.T[data-t="storage"].on::after{background:var(--teal);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.cf{grid-column:1/-1}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Practice</div><h1><em>FinOps</em> &<br>Cloud Cost</h1></div>
+  <div class="sl">FinOps 원칙</div>
+  <ul class="sn">
+    <li><a data-t="principle" data-s="finops-what" class="on"><span class="d" style="background:var(--green)"></span>FinOps란</a></li>
+    <li><a data-t="principle" data-s="finops-cycle"><span class="d" style="background:var(--green)"></span>Inform → Optimize → Operate</a></li>
+    <li><a data-t="principle" data-s="unit-econ"><span class="d" style="background:var(--green)"></span>Unit Economics</a></li>
+  </ul>
+  <div class="sl">K8s 비용</div>
+  <ul class="sn">
+    <li><a data-t="k8s-cost" data-s="rightsizing"><span class="d" style="background:var(--blue)"></span>리소스 라이트사이징</a></li>
+    <li><a data-t="k8s-cost" data-s="kubecost"><span class="d" style="background:var(--blue)"></span>Kubecost / OpenCost</a></li>
+    <li><a data-t="k8s-cost" data-s="chargeback"><span class="d" style="background:var(--blue)"></span>비용 할당</a></li>
+  </ul>
+  <div class="sl">Compute</div>
+  <ul class="sn">
+    <li><a data-t="compute" data-s="spot"><span class="d" style="background:var(--orange)"></span>Spot 인스턴스</a></li>
+    <li><a data-t="compute" data-s="ri-sp"><span class="d" style="background:var(--orange)"></span>RI / Savings Plan</a></li>
+    <li><a data-t="compute" data-s="instance-select"><span class="d" style="background:var(--orange)"></span>인스턴스 선택</a></li>
+  </ul>
+  <div class="sl">Network</div>
+  <ul class="sn">
+    <li><a data-t="network" data-s="nat-cost"><span class="d" style="background:var(--purple)"></span>NAT Gateway 비용</a></li>
+    <li><a data-t="network" data-s="cross-az"><span class="d" style="background:var(--purple)"></span>Cross-AZ 트래픽</a></li>
+    <li><a data-t="network" data-s="data-transfer"><span class="d" style="background:var(--purple)"></span>데이터 전송 최적화</a></li>
+  </ul>
+  <div class="sl">Storage</div>
+  <ul class="sn">
+    <li><a data-t="storage" data-s="ebs-opt"><span class="d" style="background:var(--teal)"></span>EBS 최적화</a></li>
+    <li><a data-t="storage" data-s="s3-lifecycle"><span class="d" style="background:var(--teal)"></span>S3 라이프사이클</a></li>
+    <li><a data-t="storage" data-s="log-cost"><span class="d" style="background:var(--teal)"></span>로그/메트릭 비용</a></li>
+  </ul>
+  <div class="S-f"><p>Every dollar saved<br>is a dollar earned<br>for reliability.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="principle" onclick="sw('principle')">● FinOps 원칙</button>
+    <button class="T" data-t="k8s-cost" onclick="sw('k8s-cost')">● K8s 비용</button>
+    <button class="T" data-t="compute" onclick="sw('compute')">● Compute</button>
+    <button class="T" data-t="network" onclick="sw('network')">● Network</button>
+    <button class="T" data-t="storage" onclick="sw('storage')">● Storage</button>
+  </div>
+
+  <!-- ===== FINOPS PRINCIPLE ===== -->
+  <div class="P on" id="p-principle">
+    <div class="PH"><div class="bg bg-g">● FinOps Fundamentals</div><h2>FinOps 원칙과 프레임워크</h2><p>클라우드 비용을 엔지니어링 메트릭으로 다루는 운영 모델.</p></div>
+
+    <div class="sec" id="finops-what">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Definition</div>
+        <h3>FinOps란</h3>
+        <div class="cs">Finance + DevOps — 클라우드 비용에 대한 엔지니어링 책임을 팀에 부여하는 운영 모델</div>
+        <div class="cp">FinOps는 <strong>"클라우드 비용을 기술 의사결정의 일부로 다루는 문화"</strong>다. 비용 절감만이 목적이 아니라, <strong>비용 대비 가치(cost efficiency)를 최적화</strong>하는 것이 핵심이다. 저렴하게 운영하되 SLO를 유지하는 균형점을 찾는다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">FinOps 핵심 원칙</div><div class="v"><strong>1) Teams own their cloud costs:</strong> 비용 가시성을 팀에 제공. 팀이 자기 비용을 인지하고 관리<br><strong>2) Decisions are driven by business value:</strong> 비용 절감이 아니라 비용 대비 가치 최대화<br><strong>3) Everyone takes ownership:</strong> 엔지니어, 매니저, 재무 모두가 참여<br><strong>4) Reports are accessible and timely:</strong> 실시간 비용 대시보드. 월말 리포트가 아님<br><strong>5) Centralized team drives FinOps:</strong> 중앙 팀이 도구/프로세스 제공, 실행은 각 팀</div></div>
+          <div class="db"><div class="l">SRE와 FinOps의 연결</div><div class="v"><strong>SLO ↔ 비용 트레이드오프:</strong><br>99.99% SLO를 유지하면서 비용을 최소화하는 것이 목표<br><br><strong>Error Budget ↔ Cost Budget:</strong><br>SLO를 낮추면(99.9%→99.5%) 인프라 요구사항이 줄어 비용 절감<br>= <strong>비용도 일종의 Budget</strong>으로 관리할 수 있다<br><br><strong>Capacity Planning ↔ FinOps:</strong><br>Little's Law로 최적 리소스를 계산하면 과잉 프로비저닝 방지 = 비용 절감</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="finops-cycle">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Framework</div>
+        <h3>Inform → Optimize → Operate</h3>
+        <div class="cs">FinOps Foundation의 3단계 반복 사이클</div>
+        <div class="dt">
+          <div class="db"><div class="l">Inform (가시성 확보)</div><div class="v"><strong>질문:</strong> "지금 얼마를 어디에 쓰고 있는가?"<br><br>• 비용 대시보드 구축 (Kubecost, AWS Cost Explorer)<br>• 태깅 표준 수립: 모든 리소스에 <code>team</code>, <code>service</code>, <code>environment</code> 태그<br>• K8s 리소스 사용률 vs request 대비 실사용 비율 시각화<br>• 주간/월간 비용 리포트 자동 생성<br>• 이상 비용 알림 설정 (전일 대비 20% 증가 시)</div></div>
+          <div class="db"><div class="l">Optimize → Operate</div><div class="v"><strong>Optimize:</strong> "어떻게 줄일 수 있는가?"<br>• 라이트사이징 (과잉 request 축소)<br>• Spot 인스턴스 도입<br>• RI/Savings Plan 구매<br>• 미사용 리소스 제거 (idle EBS, 비사용 EIP)<br>• 데이터 전송 경로 최적화<br><br><strong>Operate:</strong> "지속적으로 관리하는가?"<br>• 자동 라이트사이징 (VPA Off 모드 → 분기 반영)<br>• 비용 예산 설정 & 알림<br>• 분기별 비용 리뷰 미팅<br>• 신규 서비스 PRR에 비용 예측 포함</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="unit-econ">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Metric</div>
+        <h3>Unit Economics — 비용 효율성 메트릭</h3>
+        <div class="cs">"요청 1건 처리에 얼마가 드는가?"를 추적하여 비즈니스 성장과 비용의 관계를 이해</div>
+        <div class="cp"><strong>총 비용</strong>만 보면 서비스가 성장할수록 비용이 늘어나는 게 당연해 보인다. <strong>단위당 비용(Unit Cost)</strong>을 추적하면 "효율적으로 성장하고 있는가?"를 판단할 수 있다.</div>
+        <div class="dt">
+          <div class="db df"><div class="l">주요 Unit Cost 메트릭</div><div class="v"><div class="fm" style="text-align:left;font-size:10.5px">Cost per Request   = 월간 인프라 비용 ÷ 월간 총 요청 수
+Cost per User       = 월간 인프라 비용 ÷ MAU
+Cost per Transaction = 결제 인프라 비용 ÷ 월간 거래 수
+Cost per GB stored  = 스토리지 비용 ÷ 저장 데이터 GB</div><br><strong>트렌드 분석:</strong> Unit Cost가 월별로 감소하면 효율 개선. 증가하면 과잉 프로비저닝 또는 비효율 성장<br><strong>알림:</strong> Cost per Request가 전월 대비 30% 이상 증가하면 조사 트리거<br><strong>경영진 리포트:</strong> "총 비용은 20% 증가했지만 요청당 비용은 10% 감소했습니다" — 이런 스토리텔링이 가능</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== K8S COST ===== -->
+  <div class="P" id="p-k8s-cost">
+    <div class="PH"><div class="bg bg-b">● Kubernetes Cost Optimization</div><h2>K8s 리소스 비용 최적화</h2><p>라이트사이징, Kubecost/OpenCost, 비용 할당 — K8s 비용의 60~80%를 차지하는 컴퓨팅 최적화.</p></div>
+
+    <div class="sec" id="rightsizing">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Critical</div>
+        <h3>리소스 라이트사이징</h3>
+        <div class="cs">request/limit 과잉 설정이 비용 낭비의 최대 원인 — 실사용 대비 최적값 찾기</div>
+        <div class="cp">K8s에서 <strong>비용 = request 기준으로 과금</strong>된다 (Karpenter/CA가 request 합계로 노드를 프로비저닝). request를 실사용보다 3~5배 높게 잡으면 <strong>60~80%의 노드 리소스가 유휴 상태</strong>로 낭비된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">진단: 과잉 프로비저닝 파악</div><div class="v"><strong>CPU 효율:</strong><br><code>sum(rate(container_cpu_usage_seconds_total[5m])) by (namespace, pod) / sum(kube_pod_container_resource_requests{resource="cpu"}) by (namespace, pod)</code><br>→ 30% 이하면 과잉. 70~80%가 이상적<br><br><strong>Memory 효율:</strong><br><code>sum(container_memory_working_set_bytes) by (namespace, pod) / sum(kube_pod_container_resource_requests{resource="memory"}) by (namespace, pod)</code><br>→ 50% 이하면 request 축소 여지 있음<br><br><strong>클러스터 전체:</strong><br><code>1 - (sum(kube_pod_container_resource_requests{resource="cpu"}) / sum(kube_node_status_allocatable{resource="cpu"}))</code><br>→ 할당되지 않은 CPU 비율. 이것이 "빈 공간"</div></div>
+          <div class="db"><div class="l">최적화 방법</div><div class="v"><strong>VPA Off 모드 활용:</strong><br>VPA를 <code>updateMode: "Off"</code>로 배포 → 추천값만 수집<br><code>kubectl describe vpa my-vpa</code> → Target 값 확인<br>분기마다 추천값을 수동으로 request에 반영<br><br><strong>실전 가이드:</strong><br>• <strong>CPU request:</strong> P95 사용량 × 1.2 (20% 여유)<br>• <strong>Memory request:</strong> P99 사용량 × 1.1 (10% 여유. OOM 방지)<br>• <strong>CPU limit:</strong> 설정하지 않거나 request의 2~3배 (throttling 방지)<br>• <strong>Memory limit:</strong> request와 같거나 1.5배 (OOM 방지)<br><br><strong>절감 효과:</strong> request 50% 축소 → 노드 수 ~40% 감소 가능</div></div>
+        </div>
+      </div>
+      <div class="nt o"><strong>⚠ 라이트사이징의 위험</strong><br>너무 공격적으로 줄이면 <strong>CPU throttling(성능 저하)</strong>이나 <strong>OOM Kill(안정성 저하)</strong>이 발생한다. Utilization-Latency 비선형 관계를 기억하자. 리소스를 줄이면서 <strong>반드시 SLI(P99 latency)를 동시에 모니터링</strong>해야 한다. SLO를 유지하는 범위 내에서만 축소.</div>
+    </div>
+
+    <div class="sec" id="kubecost">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Tooling</div>
+        <h3>Kubecost / OpenCost</h3>
+        <div class="cs">K8s 클러스터의 비용을 네임스페이스, 서비스, Pod 레벨로 분해하여 시각화</div>
+        <div class="dt">
+          <div class="db"><div class="l">OpenCost (CNCF)</div><div class="v"><strong>오픈소스 K8s 비용 모니터링:</strong><br>• 클라우드 빌링 데이터 + K8s 리소스 사용량을 결합<br>• namespace/deployment/pod별 비용 분해<br>• Prometheus 메트릭으로 노출 → Grafana 대시보드<br>• 실시간 비용 추적, idle 리소스 감지<br><br><strong>핵심 메트릭:</strong><br><code>opencost_pod_cost_total</code><br><code>opencost_namespace_cost_total</code><br><code>opencost_cluster_cost_total</code><br><br><strong>LGTM 스택 통합:</strong> Prometheus로 수집 → Grafana 대시보드. 별도 UI 없이 기존 모니터링 체계에 통합</div></div>
+          <div class="db"><div class="l">Kubecost (상용)</div><div class="v"><strong>OpenCost 기반 + 추가 기능:</strong><br>• Savings 추천 (라이트사이징, Spot, RI)<br>• 비용 이상 감지 알림<br>• 멀티클러스터 비용 통합 뷰<br>• 팀별 비용 할당 리포트 자동 생성<br><br><strong>Free tier:</strong> 단일 클러스터, 15일 보존. 소규모에 충분<br><strong>Helm 설치:</strong><br><code>helm install kubecost kubecost/cost-analyzer -n kubecost --set prometheus.enabled=false --set global.prometheus.fqdn=http://prometheus:9090</code><br>→ 기존 Prometheus를 사용하여 중복 설치 방지</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="chargeback">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Allocation</div>
+        <h3>비용 할당 (Chargeback / Showback)</h3>
+        <div class="cs">팀/서비스별로 클라우드 비용을 분배하여 비용 의식을 높이는 체계</div>
+        <div class="dt">
+          <div class="db"><div class="l">할당 전략</div><div class="v"><strong>Showback:</strong> 비용을 보여주기만 (책임은 안 지움). 초기 도입에 적합<br><strong>Chargeback:</strong> 비용을 팀 예산에서 차감. 강력한 인센티브<br><br><strong>할당 기준:</strong><br>• <strong>Namespace 기반:</strong> 가장 단순. namespace = team 매핑<br>• <strong>Label 기반:</strong> <code>team: platform</code>, <code>service: api</code> 라벨로 분류<br>• <strong>공유 비용 분배:</strong> Control Plane, 모니터링 등 공통 비용은 요청 비율로 분배<br><br><strong>리포트 주기:</strong> 주간 Slack 자동 게시 + 월간 상세 리포트</div></div>
+          <div class="db"><div class="l">태깅 표준</div><div class="v"><strong>K8s 라벨 (필수):</strong><br><code>app.kubernetes.io/name</code><br><code>app.kubernetes.io/component</code><br><code>team</code><br><code>environment</code><br><br><strong>AWS 태그 (필수):</strong><br><code>Team</code>, <code>Service</code>, <code>Environment</code>, <code>CostCenter</code><br><br><strong>Terraform에서 강제:</strong><br>모든 리소스에 <code>default_tags</code> 블록으로 기본 태그 적용<br>태그 없는 리소스 → 비용 할당 불가 → "미분류" 비용으로 가시화</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== COMPUTE ===== -->
+  <div class="P" id="p-compute">
+    <div class="PH"><div class="bg bg-o">● Compute Cost</div><h2>컴퓨팅 비용 최적화</h2><p>Spot 인스턴스, Reserved Instance, Savings Plan, 인스턴스 선택 — 가장 큰 비용 항목 최적화.</p></div>
+
+    <div class="sec" id="spot">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Savings</div>
+        <h3>Spot 인스턴스 전략</h3>
+        <div class="cs">On-Demand 대비 60~90% 저렴. 단, 2분 전 알림으로 언제든 회수될 수 있다</div>
+        <div class="cp">Spot 인스턴스는 AWS의 <strong>여유 컴퓨팅 용량</strong>을 할인된 가격에 사용하는 것이다. 가격이 저렴하지만 수요 증가 시 <strong>2분 전 알림</strong>으로 회수(interruption)된다. K8s + Karpenter를 사용하면 Spot 회수를 <strong>graceful하게 처리</strong>할 수 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Karpenter + Spot 설정</div><div class="v"><strong>NodePool에서 Spot 우선 + On-Demand fallback:</strong><br><code>spec.template.spec.requirements:</code><br><code>- key: karpenter.sh/capacity-type</code><br><code>  operator: In</code><br><code>  values: ["spot", "on-demand"]</code><br><br>Karpenter가 먼저 Spot을 시도하고, Spot 가용량 부족 시 On-Demand로 fallback<br><br><strong>다양한 인스턴스 타입:</strong><br><code>- key: node.kubernetes.io/instance-type</code><br><code>  operator: In</code><br><code>  values: ["m5.xlarge","m5a.xlarge","m6i.xlarge","c5.xlarge","c5a.xlarge"]</code><br><br>다양한 타입을 지정할수록 Spot 가용량 확보 확률 증가. 특정 타입 하나만 지정하면 Spot 확보 어려움</div></div>
+          <div class="db"><div class="l">Spot 적합/부적합 워크로드</div><div class="v"><strong>✅ 적합:</strong><br>• Stateless 웹 서비스 (K8s가 자동 재스케줄링)<br>• 배치 처리, CI/CD 빌드 작업<br>• Dev/Staging 환경 전체<br>• HPA로 충분한 replica가 유지되는 서비스<br><br><strong>❌ 부적합:</strong><br>• Stateful 워크로드 (DB, Kafka, etcd)<br>• 단일 replica 서비스 (회수 시 다운타임)<br>• 장시간 실행 job (Spot 회수로 중단)<br><br><strong>Spot 절감 예시:</strong><br>m5.xlarge On-Demand: $0.192/hr<br>m5.xlarge Spot: ~$0.06/hr (약 70% 절감)<br>노드 20개 × 730시간 = <strong>$1,927/월 절감</strong></div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 Spot 중단 대비</strong><br><strong>PodDisruptionBudget:</strong> <code>minAvailable: 2</code>로 동시에 모든 Pod이 죽지 않도록<br><strong>Topology Spread:</strong> Spot 노드와 On-Demand 노드에 걸쳐 분산<br><strong>Graceful Shutdown:</strong> SIGTERM 수신 시 진행 중 요청 완료 후 종료 (terminationGracePeriodSeconds)<br><strong>AWS Node Termination Handler:</strong> Spot 중단 알림 수신 → Pod을 drain하여 안전 이동</div>
+    </div>
+
+    <div class="sec" id="ri-sp">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Commitment</div>
+        <h3>Reserved Instances & Savings Plans</h3>
+        <div class="cs">1~3년 약정으로 On-Demand 대비 30~60% 할인받는 구매 모델</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>모델</th><th>할인율</th><th>유연성</th><th>적합 대상</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Standard RI</strong></td><td>~40~60%</td><td>낮음 (인스턴스 패밀리/리전 고정)</td><td>안정적인 baseline 워크로드, DB</td></tr>
+            <tr><td><strong>Convertible RI</strong></td><td>~30~45%</td><td>중간 (타입 변경 가능)</td><td>장기 워크로드이지만 타입 변경 여지</td></tr>
+            <tr><td><strong>Compute SP</strong></td><td>~30~50%</td><td>높음 (패밀리/리전/OS 자유)</td><td>다양한 인스턴스를 쓰는 환경 (K8s)</td></tr>
+            <tr><td><strong>EC2 Instance SP</strong></td><td>~40~55%</td><td>중간 (패밀리/리전 고정)</td><td>특정 인스턴스에 집중된 환경</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="dt" style="margin-top:14px;">
+        <div class="db df"><div class="l">K8s 환경 구매 전략</div><div class="v"><strong>Baseline 커버리지:</strong> 항상 필요한 최소 노드 수(예: 5대)를 Compute Savings Plan으로 약정. 이 위에 Spot으로 확장.<br><br><strong>3계층 구조:</strong><br>• <strong>Savings Plan (30~50%):</strong> baseline 커버 → 안정적 할인<br>• <strong>Spot (60~90%):</strong> 유동적 부하 흡수 → 최대 할인<br>• <strong>On-Demand (0%):</strong> Spot fallback → 안정성 보장<br><br><strong>비율 예시:</strong> SP 40% + Spot 40% + On-Demand 20%<br>→ 평균 할인율 ~50%. On-Demand만 쓸 때 대비 <strong>절반 비용</strong><br><br><strong>주의:</strong> Karpenter가 인스턴스 타입을 유동적으로 선택하므로 <strong>Compute Savings Plan</strong>(타입 무관)이 가장 적합</div></div>
+      </div>
+    </div>
+
+    <div class="sec" id="instance-select">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Selection</div>
+        <h3>인스턴스 타입 선택 전략</h3>
+        <div class="cs">워크로드 특성에 맞는 인스턴스 패밀리 선택으로 비용 대비 성능 최적화</div>
+        <div class="dt">
+          <div class="db"><div class="l">워크로드별 매핑</div><div class="v"><strong>CPU-bound (API 서버):</strong> c7g (Graviton3), c6i<br>→ CPU 집약적. vCPU당 비용이 가장 낮음<br><br><strong>범용 (대부분의 워크로드):</strong> m7g, m6i<br>→ CPU:Memory = 1:4 균형. K8s 범용 노드<br><br><strong>Memory-bound (Redis, JVM):</strong> r7g, r6i<br>→ CPU:Memory = 1:8. 메모리 집약적<br><br><strong>Graviton (ARM):</strong> *g 접미사 (m7g, c7g, r7g)<br>→ x86 대비 <strong>~20% 저렴 + ~20% 성능 향상</strong><br>→ Go, Node.js, Python 앱은 대부분 ARM 호환<br>→ Karpenter NodePool에서 <code>kubernetes.io/arch: arm64</code> 지정</div></div>
+          <div class="db"><div class="l">노드 크기 전략</div><div class="v"><strong>큰 노드 vs 작은 노드:</strong><br><br><strong>큰 노드 (m5.4xlarge):</strong><br>장점: DaemonSet 오버헤드 비율 감소, bin packing 효율<br>단점: 단일 노드 장애 영향 큼<br><br><strong>작은 노드 (m5.xlarge):</strong><br>장점: 세밀한 스케일링, Spot 가용량 높음<br>단점: DaemonSet 비율 높음, 네트워크/ENI 제한<br><br><strong>권장:</strong> 4~8 vCPU (xlarge~2xlarge)가 대부분의 K8s 환경에 최적<br>Karpenter가 Pod 요구사항에 맞는 최적 크기를 자동 선택하므로 여러 크기를 허용하는 것이 좋음</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== NETWORK ===== -->
+  <div class="P" id="p-network">
+    <div class="PH"><div class="bg bg-p">● Network Cost</div><h2>네트워크 비용 최적화</h2><p>NAT Gateway, Cross-AZ, 데이터 전송 — 보이지 않는 비용의 최대 주범.</p></div>
+
+    <div class="sec" id="nat-cost">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Hidden Cost</div>
+        <h3>NAT Gateway 비용 최적화</h3>
+        <div class="cs">NAT Gateway의 데이터 처리 요금이 월 수천 달러에 달할 수 있다</div>
+        <div class="cp">NAT Gateway는 시간당 요금($0.045/hr ≈ $32/월) 외에 <strong>데이터 처리 요금 $0.045/GB</strong>가 있다. ECR 이미지 풀, S3 접근, 외부 API 호출이 모두 NAT를 경유하면 <strong>월 수백~수천 달러</strong>가 될 수 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">비용 분석</div><div class="v"><strong>VPC Flow Log 분석:</strong><br>NAT Gateway를 통과하는 트래픽의 목적지 분석<br>→ S3, ECR, CloudWatch가 대부분인 경우 많음<br><br><strong>비용 시뮬레이션:</strong><br>ECR 이미지 풀: 1GB/deploy × 10 deploys/day = 300GB/월<br>S3 접근: 100GB/월 (Loki 청크, 백업 등)<br>외부 API: 50GB/월<br>총: 450GB × $0.045 = <strong>$20.25/월</strong> (데이터 처리만)<br>+ 시간 요금 $32 × AZ 수 = <strong>$96~$160/월</strong></div></div>
+          <div class="db"><div class="l">절감 방법</div><div class="v"><strong>VPC Endpoint 필수 구성:</strong><br>• <code>com.amazonaws.region.s3</code> — Gateway (무료!)<br>• <code>com.amazonaws.region.ecr.dkr</code> — Interface<br>• <code>com.amazonaws.region.ecr.api</code> — Interface<br>• <code>com.amazonaws.region.sts</code> — Interface (IRSA)<br>• <code>com.amazonaws.region.logs</code> — Interface<br><br><strong>S3 Gateway Endpoint만으로도 대폭 절감:</strong><br>Loki/Tempo/Mimir가 S3에 데이터 저장 → Gateway Endpoint(무료)로 NAT 우회<br><br><strong>Interface Endpoint 비용:</strong> ~$7.2/AZ/월 + $0.01/GB<br>NAT 비용보다 저렴한지 비교 후 결정</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="cross-az">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">AZ</div>
+        <h3>Cross-AZ 트래픽 비용</h3>
+        <div class="cs">같은 리전이라도 AZ가 다르면 $0.01/GB 과금 — K8s에서 자주 발생</div>
+        <div class="cp">K8s Service는 기본적으로 <strong>모든 AZ의 Pod에 균등 분산</strong>한다. Pod A(AZ-a)가 Service B를 호출하면 B의 Pod이 AZ-b에 있을 수 있고, 이때 <strong>Cross-AZ 비용 $0.01/GB</strong>이 발생한다. 트래픽이 많으면 상당한 비용이 된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">비용 추정</div><div class="v"><strong>서비스 간 트래픽 50TB/월:</strong><br>50% cross-AZ 확률 = 25TB cross-AZ<br>25TB × $0.01 × 2(양방향) = <strong>$500/월</strong><br><br><strong>모니터링:</strong><br>VPC Flow Log에서 AZ 간 트래픽 분석<br><code>istio_tcp_sent_bytes_total</code> 메트릭에서 source/destination 서비스의 AZ 비교</div></div>
+          <div class="db"><div class="l">최적화 방법</div><div class="v"><strong>Topology-Aware Routing (K8s 1.23+):</strong><br><code>service.kubernetes.io/topology-mode: Auto</code><br>→ 같은 AZ의 Pod을 우선 라우팅. cross-AZ 트래픽 대폭 감소<br><br><strong>주의:</strong> AZ별 Pod 수가 균등해야 효과적. 불균형하면 한 AZ에 트래픽 집중<br><br><strong>Istio Locality Load Balancing:</strong><br>DestinationRule의 <code>localityLbSetting</code>으로 같은 zone 우선<br><br><strong>DB/Cache 같은 AZ:</strong><br>RDS/ElastiCache와 앱 Pod을 같은 AZ에 배치<br>nodeSelector 또는 topology spread로 조정</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="data-transfer">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Transfer</div>
+        <h3>데이터 전송 비용 최적화</h3>
+        <div class="cs">인바운드는 무료, 아웃바운드에 과금 — 전송 경로를 최적화</div>
+        <div class="dt">
+          <div class="db"><div class="l">비용 구조</div><div class="v"><strong>Internet → AWS:</strong> 무료<br><strong>AWS → Internet:</strong> $0.09/GB (첫 10TB), $0.085/GB (다음 40TB)<br><strong>같은 AZ 내:</strong> 무료 (Private IP 사용 시)<br><strong>AZ 간:</strong> $0.01/GB (각 방향)<br><strong>리전 간:</strong> $0.02/GB<br><strong>AWS → NHN Cloud (인터넷 경유):</strong> 아웃바운드 요금<br><br><strong>CloudFront 활용:</strong><br>정적 자산을 CloudFront로 서빙하면 AWS→Internet 전송 비용이 CloudFront 비용으로 대체 (보통 30~50% 절감)</div></div>
+          <div class="db"><div class="l">절감 전략 요약</div><div class="v"><strong>1)</strong> VPC Endpoint로 AWS 서비스 트래픽을 NAT에서 분리<br><strong>2)</strong> S3 Gateway Endpoint (무료) 최우선 설정<br><strong>3)</strong> ECR pull-through cache로 외부 레지스트리 이미지의 NAT 경유 제거<br><strong>4)</strong> Topology-Aware Routing으로 cross-AZ 트래픽 최소화<br><strong>5)</strong> CloudFront로 사용자 대면 트래픽의 전송 비용 절감<br><strong>6)</strong> 로그/메트릭 전송량 자체를 줄이기 (불필요한 로그 드롭, 메트릭 샘플링)<br><strong>7)</strong> 압축 (gzip/zstd)으로 전송 데이터 크기 축소</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STORAGE ===== -->
+  <div class="P" id="p-storage">
+    <div class="PH"><div class="bg bg-t">● Storage Cost</div><h2>스토리지 비용 최적화</h2><p>EBS, S3, 로그/메트릭 — 시간이 갈수록 쌓이는 비용을 자동으로 관리.</p></div>
+
+    <div class="sec" id="ebs-opt">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Block</div>
+        <h3>EBS 비용 최적화</h3>
+        <div class="cs">EBS 볼륨 타입 선택, 미사용 볼륨 정리, IOPS/Throughput 최적화</div>
+        <div class="dt">
+          <div class="db"><div class="l">볼륨 타입 선택</div><div class="v"><strong>gp3 (범용):</strong> $0.08/GB/월. 3000 IOPS + 125MB/s baseline 포함. 대부분의 워크로드에 최적<br><strong>gp2→gp3 마이그레이션:</strong> gp3가 gp2보다 20% 저렴하고 baseline 성능 우수. 무중단 변경 가능<br><code>aws ec2 modify-volume --volume-type gp3 --volume-id vol-xxx</code><br><br><strong>io2 (고성능):</strong> IOPS 보장 필요 시. DB 전용<br><strong>st1 (throughput):</strong> 시퀀셜 읽기 워크로드. 로그 스토리지<br><strong>sc1 (cold):</strong> 거의 접근 안 하는 아카이브</div></div>
+          <div class="db"><div class="l">낭비 제거</div><div class="v"><strong>미사용 EBS 볼륨:</strong><br><code>aws ec2 describe-volumes --filters Name=status,Values=available</code><br>→ <code>available</code> 상태 = 어떤 인스턴스에도 연결 안 됨 = 비용만 발생<br><br><strong>과대 볼륨:</strong><br>100GB PVC인데 실사용 10GB → 볼륨 축소 (새 PV 생성 → 데이터 복사 → PVC 전환)<br><br><strong>스냅샷 정리:</strong><br>오래된 EBS 스냅샷 삭제 ($0.05/GB/월)<br><code>aws ec2 describe-snapshots --owner-ids self --query 'Snapshots[?StartTime<=\`2024-01-01\`]'</code><br><br><strong>자동화:</strong> 주간 CronJob으로 미사용 볼륨/스냅샷 감지 → Slack 알림</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="s3-lifecycle">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Object</div>
+        <h3>S3 라이프사이클 정책</h3>
+        <div class="cs">시간이 지나면 저렴한 스토리지 클래스로 자동 전환하여 비용 절감</div>
+        <div class="dt">
+          <div class="db"><div class="l">스토리지 클래스 비교</div><div class="v"><strong>S3 Standard:</strong> $0.023/GB. 빈번한 접근<br><strong>S3 IA:</strong> $0.0125/GB. 30일+ 보존, 가끔 접근<br><strong>S3 Glacier IR:</strong> $0.004/GB. 즉시 검색 가능. 90일+ 보존<br><strong>S3 Glacier DA:</strong> $0.0036/GB. 12시간 내 검색. 180일+<br><strong>S3 Glacier Deep:</strong> $0.00099/GB. 12~48시간 검색. 장기 아카이브<br><br><strong>Intelligent-Tiering:</strong> 자동으로 접근 패턴에 따라 클래스 전환. 모니터링 비용 $0.0025/1000 objects</div></div>
+          <div class="db"><div class="l">LGTM 스택 적용</div><div class="v"><strong>Loki 청크:</strong><br>30일: Standard → 90일: IA → 1년: Glacier IR<br>Lifecycle rule로 자동 전환<br><br><strong>Tempo 트레이스:</strong><br>7일: Standard → 30일: IA → 90일: Glacier<br>트레이스는 최근 것만 검색 빈번<br><br><strong>Mimir 메트릭:</strong><br>장기 보존이 필요하지만 접근은 드뭄<br>Recording Rule 결과만 장기 보존 (원본은 30일)<br><br><strong>설정:</strong> Terraform <code>aws_s3_bucket_lifecycle_configuration</code>으로 관리. 환경별 보존 기간 차등 적용</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="log-cost">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Observability</div>
+        <h3>로그/메트릭 비용 관리</h3>
+        <div class="cs">관측 데이터가 전체 인프라 비용의 20~30%를 차지할 수 있다</div>
+        <div class="cp">LGTM 스택을 자체 호스팅하더라도 <strong>스토리지 비용(S3), 컴퓨팅 비용(Ingester/Querier), 네트워크 비용(전송)</strong>이 발생한다. 관측 데이터 볼륨을 관리하지 않으면 인프라 비용을 잡아먹는다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">로그 비용 절감</div><div class="v"><strong>Alloy에서 불필요한 로그 드롭:</strong><br>• health check 로그 드롭 → 20~30% 볼륨 감소<br>• debug 레벨 로그 드롭 → 30~50% 감소<br>• 반복 로그 샘플링 (N건 중 1건만 저장)<br><br><strong>구조화 로그 강제:</strong><br>JSON 로그 → Loki 파싱 효율 증가, 저장 압축률 향상<br><br><strong>보존 기간 차등:</strong><br>• prod: 30일, staging: 7일, dev: 3일<br>• Loki <code>limits_config.retention_period</code>를 테넌트별 설정</div></div>
+          <div class="db"><div class="l">메트릭 비용 절감</div><div class="v"><strong>카디널리티 관리:</strong><br>(Observability 문서에서 상세) 불필요한 라벨 제거, 메트릭 드롭<br><br><strong>Scrape interval 조정:</strong><br>• 핵심 서비스: 15초 (기본)<br>• 인프라 메트릭: 30초<br>• 비핵심: 60초<br>간격 2배 → 시계열 데이터 50% 감소<br><br><strong>Recording Rule로 집계 후 원본 삭제:</strong><br>원본 고카디널리티 메트릭은 7일만 보존<br>Recording Rule 결과는 1년 보존<br><br><strong>비용 추정:</strong><br>시계열 100만개 × 15초 간격 × 30일 보존<br>≈ 50~100GB 디스크 사용 (Prometheus TSDB)<br>S3 저장(Mimir): ~$2~5/월</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

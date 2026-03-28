@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IaC & GitOps Deep Dive — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--purple);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--indigo)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="tf"].on{color:var(--purple)}.T[data-t="tf"].on::after{background:var(--purple);left:8%;right:8%}
+.T[data-t="argo"].on{color:var(--orange)}.T[data-t="argo"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="helm"].on{color:var(--blue)}.T[data-t="helm"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="gitops"].on{color:var(--green)}.T[data-t="gitops"].on::after{background:var(--green);left:8%;right:8%}
+.T[data-t="ci"].on{color:var(--teal)}.T[data-t="ci"].on::after{background:var(--teal);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Practice</div><h1><em>IaC</em> &<br>GitOps</h1></div>
+  <div class="sl">Terraform</div>
+  <ul class="sn">
+    <li><a data-t="tf" data-s="tf-state" class="on"><span class="d" style="background:var(--purple)"></span>State 관리</a></li>
+    <li><a data-t="tf" data-s="tf-module"><span class="d" style="background:var(--purple)"></span>Module 설계</a></li>
+    <li><a data-t="tf" data-s="tf-import"><span class="d" style="background:var(--purple)"></span>import / moved</a></li>
+    <li><a data-t="tf" data-s="tf-provider"><span class="d" style="background:var(--purple)"></span>Provider 내부</a></li>
+    <li><a data-t="tf" data-s="tf-pattern"><span class="d" style="background:var(--purple)"></span>프로젝트 구조</a></li>
+  </ul>
+  <div class="sl">ArgoCD</div>
+  <ul class="sn">
+    <li><a data-t="argo" data-s="aoa"><span class="d" style="background:var(--orange)"></span>App-of-Apps</a></li>
+    <li><a data-t="argo" data-s="appset"><span class="d" style="background:var(--orange)"></span>ApplicationSet</a></li>
+    <li><a data-t="argo" data-s="sync"><span class="d" style="background:var(--orange)"></span>Sync 전략</a></li>
+    <li><a data-t="argo" data-s="argo-secret"><span class="d" style="background:var(--orange)"></span>Secret 관리</a></li>
+    <li><a data-t="argo" data-s="argo-multi"><span class="d" style="background:var(--orange)"></span>멀티클러스터</a></li>
+  </ul>
+  <div class="sl">Helm</div>
+  <ul class="sn">
+    <li><a data-t="helm" data-s="helm-design"><span class="d" style="background:var(--blue)"></span>차트 설계</a></li>
+    <li><a data-t="helm" data-s="helm-values"><span class="d" style="background:var(--blue)"></span>Values 구조화</a></li>
+    <li><a data-t="helm" data-s="helm-test"><span class="d" style="background:var(--blue)"></span>테스트 전략</a></li>
+  </ul>
+  <div class="sl">GitOps 운영</div>
+  <ul class="sn">
+    <li><a data-t="gitops" data-s="gitops-principle"><span class="d" style="background:var(--green)"></span>GitOps 원칙</a></li>
+    <li><a data-t="gitops" data-s="drift"><span class="d" style="background:var(--green)"></span>Drift Detection</a></li>
+    <li><a data-t="gitops" data-s="env-branch"><span class="d" style="background:var(--green)"></span>환경별 전략</a></li>
+  </ul>
+  <div class="sl">CI/CD</div>
+  <ul class="sn">
+    <li><a data-t="ci" data-s="jenkins-adv"><span class="d" style="background:var(--teal)"></span>Jenkins 고급</a></li>
+    <li><a data-t="ci" data-s="ci-pattern"><span class="d" style="background:var(--teal)"></span>파이프라인 패턴</a></li>
+  </ul>
+  <div class="S-f"><p>Git is the single<br>source of truth.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="tf" onclick="sw('tf')">● Terraform</button>
+    <button class="T" data-t="argo" onclick="sw('argo')">● ArgoCD</button>
+    <button class="T" data-t="helm" onclick="sw('helm')">● Helm</button>
+    <button class="T" data-t="gitops" onclick="sw('gitops')">● GitOps</button>
+    <button class="T" data-t="ci" onclick="sw('ci')">● CI/CD</button>
+  </div>
+
+  <!-- ===== TERRAFORM ===== -->
+  <div class="P on" id="p-tf">
+    <div class="PH"><div class="bg bg-p">● Terraform Deep Dive</div><h2>Terraform 내부 동작과 설계 패턴</h2><p>State 관리, Module 설계, import/moved, Provider 내부, 프로젝트 구조 — 대규모 인프라를 안전하게 코드로 관리.</p></div>
+
+    <div class="sec" id="tf-state">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Core</div>
+        <h3>State 관리</h3>
+        <div class="cs">terraform.tfstate — Terraform이 "현재 인프라 상태"를 기억하는 유일한 방법</div>
+        <div class="cp">State 파일은 Terraform이 <strong>실제 인프라와 코드의 매핑</strong>을 저장하는 데이터베이스다. <code>terraform plan</code>은 코드와 state를 비교하여 변경사항을 계산한다. State 손상이나 분실은 <strong>인프라 전체를 잃는 것과 같다.</strong></div>
+        <div class="dt">
+          <div class="db"><div class="l">Remote State 필수</div><div class="v"><strong>로컬 state 금지.</strong> 팀 환경에서는 state 충돌과 유실 위험이 크다.<br><br><strong>S3 + DynamoDB (AWS):</strong><div class="fm">backend "s3" {
+  bucket         = "my-tf-state"
+  key            = "prod/vpc/terraform.tfstate"
+  region         = "ap-northeast-2"
+  dynamodb_table = "tf-lock"
+  encrypt        = true
+}</div><strong>Locking:</strong> DynamoDB로 동시 실행 방지. 같은 state에 두 사람이 apply하면 하나가 lock 대기<br><strong>Versioning:</strong> S3 버킷 버저닝 활성화. state 손상 시 이전 버전 복구</div></div>
+          <div class="db"><div class="l">State 운영 명령</div><div class="v"><div class="fm">terraform state list                # 관리 중인 리소스 목록
+terraform state show aws_vpc.main   # 리소스 상세
+terraform state mv                  # 리소스 주소 변경 (리팩토링 시)
+terraform state rm                  # state에서 제거 (실제 인프라 유지)
+terraform state pull                # remote state 다운로드
+terraform state push                # state 강제 업로드 (위험!)</div><strong>State 분리 원칙:</strong><div class="fm">1. 환경별: prod / staging / dev 각각 별도 state
+2. 계층별: network / compute / app 분리
+3. 폭발 반경 최소화: state 하나가 관리하는 리소스는 100개 이하 권장</div></div></div>
+          <div class="db df"><div class="l">State 사고 대응</div><div class="v"><strong>Lock 해제 안 될 때:</strong> <code>terraform force-unlock LOCK_ID</code> (DynamoDB에서 확인)<br><strong>State 손상:</strong> S3 버저닝에서 이전 state 복원 → <code>terraform state push</code><br><strong>State와 실제 인프라 불일치:</strong> <code>terraform refresh</code>(deprecated) → <code>terraform apply -refresh-only</code><br><strong>State 마이그레이션:</strong> backend 변경 시 <code>terraform init -migrate-state</code><br><br><strong>⚠ 절대 하면 안 되는 것:</strong> state 파일 수동 편집, state push 없이 다른 backend로 교체, 여러 워크스페이스에서 같은 인프라 관리</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="tf-module">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Design</div>
+        <h3>Module 설계 패턴</h3>
+        <div class="cs">재사용 가능하고 테스트 가능한 Terraform 모듈을 만드는 원칙</div>
+        <div class="dt">
+          <div class="db"><div class="l">좋은 모듈의 조건</div><div class="v"><div class="fm">1. 단일 책임: 하나의 논리적 리소스 그룹만 관리
+   예: VPC 모듈, EKS 모듈
+2. 명확한 인터페이스: variables.tf(입력), outputs.tf(출력)이 깔끔
+3. 합리적 기본값: 대부분의 변수에 default 제공, 필수 입력 최소화
+4. 문서화: 변수 description, README.md, examples/ 디렉토리 유지
+5. 버전 고정: required_providers에 버전 제약 명시</div></div></div>
+          <div class="db"><div class="l">모듈 구조</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">modules/
+└── eks-cluster/
+    ├── main.tf          # 리소스 정의
+    ├── variables.tf     # 입력 변수
+    ├── outputs.tf       # 출력 값
+    ├── versions.tf      # provider/terraform 버전
+    ├── locals.tf        # 로컬 계산 값
+    ├── data.tf          # data sources
+    ├── README.md        # 사용법 문서
+    └── examples/
+        └── basic/
+            └── main.tf  # 사용 예시</div></div></div>
+          <div class="db df"><div class="l">Composition 패턴</div><div class="v"><strong>모듈 간 의존성은 output → variable로 연결:</strong><div class="fm">module "vpc" {
+  source = "./modules/vpc"
+}
+
+module "eks" {
+  source     = "./modules/eks"
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnet_ids
+}</div><strong>Root Module:</strong> modules를 조합하여 하나의 환경을 구성하는 최상위 모듈<br><strong>anti-pattern:</strong> 모듈 안에서 다른 모듈을 호출하는 깊은 중첩은 테스트와 디버깅이 어려워진다. 가능하면 root에서 flat하게 조합</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="tf-import">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Migration</div>
+        <h3>import / moved / removed</h3>
+        <div class="cs">기존 인프라를 Terraform 관리로 가져오고, 리소스 주소를 안전하게 변경하는 기법</div>
+        <div class="dt">
+          <div class="db"><div class="l">import (1.5+ HCL import)</div><div class="v"><strong>기존 리소스를 state로 가져오기:</strong><br><br><strong>CLI 방식 (기존):</strong><div class="fm">terraform import aws_vpc.main vpc-12345</div><strong>HCL import 블록 (1.5+, 권장):</strong><div class="fm">import {
+  to = aws_vpc.main
+  id = "vpc-12345"
+}</div><div class="fm">terraform plan -generate-config-out=generated.tf</div>리소스 HCL을 자동 생성한 뒤 수동으로 다듬어 apply한다.<br><br><strong>주의:</strong> import는 state에만 추가된다. HCL 코드는 별도로 작성하거나 `generate-config`를 활용해야 한다.</div></div>
+          <div class="db"><div class="l">moved / removed (1.1+/1.7+)</div><div class="v"><strong>moved (리팩토링):</strong> 리소스 주소 변경 시 destroy+create 방지<div class="fm">moved {
+  from = aws_instance.web
+  to   = module.compute.aws_instance.web
+}</div>plan에서 move로 표시되며 실제 인프라 변경은 없다.<br><br><strong>removed (1.7+):</strong> state에서 제거하되 실제 리소스 유지<div class="fm">removed {
+  from = aws_instance.legacy
+  lifecycle { destroy = false }
+}</div><code>terraform state rm</code>의 선언적 대안이다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="tf-provider">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Internals</div>
+        <h3>Provider 내부 동작</h3>
+        <div class="cs">Terraform이 AWS/NHN/K8s API를 호출하는 메커니즘</div>
+        <div class="cp">Provider는 Terraform과 실제 인프라 API 사이의 <strong>번역기</strong>다. Provider가 각 리소스의 CRUD 로직을 구현하고, Terraform Core가 state와 비교하여 필요한 API 호출을 결정한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">동작 흐름</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">terraform plan:
+  1. State 파일 읽기
+  2. Provider에게 각 리소스의 현재 상태 요청 (Read)
+  3. HCL 코드와 비교하여 diff 계산
+  4. 변경 계획 출력
+
+terraform apply:
+  1. Plan 확인
+  2. 의존성 그래프 순서로 Provider API 호출
+     Create / Update / Delete
+  3. 결과를 State에 기록</div></div></div>
+          <div class="db"><div class="l">Provider 버전 관리</div><div class="v"><strong>버전 고정 필수:</strong><div class="fm">required_providers {
+  aws = { source = "hashicorp/aws", version = "~> 5.0" }
+  kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.25" }
+}</div><div class="fm">~> 5.0   : 5.x 허용, 6.0 불허
+= exact  : 정확한 버전, 안전하지만 업데이트 번거로움
+>= min   : 최소 버전만 보장, 예측 불가 업데이트 위험</div><strong>Lock file:</strong> <code>.terraform.lock.hcl</code>은 반드시 Git에 커밋해 팀원 간 동일 provider 버전을 보장한다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="tf-pattern">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Structure</div>
+        <h3>프로젝트 구조 패턴</h3>
+        <div class="cs">환경별/계층별 분리로 폭발 반경을 최소화하는 디렉토리 구조</div>
+      </div>
+      <div class="co"><span class="c"># 환경별 × 계층별 분리 (권장 구조)</span>
+terraform/
+├── modules/                  <span class="c"># 재사용 모듈</span>
+│   ├── vpc/
+│   ├── eks/
+│   ├── rds/
+│   └── monitoring/
+├── environments/
+│   ├── prod/
+│   │   ├── network/          <span class="c"># VPC, Subnet, NAT GW</span>
+│   │   │   ├── main.tf
+│   │   │   ├── backend.tf    <span class="c"># s3 backend (prod/network)</span>
+│   │   │   └── terraform.tfvars
+│   │   ├── eks/              <span class="c"># EKS Cluster, Node Groups</span>
+│   │   ├── data/             <span class="c"># RDS, Redis</span>
+│   │   └── monitoring/       <span class="c"># LGTM Stack infra</span>
+│   ├── staging/
+│   │   ├── network/
+│   │   ├── eks/
+│   │   └── ...
+│   └── dev/
+└── <span class="g">.terraform.lock.hcl</span>       <span class="c"># Git에 커밋!</span></div>
+      <div class="nt g"><strong>💡 State 분리 전략</strong><br>각 <code>environments/{env}/{layer}/</code>가 독립된 state를 가진다. <code>prod/network</code>를 변경해도 <code>prod/eks</code>의 state에 영향 없음. 계층 간 참조는 <code>terraform_remote_state</code> data source 또는 SSM Parameter Store로.</div>
+    </div>
+  </div>
+
+  <!-- ===== ARGOCD ===== -->
+  <div class="P" id="p-argo">
+    <div class="PH"><div class="bg bg-o">● ArgoCD Deep Dive</div><h2>ArgoCD 심화</h2><p>App-of-Apps, ApplicationSet, Sync 전략, Secret 관리, 멀티클러스터 — 선언적 GitOps의 핵심 도구.</p></div>
+
+    <div class="sec" id="aoa">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Pattern</div>
+        <h3>App-of-Apps 패턴</h3>
+        <div class="cs">하나의 "루트 앱"이 다른 ArgoCD Application들을 관리하는 부트스트랩 패턴</div>
+        <div class="cp">클러스터에 수십 개의 Application을 수동으로 등록하는 대신, <strong>루트 Application 하나</strong>를 등록하면 그 안에 정의된 하위 Application들이 자동으로 생성된다. 클러스터 부트스트랩의 표준 패턴.</div>
+        <div class="dt">
+          <div class="db"><div class="l">구조</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">gitops-repo/
+├── apps/                    # 루트 앱이 가리키는 디렉토리
+│   ├── traefik.yaml         # Application: traefik
+│   ├── prometheus.yaml      # Application: prometheus
+│   ├── loki.yaml            # Application: loki
+│   ├── api-server.yaml      # Application: api-server
+│   └── ...
+├── charts/                  # 커스텀 Helm 차트
+│   ├── api-server/
+│   └── ...
+└── values/                  # 환경별 values
+    ├── prod/
+    └── staging/</div></div></div>
+          <div class="db"><div class="l">루트 앱 정의</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>:
+  <span class="k">name</span>: <span class="s">root-app</span>
+  <span class="k">namespace</span>: <span class="s">argocd</span>
+<span class="k">spec</span>:
+  <span class="k">project</span>: <span class="s">default</span>
+  <span class="k">source</span>:
+    <span class="k">repoURL</span>: <span class="s">https://github.com/org/gitops</span>
+    <span class="k">path</span>: <span class="s">apps</span>
+    <span class="k">targetRevision</span>: <span class="s">main</span>
+  <span class="k">destination</span>:
+    <span class="k">server</span>: <span class="s">https://kubernetes.default.svc</span>
+    <span class="k">namespace</span>: <span class="s">argocd</span>
+  <span class="k">syncPolicy</span>:
+    <span class="k">automated</span>:
+      <span class="k">prune</span>: <span class="n">true</span>
+      <span class="k">selfHeal</span>: <span class="n">true</span></div></div></div>
+        </div>
+      </div>
+      <div class="nt o"><strong>⚠ App-of-Apps vs ApplicationSet</strong><br><strong>App-of-Apps:</strong> 각 Application을 YAML 파일로 직접 정의. 유연하지만 반복적<br><strong>ApplicationSet:</strong> 템플릿으로 여러 Application을 자동 생성. DRY하지만 복잡도 증가<br>CRD 관리를 ApplicationSet에서 개별 Application으로 마이그레이션한 경험이 있다면, 각각의 트레이드오프를 이미 체감했을 것</div>
+    </div>
+
+    <div class="sec" id="appset">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Generator</div>
+        <h3>ApplicationSet</h3>
+        <div class="cs">Generator 기반으로 여러 Application을 템플릿에서 자동 생성</div>
+        <div class="dt">
+          <div class="db"><div class="l">주요 Generator</div><div class="v"><strong>List:</strong> 정적 목록에서 Application 생성. 가장 단순<br><strong>Git Directory:</strong> Git 리포의 디렉토리 구조에서 자동 발견<br><strong>Git File:</strong> 특정 config 파일에서 파라미터 읽기<br><strong>Cluster:</strong> 등록된 클러스터마다 Application 생성<br><strong>Matrix:</strong> 두 Generator를 조합 (클러스터 × 서비스)<br><strong>Merge:</strong> 여러 Generator 결과를 병합<br><br><strong>Cluster + Git Matrix:</strong><br>3개 클러스터 × 5개 서비스 = 15개 Application 자동 생성</div></div>
+          <div class="db"><div class="l">주의사항</div><div class="v"><div class="fm">1. 삭제 정책
+   ApplicationSet이 삭제되면 생성된 모든 Application도 삭제된다.
+   preserveResourcesOnDeletion: true 로 방어
+
+2. CRD 관리 문제
+   ApplicationSet으로 CRD 포함 차트를 관리하면 Sync 순서 문제로
+   CRD 삭제 -> 의존 리소스 전체 삭제 위험이 있다.
+   CRD는 별도 Application으로 분리 관리하는 편이 안전
+
+3. 고유 Application 필요 시
+   템플릿에 맞지 않는 특수 설정이 필요하면
+   App-of-Apps로 직접 정의하는 편이 깔끔</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="sync">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Strategy</div>
+        <h3>Sync 전략</h3>
+        <div class="cs">Sync Wave, Hook, Prune, Self-Heal — 배포 순서와 자동 동기화 제어</div>
+        <div class="dt">
+          <div class="db"><div class="l">Sync Wave (순서 제어)</div><div class="v"><strong>annotation으로 리소스 적용 순서 지정:</strong><div class="fm">argocd.argoproj.io/sync-wave: "-1"   # 먼저 적용
+argocd.argoproj.io/sync-wave: "0"    # 기본 (동시)
+argocd.argoproj.io/sync-wave: "1"    # 나중에 적용</div><strong>활용 예시:</strong><div class="fm">Wave -1: Namespace, CRD 생성
+Wave 0 : ConfigMap, Secret, PVC
+Wave 1 : Deployment, Service
+Wave 2 : Ingress, HTTPRoute
+Wave 3 : Post-deploy Job (DB migration)</div></div></div>
+          <div class="db"><div class="l">Sync Hook</div><div class="v"><strong>Sync 단계에 Hook으로 Job/Pod 실행:</strong><div class="fm">argocd.argoproj.io/hook: PreSync    # Sync 전 (DB migration)
+argocd.argoproj.io/hook: Sync       # Sync 중
+argocd.argoproj.io/hook: PostSync   # Sync 후 (smoke test)
+argocd.argoproj.io/hook: SyncFail   # Sync 실패 시 (알림)
+
+argocd.argoproj.io/hook-delete-policy: HookSucceeded</div>Hook 성공 후 자동 삭제되고, 실패 시에는 남겨 두어 디버깅할 수 있다.</div></div>
+          <div class="db df"><div class="l">자동 Sync 정책</div><div class="v"><strong>automated.prune:</strong> Git에서 삭제된 리소스를 클러스터에서도 삭제. <code>true</code> 권장이지만 초기에는 <code>false</code>로 시작<br><strong>automated.selfHeal:</strong> 누군가 kubectl로 직접 변경해도 Git 상태로 되돌림. GitOps 핵심 원칙<br><strong>automated.allowEmpty:</strong> Git이 비어있을 때 모든 리소스 삭제 허용. <strong>절대 true로 설정하지 말 것</strong><br><strong>retry:</strong> Sync 실패 시 자동 재시도. <code>limit: 5</code>, <code>backoff.duration: 5s</code>, <code>backoff.maxDuration: 3m</code><br><br><strong>ignoreDifferences:</strong> 특정 필드의 diff를 무시 (kubectl annotate 등으로 추가된 annotation). <code>jqPathExpressions</code>으로 세밀 제어</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="argo-secret">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Security</div>
+        <h3>Secret 관리</h3>
+        <div class="cs">Git에 Secret을 직접 커밋하지 않고 GitOps로 관리하는 방법</div>
+        <div class="cp">GitOps의 가장 큰 도전: <strong>"모든 것을 Git에"라는 원칙과 "Secret을 Git에 넣지 마라"는 원칙의 충돌.</strong></div>
+        <div class="dt">
+          <div class="db"><div class="l">접근법 비교</div><div class="v"><strong>Sealed Secrets:</strong> kubeseal로 암호화 → Git에 커밋 → 클러스터에서 복호화<br>장점: 단순, ArgoCD 친화적<br>단점: 키 관리, 키 로테이션 수동<br><br><strong>External Secrets Operator:</strong> AWS SM, Vault 등에서 Secret 동기화<br>장점: 외부 시크릿 관리자 활용, 자동 로테이션<br>단점: 외부 의존성 추가<br><br><strong>SOPS (Mozilla):</strong> 파일 단위 암호화. age/PGP/KMS 키 사용<br>장점: Git diff 가능 (일부 필드만 암호화)<br>단점: 키 관리 복잡</div></div>
+          <div class="db"><div class="l">권장 구성</div><div class="v"><strong>프로덕션 권장: External Secrets Operator</strong><div class="fm">ExternalSecret
+spec.data[].remoteRef.key: "prod/api-server/db-password"</div>ArgoCD가 Sync하고, ESO가 AWS Secrets Manager에서 값을 가져와 K8s Secret을 생성한다.<br><br><strong>장점:</strong><div class="fm">1. Secret 값은 Git에 없음
+2. ExternalSecret 정의는 Git에 있음
+3. AWS Secrets Manager에서 자동 로테이션 가능
+4. 여러 클러스터에서 같은 시크릿 소스 공유 가능</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="argo-multi">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Multi</div>
+        <h3>멀티클러스터 ArgoCD</h3>
+        <div class="cs">하나의 ArgoCD에서 여러 K8s 클러스터를 관리하는 패턴</div>
+        <div class="dt">
+          <div class="db"><div class="l">허브-스포크 모델</div><div class="v"><strong>관리 클러스터:</strong> ArgoCD가 설치된 허브<br><strong>워크로드 클러스터:</strong> ArgoCD가 배포하는 대상<div class="fm">argocd cluster add eks-prod --name eks-prod
+argocd cluster add nhn-prod --name nhn-prod</div><strong>Application에서 대상 지정:</strong><div class="fm">spec.destination.server: https://eks-prod-api.example.com
+# 또는
+spec.destination.name: eks-prod</div></div></div>
+          <div class="db"><div class="l">AWS EKS + NHN NKS 구성</div><div class="v"><strong>ArgoCD 위치:</strong> EKS(주) 클러스터에 설치<br><strong>NHN NKS 등록:</strong> kubeconfig 기반으로 클러스터 추가<br><br><strong>환경별 values 분기:</strong><div class="fm"># apps/api-server.yaml
+source.helm.valueFiles:
+  - values/common.yaml
+  - values/{{ .cluster }}/values.yaml</div><strong>ApplicationSet + Cluster Generator:</strong> 등록된 모든 클러스터에 동일 앱을 자동 배포하고, 클러스터별 values만 다르게 가져간다.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HELM ===== -->
+  <div class="P" id="p-helm">
+    <div class="PH"><div class="bg bg-b">● Helm Deep Dive</div><h2>Helm 차트 설계 패턴</h2><p>차트 구조, Values 설계, Library Chart, 테스트 전략 — 재사용 가능한 K8s 패키징.</p></div>
+
+    <div class="sec" id="helm-design">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Design</div>
+        <h3>차트 설계 원칙</h3>
+        <div class="cs">유지보수 가능하고, 환경별로 유연하게 커스텀할 수 있는 차트 구조</div>
+        <div class="dt">
+          <div class="db"><div class="l">차트 구조</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">charts/api-server/
+├── Chart.yaml          # 차트 메타데이터
+├── values.yaml         # 기본 values
+├── templates/
+│   ├── _helpers.tpl    # 템플릿 함수
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── hpa.yaml
+│   ├── pdb.yaml
+│   ├── serviceaccount.yaml
+│   ├── configmap.yaml
+│   ├── ingress.yaml    # or httproute.yaml
+│   └── tests/
+│       └── test-connection.yaml
+├── ci/                 # CI용 values
+│   └── test-values.yaml
+└── README.md</div></div></div>
+          <div class="db"><div class="l">설계 원칙</div><div class="v"><div class="fm">1. 모든 것을 values로 제어 가능하게
+   이미지, 리소스, replica, 환경변수 등 하드코딩 금지
+2. 조건부 렌더링
+   {{- if .Values.hpa.enabled }} 로 선택적 리소스 생성
+3. 공통 라벨/어노테이션
+   _helpers.tpl 에 정의해 모든 리소스에 일관 적용
+4. 리소스 네이밍
+   {{ include "chart.fullname" . }} 로 Release별 고유 이름 생성
+5. 의존성 최소화
+   subchart보다 독립적으로 배포 가능한 구조 선호</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="helm-values">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Values</div>
+        <h3>Values 구조화 전략</h3>
+        <div class="cs">기본값, 환경별 오버라이드, 시크릿 분리 — 다층 values 관리</div>
+        <div class="dt">
+          <div class="db"><div class="l">Values 계층</div><div class="v"><div class="fm">1. values.yaml
+   차트 내장 기본값. 대부분의 환경에서 동작
+2. values-common.yaml
+   조직 공통 설정. 이미지 레지스트리, 라벨 정책 등
+3. values-{env}.yaml
+   환경별 오버라이드. replica 수, 리소스 크기, 도메인
+4. values-secret.yaml
+   민감 정보. Git에 커밋하지 않고 External Secrets로 대체</div><strong>ArgoCD에서 다중 values 적용:</strong><div class="fm">spec.source.helm.valueFiles:
+  - values.yaml
+  - values/common.yaml
+  - values/prod.yaml</div>뒤의 파일이 앞의 값을 오버라이드한다.</div></div>
+          <div class="db"><div class="l">Values 설계 패턴</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="c"># values.yaml — 좋은 구조 예시</span>
+<span class="k">replicaCount</span>: <span class="n">2</span>
+<span class="k">image</span>:
+  <span class="k">repository</span>: <span class="s">registry.example.com/api</span>
+  <span class="k">tag</span>: <span class="s">""</span>  <span class="c"># CI에서 주입</span>
+  <span class="k">pullPolicy</span>: <span class="s">IfNotPresent</span>
+<span class="k">resources</span>:
+  <span class="k">requests</span>: { <span class="k">cpu</span>: <span class="s">100m</span>, <span class="k">memory</span>: <span class="s">128Mi</span> }
+  <span class="k">limits</span>:   { <span class="k">cpu</span>: <span class="s">500m</span>, <span class="k">memory</span>: <span class="s">512Mi</span> }
+<span class="k">hpa</span>:
+  <span class="k">enabled</span>: <span class="n">true</span>
+  <span class="k">minReplicas</span>: <span class="n">2</span>
+  <span class="k">maxReplicas</span>: <span class="n">10</span>
+  <span class="k">targetCPU</span>: <span class="n">70</span>
+<span class="k">ingress</span>:
+  <span class="k">enabled</span>: <span class="n">true</span>
+  <span class="k">className</span>: <span class="s">traefik</span>
+  <span class="k">hosts</span>: [{ <span class="k">host</span>: <span class="s">api.example.com</span> }]</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="helm-test">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Testing</div>
+        <h3>Helm 테스트 전략</h3>
+        <div class="cs">lint, template, unittest, integration — 차트 품질을 보장하는 다단계 테스트</div>
+        <div class="dt">
+          <div class="db"><div class="l">테스트 레벨</div><div class="v"><div class="fm">1. helm lint
+   helm lint ./charts/api-server
+
+2. helm template
+   helm template test ./charts/api-server -f ci/test-values.yaml
+
+3. helm-unittest
+   helm unittest ./charts/api-server
+   YAML 파일로 테스트 케이스 작성
+
+4. kubeval / kubeconform
+   helm template ... | kubeconform -strict
+
+5. helm test (integration)
+   helm test my-release</div></div></div>
+          <div class="db"><div class="l">CI 통합</div><div class="v"><strong>PR 시 자동 검증 파이프라인:</strong><div class="fm">1. helm lint
+2. helm template + kubeconform
+3. helm-unittest
+4. helm diff
+5. (선택) Kind / Minikube 배포 후 helm test</div><strong>chart-testing (ct):</strong> Helm 차트 변경 감지와 자동 lint, install 테스트까지 묶어서 charts-repo CI에 잘 맞는다.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== GITOPS ===== -->
+  <div class="P" id="p-gitops">
+    <div class="PH"><div class="bg bg-g">● GitOps Operations</div><h2>GitOps 운영 패턴</h2><p>GitOps 원칙, Drift Detection, 환경별 전략 — Git을 Single Source of Truth으로 운영하는 실무.</p></div>
+
+    <div class="sec" id="gitops-principle">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Principles</div>
+        <h3>GitOps 4대 원칙</h3>
+        <div class="cs">OpenGitOps 프로젝트가 정의한 GitOps의 핵심 원칙</div>
+        <div class="dt">
+          <div class="db df"><div class="l">4대 원칙</div><div class="v"><div class="fm">1. Declarative
+   원하는 상태(desired state)를 선언적으로 기술
+   예: Kubernetes YAML, Helm values, Terraform HCL
+
+2. Versioned & Immutable
+   원하는 상태를 Git에 버전 관리
+   누가, 언제, 왜 바꿨는지 커밋으로 추적 가능
+
+3. Pulled Automatically
+   에이전트(ArgoCD)가 Git에서 상태를 자동으로 가져와 적용
+   Push가 아닌 Pull 모델이며, CI가 kubectl apply 하는 것은 GitOps가 아님
+
+4. Continuously Reconciled
+   실제 상태가 원하는 상태와 다르면 자동으로 수정
+   Drift를 감지하고 되돌림</div></div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 Push vs Pull 모델</strong><br><strong>Push (전통 CI/CD):</strong> Jenkins가 <code>kubectl apply</code> 실행. CI에 클러스터 credential 필요. 보안 위험<br><strong>Pull (GitOps):</strong> ArgoCD가 클러스터 안에서 Git을 polling. CI는 Git에만 push. 클러스터 credential이 외부에 노출되지 않음</div>
+    </div>
+
+    <div class="sec" id="drift">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Detection</div>
+        <h3>Drift Detection & Self-Heal</h3>
+        <div class="cs">실제 상태가 Git과 달라졌을 때 감지하고 자동 복구하는 메커니즘</div>
+        <div class="dt">
+          <div class="db"><div class="l">Drift 발생 원인</div><div class="v"><div class="fm">1. kubectl 직접 수정
+   kubectl edit deployment 가 가장 흔한 원인
+2. 다른 컨트롤러
+   HPA가 replica 변경, VPA가 resource 변경
+3. Admission Webhook
+   리소스 생성 시 webhook이 필드 추가
+4. K8s 기본값
+   명시하지 않은 필드에 K8s가 기본값 삽입</div><strong>Drift를 허용해야 하는 경우:</strong> HPA의 replica 수, VPA의 resource 값은 <code>ignoreDifferences</code>로 제외한다.</div></div>
+          <div class="db"><div class="l">ArgoCD Self-Heal 설정</div><div class="v"><div class="fm">syncPolicy.automated.selfHeal: true
+
+argocd_app_info{sync_status="OutOfSync"}   # drift 감지
+argocd_app_sync_total{phase="Failed"}      # self-heal 실패
+
+trigger: on-sync-status-unknown
+trigger: on-health-degraded</div>3분마다 상태를 비교하고 diff를 발견하면 자동으로 Sync한다.<br><br><strong>문화:</strong> "kubectl로 직접 변경하면 ArgoCD가 되돌린다"를 팀 전체가 이해해야 한다. 긴급 상황에서도 <strong>Git에 커밋 → Sync</strong>가 원칙이다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="env-branch">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Strategy</div>
+        <h3>환경별 관리 전략</h3>
+        <div class="cs">단일 브랜치 vs 멀티 브랜치 vs 디렉토리 분리 — GitOps 리포 구조 설계</div>
+        <div class="dt">
+          <div class="db"><div class="l">디렉토리 분리 (권장)</div><div class="v"><strong>단일 브랜치(main) + 디렉토리로 환경 분리:</strong><div class="fm" style="text-align:left;font-size:10px">gitops/
+├── apps/
+│   └── api-server.yaml  # dest별로 cluster 지정
+├── base/                # 공통 manifests
+├── overlays/
+│   ├── dev/
+│   ├── staging/
+│   └── prod/            # Kustomize overlay
+└── values/
+    ├── dev/
+    ├── staging/
+    └── prod/            # Helm values</div><strong>장점:</strong> 한 PR에서 모든 환경 변경 확인 가능. 브랜치 머지 지옥 없음<br><strong>ArgoCD:</strong> targetRevision은 모두 <code>main</code>. path만 다르게</div></div>
+          <div class="db"><div class="l">멀티 브랜치 (비권장)</div><div class="v"><strong>브랜치별 환경: main→prod, develop→staging, feature→dev</strong><br><br><strong>단점:</strong><br>• cherry-pick / merge 지옥<br>• 환경 간 차이가 브랜치에 숨겨져 파악 어려움<br>• PR 리뷰가 환경별로 분산<br><br><strong>유일한 장점:</strong> 환경별 접근 제어 (branch protection). 하지만 ArgoCD Project RBAC으로 대체 가능<br><br><strong>결론:</strong> 새로 시작한다면 <strong>단일 브랜치 + 디렉토리 분리</strong>가 가장 깔끔</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CI/CD ===== -->
+  <div class="P" id="p-ci">
+    <div class="PH"><div class="bg bg-t">● CI/CD Patterns</div><h2>CI/CD 파이프라인 패턴</h2><p>Jenkins 고급 패턴, 빌드 캐싱, 아티팩트 관리, GitOps 연동 — 효율적인 딜리버리 파이프라인.</p></div>
+
+    <div class="sec" id="jenkins-adv">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Jenkins</div>
+        <h3>Jenkins 고급 패턴</h3>
+        <div class="cs">Shared Library, 에이전트 관리, 병렬 실행, 보안 — 대규모 Jenkins 운영</div>
+        <div class="dt">
+          <div class="db"><div class="l">Shared Library</div><div class="v"><strong>Jenkinsfile의 중복을 제거하는 공통 함수 라이브러리:</strong><div class="fm" style="text-align:left;font-size:10px">vars/
+├── buildDocker.groovy    # def call(Map config) { ... }
+├── deployHelm.groovy
+├── notifySlack.groovy
+└── runTests.groovy
+
+src/org/company/
+└── Pipeline.groovy       # 클래스 기반 복잡 로직</div><div class="fm">@Library('shared-lib') _
+buildDocker(image: 'api-server', tag: env.GIT_COMMIT)</div><strong>장점:</strong> DRY, 일관된 파이프라인, 중앙 관리 가능<br><strong>버전 고정:</strong> <code>@Library('shared-lib@v2.0')</code></div></div>
+          <div class="db"><div class="l">K8s Agent</div><div class="v"><strong>Jenkins 에이전트를 K8s Pod으로 동적 실행:</strong><div class="fm">kubernetes { yaml """
+  containers:
+  - name: docker
+    image: docker:dind
+  - name: helm
+    image: alpine/helm
+""" 
+}</div><strong>장점:</strong> 빌드 시에만 리소스를 쓰고, 격리된 환경에서 다양한 도구 컨테이너를 함께 올릴 수 있다.<br><strong>빌드 캐시:</strong><div class="fm">volumes: [persistentVolumeClaim(claimName: 'build-cache')]</div>PVC를 마운트해 Go mod cache, npm cache 등을 보존한다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="ci-pattern">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Patterns</div>
+        <h3>CI/CD + GitOps 연동 파이프라인</h3>
+        <div class="cs">CI는 빌드와 이미지 푸시만, 배포는 ArgoCD가 — 역할 분리</div>
+        <div class="cp">GitOps 환경에서 <strong>CI는 이미지를 빌드하여 레지스트리에 push하고, GitOps 리포의 이미지 태그를 업데이트하는 것까지만</strong> 담당한다. 실제 배포(kubectl apply)는 하지 않는다.</div>
+        <div class="dt">
+          <div class="db df"><div class="l">전체 파이프라인</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">1. 개발자가 app-repo에 코드 Push
+2. Jenkins가 PR 트리거 (또는 merge 트리거)
+3. CI 파이프라인:
+   a. 코드 Checkout
+   b. 린트 + 단위 테스트
+   c. Docker 이미지 빌드 (commit SHA 태그)
+   d. 이미지 취약점 스캔 (Trivy)
+   e. 이미지 Push → Container Registry
+   f. GitOps 리포의 values.yaml에서 image.tag 업데이트
+   g. GitOps 리포에 커밋 + Push
+4. ArgoCD가 GitOps 리포 변경 감지
+5. ArgoCD가 새 이미지로 배포 (Sync)
+6. ArgoCD Notification → Slack 알림</div><strong>핵심:</strong> CI(Jenkins)는 <strong>Git에 커밋하는 것</strong>까지만 한다. <code>kubectl</code>이나 <code>helm install</code>을 직접 실행하지 않는다. 배포 권한을 CI에서 분리하여 <strong>보안 향상 + 감사 추적 용이</strong>.</div></div>
+        </div>
+      </div>
+      <div class="cg" style="margin-top:16px;">
+        <div class="cd" style="border-top:3px solid var(--teal);">
+          <h4>빌드 캐싱 전략</h4>
+          <p><strong>Docker layer cache:</strong> <code>--cache-from</code>으로 이전 이미지 레이어 재사용<br><strong>Go:</strong> <code>GOMODCACHE</code> PVC 마운트 → 의존성 다운로드 스킵<br><strong>npm:</strong> <code>.npm</code> 캐시 PVC 마운트<br><strong>Multi-stage build:</strong> 빌드 스테이지와 실행 스테이지 분리 → 최종 이미지 최소화</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--teal);">
+          <h4>이미지 태그 전략</h4>
+          <p><strong>Commit SHA:</strong> <code>api-server:a1b2c3d</code>. 불변. 어떤 코드인지 추적 가능<br><strong>latest 금지:</strong> 어떤 버전인지 알 수 없음. 롤백 불가<br><strong>Semantic (릴리스):</strong> <code>v1.2.3</code>. 주요 릴리스용<br><strong>Branch+SHA:</strong> <code>main-a1b2c3d</code>. 브랜치 식별 포함</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

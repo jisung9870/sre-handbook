@@ -1,0 +1,29 @@
+# 의존성
+node_modules/
+
+# 빌드 결과
+dist/
+.vite/
+
+# 빌드 타임 생성 파일 (pnpm extract & pnpm search-index로 재생성)
+public/data/documents-meta.json
+public/data/search-index.json
+
+# 환경 변수
+.env
+.env.local
+.env.*.local
+
+# 에디터
+.DS_Store
+*.local
+.idea/
+.vscode/settings.json
+
+# 로그
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# 캐시
+.cache/

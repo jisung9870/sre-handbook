@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kubernetes Operations Deep Dive — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--indigo)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="cp"].on{color:var(--teal)}.T[data-t="cp"].on::after{background:var(--teal);left:8%;right:8%}
+.T[data-t="sched"].on{color:var(--blue)}.T[data-t="sched"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="net"].on{color:var(--orange)}.T[data-t="net"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="stor"].on{color:var(--purple)}.T[data-t="stor"].on::after{background:var(--purple);left:8%;right:8%}
+.T[data-t="debug"].on{color:var(--green)}.T[data-t="debug"].on::after{background:var(--green);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:7px}.cd h4 .d{width:7px;height:7px;border-radius:50%}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt.b{background:var(--bbg);border-left-color:var(--blue)}.nt.b strong{color:var(--blue)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.fl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin:12px 0}.fn{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;text-align:center;min-width:90px;box-shadow:var(--sh)}.fn h4{font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:1px;font-weight:700}.fn p{font-size:9px;color:var(--td)}.fa{font-family:'JetBrains Mono',monospace;color:var(--tm);font-size:16px}
+.sr{display:flex;gap:4px;margin:6px 0}.si{flex:1;border-radius:5px;padding:8px 5px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700}.si small{display:block;font-weight:500;font-size:8px;opacity:.7;margin-top:1px}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Deep Dive</div><h1><em>Kubernetes</em><br>Operations</h1></div>
+  <div class="sl">Control Plane</div>
+  <ul class="sn">
+    <li><a data-t="cp" data-s="etcd" class="on"><span class="d" style="background:var(--teal)"></span>etcd 운영</a></li>
+    <li><a data-t="cp" data-s="apiserver"><span class="d" style="background:var(--teal)"></span>API Server 내부</a></li>
+    <li><a data-t="cp" data-s="admission"><span class="d" style="background:var(--teal)"></span>Admission Controller</a></li>
+    <li><a data-t="cp" data-s="apf"><span class="d" style="background:var(--teal)"></span>API Priority & Fairness</a></li>
+  </ul>
+  <div class="sl">Scheduler</div>
+  <ul class="sn">
+    <li><a data-t="sched" data-s="sched-pipe"><span class="d" style="background:var(--blue)"></span>스케줄링 파이프라인</a></li>
+    <li><a data-t="sched" data-s="topo"><span class="d" style="background:var(--blue)"></span>Topology Spread</a></li>
+    <li><a data-t="sched" data-s="preempt"><span class="d" style="background:var(--blue)"></span>Priority & Preemption</a></li>
+    <li><a data-t="sched" data-s="descheduler"><span class="d" style="background:var(--blue)"></span>Descheduler</a></li>
+  </ul>
+  <div class="sl">Networking</div>
+  <ul class="sn">
+    <li><a data-t="net" data-s="svc-deep"><span class="d" style="background:var(--orange)"></span>Service 내부 동작</a></li>
+    <li><a data-t="net" data-s="gw-api"><span class="d" style="background:var(--orange)"></span>Gateway API</a></li>
+    <li><a data-t="net" data-s="netpol"><span class="d" style="background:var(--orange)"></span>NetworkPolicy</a></li>
+    <li><a data-t="net" data-s="dns-deep"><span class="d" style="background:var(--orange)"></span>CoreDNS 심화</a></li>
+  </ul>
+  <div class="sl">Storage</div>
+  <ul class="sn">
+    <li><a data-t="stor" data-s="csi"><span class="d" style="background:var(--purple)"></span>CSI & PV Lifecycle</a></li>
+    <li><a data-t="stor" data-s="sc"><span class="d" style="background:var(--purple)"></span>StorageClass 설계</a></li>
+    <li><a data-t="stor" data-s="snapshot"><span class="d" style="background:var(--purple)"></span>Volume Snapshot</a></li>
+  </ul>
+  <div class="sl">Troubleshooting</div>
+  <ul class="sn">
+    <li><a data-t="debug" data-s="pod-states"><span class="d" style="background:var(--green)"></span>Pod 상태별 진단</a></li>
+    <li><a data-t="debug" data-s="node-debug"><span class="d" style="background:var(--green)"></span>Node 문제 진단</a></li>
+    <li><a data-t="debug" data-s="event"><span class="d" style="background:var(--green)"></span>Event & Audit</a></li>
+    <li><a data-t="debug" data-s="debug-tool"><span class="d" style="background:var(--green)"></span>디버깅 도구</a></li>
+  </ul>
+  <div class="S-f"><p>kubectl is your<br>stethoscope.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="cp" onclick="sw('cp')">● Control Plane</button>
+    <button class="T" data-t="sched" onclick="sw('sched')">● Scheduler</button>
+    <button class="T" data-t="net" onclick="sw('net')">● Networking</button>
+    <button class="T" data-t="stor" onclick="sw('stor')">● Storage</button>
+    <button class="T" data-t="debug" onclick="sw('debug')">● Troubleshoot</button>
+  </div>
+
+  <!-- ===== CONTROL PLANE ===== -->
+  <div class="P on" id="p-cp">
+    <div class="PH"><div class="bg bg-t">● Control Plane Internals</div><h2>Control Plane 내부 동작과 운영</h2><p>etcd, API Server, Admission Controller, APF — K8s 두뇌의 동작 원리와 운영 포인트.</p></div>
+
+    <div class="sec" id="etcd">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Data Store</div>
+        <h3>etcd 운영 심화</h3>
+        <div class="cs">K8s의 모든 상태를 저장하는 분산 key-value store. 클러스터의 Single Source of Truth</div>
+        <div class="cp">etcd 장애 = <strong>K8s 클러스터 전체 장애</strong>. 새 Pod 생성, ConfigMap 업데이트, Service 변경 등 모든 상태 변경이 불가능해진다. etcd는 Raft consensus를 사용하는 CP 시스템이므로, <strong>과반수 노드가 살아있어야</strong> 동작한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 운영 작업</div><div class="v"><strong>Compaction:</strong> 히스토리 정리. etcd는 모든 키의 변경 히스토리를 보존. 주기적 compaction 필수<br><code>etcdctl compact $(etcdctl endpoint status -w json | jq '.[0].Status.header.revision')</code><br><br><strong>Defragmentation:</strong> compaction 후 디스크 공간 회수<br><code>etcdctl defrag --endpoints=...</code><br>⚠ defrag 중 해당 멤버 일시 중단됨. 한 번에 한 멤버씩<br><br><strong>Snapshot 백업:</strong><br><code>etcdctl snapshot save /backup/etcd-$(date +%Y%m%d).db</code><br>CronJob으로 자동화. S3 등 외부 저장소로 전송</div></div>
+          <div class="db"><div class="l">성능 튜닝</div><div class="v"><strong>디스크:</strong> SSD 필수. WAL과 data를 별도 디스크로 분리하면 성능 향상<br><code>--wal-dir=/ssd-wal</code><br><br><strong>DB 크기:</strong> 기본 2GB quota. 대규모 클러스터는 <code>--quota-backend-bytes=8589934592</code> (8GB)<br>quota 초과 시 <strong>alarm NOSPACE</strong> → 모든 쓰기 거부<br><br><strong>Heartbeat/Election:</strong><br><code>--heartbeat-interval=250</code> (기본 100ms)<br><code>--election-timeout=2500</code> (기본 1000ms)<br>네트워크 지연이 있는 환경에서 증가</div></div>
+          <div class="db df"><div class="l">모니터링 핵심 메트릭</div><div class="v"><code>etcd_server_leader_changes_seen_total</code> — 리더 변경 빈도. 잦으면 네트워크/디스크 문제<br><code>etcd_disk_wal_fsync_duration_seconds</code> — WAL fsync 지연. P99 > 10ms면 디스크 병목<br><code>etcd_server_proposals_failed_total</code> — 실패한 Raft 제안. 0이어야 정상<br><code>etcd_mvcc_db_total_size_in_bytes</code> — DB 크기. quota 대비 80% 알림<br><code>etcd_server_slow_apply_total</code> — 느린 apply. 증가하면 성능 저하<br><code>etcd_network_peer_round_trip_time_seconds</code> — 피어 간 RTT. 클러스터 네트워크 상태</div></div>
+        </div>
+      </div>
+      <div class="nt r"><strong>⚠ etcd 복구 시나리오</strong><br><strong>1멤버 장애 (3노드 중):</strong> 자동 복구. 새 멤버 추가로 해결. 데이터 손실 없음<br><strong>과반수 장애 (3노드 중 2):</strong> 클러스터 read-only. snapshot 복원 필요<br><strong>전체 장애:</strong> snapshot에서 새 클러스터 부트스트랩. <code>etcdctl snapshot restore</code><br>⚠ 복원 시 Raft 클러스터 ID가 변경됨. 모든 멤버에서 동시 복원 필요</div>
+    </div>
+
+    <div class="sec" id="apiserver">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Gateway</div>
+        <h3>API Server 내부 동작</h3>
+        <div class="cs">모든 K8s 컴포넌트의 통신 허브. REST API → 인증 → 인가 → Admission → etcd</div>
+        <div class="cp">kubectl, kubelet, controller-manager, scheduler 등 모든 컴포넌트는 <strong>API Server를 통해서만</strong> etcd에 접근한다. API Server는 단순 프록시가 아니라 <strong>인증, 인가, Admission Control, 검증, 직렬화</strong>를 수행하는 복잡한 게이트웨이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">요청 처리 파이프라인</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Client Request
+  → Authentication (인증: 누구인가?)
+    → Authorization (인가: 허용된 행동인가?)
+      → Mutating Admission (요청 변경)
+        → Schema Validation (스키마 검증)
+          → Validating Admission (최종 검증)
+            → etcd Write/Read
+              → Response</div></div></div>
+          <div class="db"><div class="l">성능 & 안정성</div><div class="v"><strong>HA:</strong> 여러 인스턴스를 LB 뒤에 배치. Stateless이므로 수평 확장 가능<br><strong>Watch:</strong> etcd watch를 기반으로 리소스 변경을 실시간 통지. 대규모 클러스터에서는 watch 수가 API Server 메모리 사용량을 크게 좌우<br><strong>Request throttling:</strong> <code>--max-requests-inflight=400</code><br><code>--max-mutating-requests-inflight=200</code><br>초과 시 429 Too Many Requests 반환</div></div>
+          <div class="db df"><div class="l">모니터링</div><div class="v"><code>apiserver_request_duration_seconds</code> — API 요청 지연 시간. verb, resource별 분석<br><code>apiserver_request_total</code> — 요청 수. 429/500 비율 모니터링<br><code>apiserver_current_inflight_requests</code> — 현재 처리 중 요청 수. limit 대비 비율<br><code>apiserver_storage_objects</code> — etcd에 저장된 오브젝트 수. 리소스 유형별<br><code>workqueue_depth</code> — 내부 작업 큐 깊이. 높으면 처리 지연</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="admission">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Policy</div>
+        <h3>Admission Controller 체인</h3>
+        <div class="cs">API 요청을 가로채 수정(Mutating) 또는 거부(Validating)하는 플러그인 체계</div>
+        <div class="cp">Admission Controller는 <strong>API 요청이 etcd에 저장되기 전</strong>에 개입하는 미들웨어다. 보안 정책, 기본값 주입, 리소스 제한 등을 강제할 수 있다. <strong>Mutating → Validating</strong> 순서로 실행된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">주요 내장 컨트롤러</div><div class="v"><strong>NamespaceLifecycle:</strong> 삭제 중인 ns에 리소스 생성 방지<br><strong>LimitRanger:</strong> 기본 resource request/limit 주입<br><strong>ResourceQuota:</strong> ns별 리소스 총량 제한<br><strong>PodSecurity:</strong> Pod Security Standards 적용 (PSP 대체)<br><strong>DefaultStorageClass:</strong> PVC에 기본 SC 할당<br><strong>MutatingAdmissionWebhook:</strong> 외부 webhook 호출<br><strong>ValidatingAdmissionWebhook:</strong> 외부 webhook 검증</div></div>
+          <div class="db"><div class="l">Webhook Admission</div><div class="v"><strong>Mutating Webhook 활용:</strong><br>• Istio sidecar injection (envoy 자동 주입)<br>• Vault agent injection (시크릿 자동 주입)<br>• 기본 라벨/어노테이션 추가<br><br><strong>Validating Webhook 활용:</strong><br>• OPA/Gatekeeper: 정책 기반 리소스 검증<br>• Kyverno: YAML 정책으로 리소스 검증/변경<br>• 이미지 레지스트리 화이트리스트 강제<br><br>⚠ Webhook 서비스 장애 시 모든 API 호출 차단 가능. <code>failurePolicy: Ignore</code> 설정으로 방어</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="apf">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Throttling</div>
+        <h3>API Priority and Fairness (APF)</h3>
+        <div class="cs">API Server 과부하 시 중요한 요청을 우선 처리하고 덜 중요한 요청을 제한하는 메커니즘</div>
+        <div class="cp">단순 rate limiting(<code>max-requests-inflight</code>)은 모든 요청을 동등하게 취급한다. APF는 <strong>요청을 우선순위별 큐로 분류</strong>하여, system-critical 요청(kubelet heartbeat, leader election)이 낮은 우선순위 요청(kubectl list)에 밀리지 않도록 보장한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 개념</div><div class="v"><strong>FlowSchema:</strong> 요청을 어떤 PriorityLevel에 매핑할지 정의. 사용자, 그룹, verb, resource 등으로 분류<br><strong>PriorityLevelConfiguration:</strong> 각 우선순위의 동시 요청 제한(concurrency shares)과 큐 설정<br><br>기본 우선순위 (높은 순):<br><strong>exempt:</strong> system:masters (제한 없음)<br><strong>system:</strong> kubelet, kube-proxy<br><strong>leader-election:</strong> controller-manager, scheduler<br><strong>workload-high:</strong> 서비스 계정<br><strong>workload-low:</strong> 일반 사용자<br><strong>global-default:</strong> 나머지</div></div>
+          <div class="db"><div class="l">SRE 관점</div><div class="v"><strong>문제 시나리오:</strong> CI/CD가 대량 <code>kubectl get</code>을 반복 → API Server 과부하 → kubelet heartbeat 지연 → 노드 NotReady<br><br><strong>APF로 해결:</strong> CI/CD 서비스 계정을 workload-low로 분류. kubelet은 system 우선순위 유지<br><br><code>kubectl get flowschema</code> — 현재 FlowSchema 확인<br><code>kubectl get prioritylevelconfiguration</code><br>모니터링: <code>apiserver_flowcontrol_rejected_requests_total</code></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCHEDULER ===== -->
+  <div class="P" id="p-sched">
+    <div class="PH"><div class="bg bg-b">● Scheduler Internals</div><h2>K8s 스케줄러 내부 동작</h2><p>Filtering → Scoring → Binding, Topology Spread, Priority/Preemption, Descheduler.</p></div>
+
+    <div class="sec" id="sched-pipe">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Pipeline</div>
+        <h3>스케줄링 파이프라인</h3>
+        <div class="cs">Pending Pod → Filter(적격 노드 선별) → Score(최적 노드 선택) → Bind(배치 확정)</div>
+        <div class="cp">스케줄러는 Pending Pod을 감지하면 <strong>2단계 파이프라인</strong>을 실행한다. <strong>Filter</strong>에서 Pod을 실행할 수 없는 노드를 제거하고, <strong>Score</strong>에서 남은 노드에 점수를 매겨 가장 적합한 노드를 선택한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Filter 플러그인 (주요)</div><div class="v"><strong>NodeResourcesFit:</strong> CPU/Memory request가 노드에 맞는가<br><strong>NodeAffinity:</strong> nodeSelector, node affinity 조건 충족<br><strong>PodAffinity:</strong> pod affinity/anti-affinity 조건<br><strong>TaintToleration:</strong> taint를 tolerate하는가<br><strong>TopologySpread:</strong> topology 분산 제약 충족<br><strong>VolumeBinding:</strong> PV를 해당 노드에서 사용 가능한가<br>하나라도 실패하면 해당 노드 제외</div></div>
+          <div class="db"><div class="l">Score 플러그인 (주요)</div><div class="v"><strong>NodeResourcesBalancedAllocation:</strong> CPU/Memory 사용률 균형<br><strong>ImageLocality:</strong> 이미지가 이미 있는 노드 선호 (pull 시간 절약)<br><strong>InterPodAffinity:</strong> affinity 규칙에 가까울수록 높은 점수<br><strong>NodeAffinity:</strong> 선호(preferred) affinity 반영<br><strong>TaintToleration:</strong> toleration이 많을수록 높은 점수<br>각 플러그인이 0~100점을 매기고, 가중치를 곱해 합산</div></div>
+          <div class="db df"><div class="l">스케줄링 실패 시</div><div class="v"><strong>Unschedulable (Pending):</strong> Filter를 통과하는 노드가 없음<br>원인 확인: <code>kubectl describe pod &lt;name&gt;</code> → Events 섹션의 FailedScheduling 메시지<br>흔한 원인: Insufficient cpu/memory, node taint 미tolerate, PV 바인딩 실패, topology constraint 불충족<br><strong>해결:</strong> 노드 추가(Karpenter), resource request 조정, affinity 완화, PDB 확인</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="topo">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">HA</div>
+        <h3>Topology Spread Constraints</h3>
+        <div class="cs">Pod을 AZ, 노드, 랙 등 topology 도메인에 걸쳐 균등 분산하는 제약</div>
+        <div class="cp">Pod anti-affinity보다 유연한 분산 제어. <strong>maxSkew</strong>로 "도메인 간 Pod 수 차이의 최대값"을 지정할 수 있다. AZ 장애 시 영향을 최소화하려면 필수.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 파라미터</div><div class="v"><code>topologyKey</code> — 분산 기준 (topology.kubernetes.io/zone, kubernetes.io/hostname)<br><code>maxSkew</code> — 도메인 간 최대 불균형 (1이면 완전 균등)<br><code>whenUnsatisfiable</code> — 충족 불가 시 행동<br>• <strong>DoNotSchedule:</strong> 스케줄링 거부 (strict)<br>• <strong>ScheduleAnyway:</strong> 최대한 노력하되 허용 (soft)<br><code>minDomains</code> — 최소 도메인 수 (1.25+)</div></div>
+          <div class="db"><div class="l">실전 설정 예시</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="k">topologySpreadConstraints</span>:
+<span class="c"># AZ 간 균등 분산 (strict)</span>
+- <span class="k">maxSkew</span>: <span class="n">1</span>
+  <span class="k">topologyKey</span>: <span class="s">topology.kubernetes.io/zone</span>
+  <span class="k">whenUnsatisfiable</span>: <span class="s">DoNotSchedule</span>
+  <span class="k">labelSelector</span>:
+    <span class="k">matchLabels</span>:
+      <span class="s">app</span>: <span class="s">api-server</span>
+<span class="c"># 노드 간 분산 (soft)</span>
+- <span class="k">maxSkew</span>: <span class="n">2</span>
+  <span class="k">topologyKey</span>: <span class="s">kubernetes.io/hostname</span>
+  <span class="k">whenUnsatisfiable</span>: <span class="s">ScheduleAnyway</span>
+  <span class="k">labelSelector</span>:
+    <span class="k">matchLabels</span>:
+      <span class="s">app</span>: <span class="s">api-server</span></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="preempt">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Priority</div>
+        <h3>Priority & Preemption</h3>
+        <div class="cs">높은 우선순위 Pod이 리소스 부족 시 낮은 우선순위 Pod을 퇴거시키는 메커니즘</div>
+        <div class="cp">PriorityClass를 통해 Pod에 우선순위를 부여한다. 리소스가 부족하면 스케줄러는 <strong>낮은 우선순위 Pod을 preempt(퇴거)</strong>하여 높은 우선순위 Pod을 위한 공간을 확보한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">PriorityClass 설계</div><div class="v"><code>system-cluster-critical</code> — 2000000000 (kube-system)<br><code>system-node-critical</code> — 2000001000 (kubelet 등)<br><br><strong>사용자 정의 예시:</strong><br>• <strong>critical (1000):</strong> 결제, 인증 API<br>• <strong>high (500):</strong> 메인 서비스<br>• <strong>normal (0):</strong> 기본값<br>• <strong>low (-100):</strong> batch, cron, 비필수 작업<br><br><code>preemptionPolicy: Never</code> — 다른 Pod을 퇴거시키지 않고 대기</div></div>
+          <div class="db"><div class="l">SRE 관점</div><div class="v"><strong>PriorityClass 없이 운영하면:</strong> 노드 부족 시 중요 서비스와 batch job이 동등하게 Pending<br><br><strong>PriorityClass + Karpenter:</strong> 높은 우선순위 Pod이 Pending → Karpenter가 노드 생성 + 낮은 우선순위 Pod이 preempt되어 즉시 배치<br><br><strong>PDB(PodDisruptionBudget)와 상호작용:</strong> preemption도 PDB를 존중한다. PDB가 minAvailable=2인데 현재 2개면 preempt 불가</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="descheduler">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Rebalance</div>
+        <h3>Descheduler</h3>
+        <div class="cs">이미 스케줄된 Pod을 퇴거시켜 더 나은 배치를 유도하는 도구</div>
+        <div class="cp">기본 스케줄러는 <strong>배치 시점에만</strong> 최적 결정을 한다. 시간이 지나면 노드 추가/제거, 리소스 변화로 인해 <strong>불균형이 발생</strong>한다. Descheduler는 주기적으로 불균형을 감지하고 Pod을 evict하여 재스케줄링을 유도한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">주요 전략</div><div class="v"><strong>RemoveDuplicates:</strong> 같은 노드에 같은 Deployment의 Pod이 여러 개면 퇴거<br><strong>LowNodeUtilization:</strong> 노드 간 사용률 불균형 시 과밀 노드의 Pod 퇴거<br><strong>RemovePodsHavingTooManyRestarts:</strong> 재시작 과다 Pod 퇴거<br><strong>PodLifeTime:</strong> 일정 시간 이상 실행된 Pod 퇴거 (Canary rotation에 유용)<br><strong>RemovePodsViolatingTopologySpreadConstraint:</strong> topology 제약 위반 Pod 퇴거</div></div>
+          <div class="db"><div class="l">Karpenter consolidation과의 관계</div><div class="v">Karpenter의 <code>consolidationPolicy: WhenEmptyOrUnderutilized</code>는 <strong>노드 레벨</strong>에서 비슷한 역할을 한다. 저활용 노드의 Pod을 다른 노드로 옮기고 빈 노드를 제거.<br><br><strong>Descheduler:</strong> Pod 배치 최적화에 초점<br><strong>Karpenter consolidation:</strong> 노드 비용 최적화에 초점<br>두 개를 함께 사용하면 Pod 분산 + 노드 효율성 모두 달성</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== NETWORKING ===== -->
+  <div class="P" id="p-net">
+    <div class="PH"><div class="bg bg-o">● K8s Networking Deep Dive</div><h2>K8s 네트워킹 심화</h2><p>Service 내부 동작, Gateway API, NetworkPolicy, CoreDNS — K8s 네트워크 스택의 각 계층.</p></div>
+
+    <div class="sec" id="svc-deep">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Core</div>
+        <h3>Service 내부 동작</h3>
+        <div class="cs">ClusterIP, NodePort, LoadBalancer — 각 Service 유형이 네트워크 스택에서 어떻게 구현되는가</div>
+        <div class="cp">K8s Service는 <strong>가상 IP(ClusterIP)</strong>를 Pod 집합에 매핑하는 추상화다. kube-proxy가 각 노드에서 <strong>iptables 또는 IPVS 규칙</strong>을 생성하여 이 매핑을 구현한다. 사용자가 Service IP로 요청하면 커널이 규칙에 따라 <strong>Pod IP로 DNAT</strong>한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Service 유형별 구현</div><div class="v"><strong>ClusterIP:</strong> kube-proxy가 iptables/IPVS에 DNAT 규칙 생성. 클러스터 내부에서만 접근<br><strong>NodePort:</strong> ClusterIP + 각 노드의 특정 포트(30000~32767)에서 리스닝. iptables로 NodePort→ClusterIP→Pod 체인<br><strong>LoadBalancer:</strong> NodePort + 클라우드 LB 프로비저닝. LB→NodePort→Pod. <code>externalTrafficPolicy: Local</code>이면 LB→직접 해당 노드의 Pod (SNAT 우회)<br><strong>ExternalName:</strong> CNAME DNS 레코드만 생성. 프록싱 없음</div></div>
+          <div class="db"><div class="l">Headless Service</div><div class="v"><code>clusterIP: None</code>으로 설정. kube-proxy 규칙 없음<br>DNS가 개별 Pod IP를 직접 반환 (A 레코드)<br><strong>용도:</strong> StatefulSet의 Pod별 DNS, DB 클라이언트의 직접 연결<br><code>my-pod-0.my-svc.my-ns.svc.cluster.local</code><br><br><strong>vs 일반 Service:</strong> 일반은 ClusterIP가 VIP로 동작하여 로드밸런싱. Headless는 클라이언트가 직접 Pod을 선택</div></div>
+          <div class="db df"><div class="l">EndpointSlice (1.21+ 기본)</div><div class="v">기존 Endpoints 리소스는 Service의 모든 Pod IP를 <strong>하나의 오브젝트</strong>에 담았다. Pod 수가 많으면 이 오브젝트가 커져서 etcd 부하와 watch 비용이 증가.<br><strong>EndpointSlice</strong>는 Pod IP를 <strong>여러 슬라이스로 분할</strong>(기본 100개씩)하여 대규모 Service의 성능을 개선.<br><code>kubectl get endpointslice -l kubernetes.io/service-name=my-svc</code></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="gw-api">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Next-Gen</div>
+        <h3>Gateway API</h3>
+        <div class="cs">Ingress의 후속. 역할 분리(인프라/앱), 풍부한 라우팅, 이식성을 제공하는 차세대 API</div>
+        <div class="cp">기존 Ingress API의 한계를 해결하기 위해 설계. <strong>GatewayClass → Gateway → HTTPRoute</strong> 3계층으로 역할을 분리하여 인프라 팀과 앱 팀의 관심사를 명확히 분리한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">3계층 구조</div><div class="v"><strong>GatewayClass:</strong> 인프라 프로바이더가 정의. "어떤 구현체를 쓸 것인가" (Traefik, Envoy, Nginx 등)<br><strong>Gateway:</strong> 클러스터 관리자가 생성. 리스너(포트, 프로토콜, TLS) 정의. 네트워크 인프라와 1:1<br><strong>HTTPRoute:</strong> 앱 팀이 생성. 라우팅 규칙(호스트, 경로, 헤더, 가중치). Gateway에 attach<br><br><strong>역할 분리:</strong> 인프라 팀은 Gateway까지만 관리, 앱 팀은 자신의 HTTPRoute만 관리</div></div>
+          <div class="db"><div class="l">Ingress 대비 장점</div><div class="v"><strong>헤더 기반 라우팅:</strong> HTTPRoute에서 헤더, 쿼리파라미터 매칭<br><strong>트래픽 분할:</strong> 가중치 기반 Canary 배포 네이티브 지원<br><strong>크로스 네임스페이스:</strong> 다른 ns의 서비스로 라우팅<br><strong>TCP/UDP/gRPC:</strong> HTTP 외 프로토콜도 1등 시민<br><strong>Conformance 테스트:</strong> 구현체 간 호환성 보장<br><br>Traefik Gateway API migration 작업 시 직접 경험한 내용과 연결</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="netpol">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Security</div>
+        <h3>NetworkPolicy</h3>
+        <div class="cs">Pod 간 네트워크 트래픽을 허용/차단하는 방화벽 규칙. 기본은 모두 허용</div>
+        <div class="cp">K8s는 기본적으로 <strong>모든 Pod 간 통신이 허용</strong>된다. NetworkPolicy로 <strong>허용할 트래픽만 명시적으로 정의</strong>하는 화이트리스트 방식을 적용해야 보안이 강화된다. CNI 플러그인(Calico, Cilium)이 이를 구현한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">기본 정책 패턴</div><div class="v"><strong>Default Deny All Ingress:</strong><br><div class="co" style="margin:4px 0;font-size:10px"><span class="k">kind</span>: NetworkPolicy
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: {} <span class="c"># 모든 Pod에 적용</span>
+  <span class="k">policyTypes</span>: [<span class="s">Ingress</span>]
+  <span class="c"># ingress 규칙 없음 = 모든 인바운드 차단</span></div>이 정책 적용 후 필요한 트래픽만 허용하는 정책 추가</div></div>
+          <div class="db"><div class="l">실전 정책 예시</div><div class="v"><strong>앱→DB만 허용:</strong><br><div class="co" style="margin:4px 0;font-size:10px"><span class="k">spec</span>:
+  <span class="k">podSelector</span>:
+    <span class="k">matchLabels</span>: {<span class="s">app</span>: <span class="s">postgres</span>}
+  <span class="k">ingress</span>:
+  - <span class="k">from</span>:
+    - <span class="k">podSelector</span>:
+        <span class="k">matchLabels</span>: {<span class="s">app</span>: <span class="s">api-server</span>}
+    <span class="k">ports</span>:
+    - <span class="k">port</span>: <span class="n">5432</span></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="dns-deep">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Resolution</div>
+        <h3>CoreDNS 심화</h3>
+        <div class="cs">클러스터 DNS 서버의 플러그인 체인, 성능 최적화, 장애 대응</div>
+        <div class="cp">CoreDNS는 플러그인 체인 구조로 동작한다. 요청이 들어오면 <strong>Corefile에 정의된 플러그인을 순서대로 통과</strong>한다. 각 플러그인이 캐시, 포워딩, 로깅 등을 담당한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Corefile 핵심 플러그인</div><div class="v"><strong>kubernetes:</strong> 클러스터 내 Service/Pod DNS 해석<br><strong>forward:</strong> 외부 도메인을 upstream DNS로 포워딩<br><strong>cache:</strong> 응답 캐싱. <code>cache 30</code> = 30초 TTL<br><strong>loop:</strong> 루프 감지 (자기 자신에게 포워딩 방지)<br><strong>ready:</strong> readiness 엔드포인트 (/ready)<br><strong>prometheus:</strong> 메트릭 노출 (:9153)<br><strong>errors/log:</strong> 에러/쿼리 로깅</div></div>
+          <div class="db"><div class="l">성능 최적화</div><div class="v"><strong>NodeLocal DNSCache:</strong> 각 노드에 DNS 캐시 DaemonSet 배치. CoreDNS 부하 분산 + latency 감소<br><strong>autopath:</strong> ndots:5 문제를 서버 측에서 해결. search 도메인을 자동 시도하여 클라이언트의 불필요한 쿼리 제거<br><strong>bufsize:</strong> UDP 버퍼 크기 조정. EDNS0 지원<br><strong>HPA:</strong> CoreDNS에 HPA 적용. DNS QPS 기반 스케일링<br><br><strong>모니터링:</strong><br><code>coredns_dns_requests_total</code> — 총 쿼리 수<br><code>coredns_dns_responses_total{rcode="NXDOMAIN"}</code> — 실패 쿼리<br><code>coredns_dns_request_duration_seconds</code> — 해석 latency</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STORAGE ===== -->
+  <div class="P" id="p-stor">
+    <div class="PH"><div class="bg bg-p">● K8s Storage Deep Dive</div><h2>K8s 스토리지 심화</h2><p>CSI 드라이버, PV Lifecycle, StorageClass 설계, Volume Snapshot.</p></div>
+
+    <div class="sec" id="csi">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Interface</div>
+        <h3>CSI & PV Lifecycle</h3>
+        <div class="cs">Container Storage Interface — K8s와 스토리지 시스템을 연결하는 표준 인터페이스</div>
+        <div class="cp">CSI는 K8s가 다양한 스토리지 시스템(AWS EBS, GCE PD, Ceph, NFS 등)을 <strong>동일한 인터페이스</strong>로 사용할 수 있게 하는 표준이다. CSI 드라이버는 <strong>Controller Plugin</strong>(볼륨 생성/삭제)과 <strong>Node Plugin</strong>(볼륨 마운트/언마운트)으로 구성된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">PV/PVC Lifecycle</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">PVC 생성 (사용자)
+  → Provisioner가 PV 자동 생성 (Dynamic)
+    → PV ↔ PVC 바인딩 (Bound)
+      → Pod이 PVC 참조 → 노드에 볼륨 마운트
+        → Pod 삭제 → 볼륨 언마운트
+          → PVC 삭제 → ReclaimPolicy에 따라:
+            • Delete: PV + 실제 디스크 삭제
+            • Retain: PV 유지 (수동 정리 필요)</div></div></div>
+          <div class="db"><div class="l">Volume Expansion</div><div class="v"><code>allowVolumeExpansion: true</code>가 StorageClass에 설정되어야 함<br><br><strong>온라인 확장 (CSI 드라이버 지원 시):</strong><br>PVC의 <code>spec.resources.requests.storage</code>를 증가시키면 자동 확장<br><br><strong>파일시스템 확장:</strong> 볼륨 확장 후 파일시스템도 resize 필요<br>ext4: <code>resize2fs</code> (자동)<br>xfs: <code>xfs_growfs</code> (자동)<br>kubelet이 NodeExpandVolume RPC로 자동 처리</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="sc">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Design</div>
+        <h3>StorageClass 설계</h3>
+        <div class="cs">워크로드 특성에 따른 스토리지 등급 설계 — 성능, 비용, 가용성 트레이드오프</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>StorageClass</th><th>프로비저너</th><th>성능</th><th>용도</th><th>비용</th></tr></thead>
+          <tbody>
+            <tr><td><strong>fast-ssd</strong></td><td>EBS gp3 / NHN SSD</td><td>높음 (3000 IOPS~)</td><td>DB, etcd, Prometheus</td><td>높음</td></tr>
+            <tr><td><strong>standard</strong></td><td>EBS gp3 (baseline)</td><td>중간</td><td>일반 앱, 로그 버퍼</td><td>중간</td></tr>
+            <tr><td><strong>cold</strong></td><td>EBS sc1 / HDD</td><td>낮음</td><td>아카이브, 백업</td><td>낮음</td></tr>
+            <tr><td><strong>shared-nfs</strong></td><td>NFS / EFS</td><td>중간</td><td>ReadWriteMany 필요 시</td><td>중간</td></tr>
+            <tr><td><strong>local-ssd</strong></td><td>Local PV</td><td>최고</td><td>캐시, 임시 데이터</td><td>노드 종속</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 설계 원칙</strong><br><strong>1)</strong> 기본 StorageClass는 하나만 지정 (<code>storageclass.kubernetes.io/is-default-class: "true"</code>)<br><strong>2)</strong> DB 워크로드는 반드시 SSD 클래스 사용<br><strong>3)</strong> Local PV는 데이터 영속성을 보장하지 않음 (노드 장애 시 데이터 손실)<br><strong>4)</strong> <code>reclaimPolicy: Retain</code>을 DB용 PV에 설정하여 실수 삭제 방지</div>
+    </div>
+
+    <div class="sec" id="snapshot">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Backup</div>
+        <h3>Volume Snapshot</h3>
+        <div class="cs">CSI 기반 PV 스냅샷 — 백업, 복원, 클론의 K8s 네이티브 방법</div>
+        <div class="cp">VolumeSnapshot API를 사용하면 <strong>PVC의 특정 시점 스냅샷</strong>을 생성하고, 이 스냅샷에서 새 PVC를 복원할 수 있다. CSI 드라이버가 지원해야 하며, VolumeSnapshotClass를 정의해야 한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">스냅샷 워크플로</div><div class="v"><strong>1) VolumeSnapshotClass 생성:</strong> 스냅샷 프로비저너 지정<br><strong>2) VolumeSnapshot 생성:</strong> 소스 PVC 지정<br><strong>3) 스냅샷 완료:</strong> <code>readyToUse: true</code><br><strong>4) 복원:</strong> PVC의 <code>dataSource</code>에 스냅샷 지정<br><br><code>kubectl get volumesnapshot</code><br><code>kubectl get volumesnapshotcontent</code></div></div>
+          <div class="db"><div class="l">SRE 활용</div><div class="v"><strong>정기 백업:</strong> CronJob으로 VolumeSnapshot 생성 자동화<br><strong>DR 복원 테스트:</strong> 스냅샷에서 PVC 복원 → 별도 Pod에서 데이터 검증<br><strong>Blue-Green DB:</strong> 스냅샷에서 새 DB 인스턴스 생성하여 테스트<br><strong>보존 정책:</strong> 오래된 스냅샷 자동 삭제 (CronJob + kubectl delete)<br><br>⚠ 스냅샷은 <strong>crash-consistent</strong>이지 <strong>application-consistent</strong>가 아님. DB는 스냅샷 전에 flush/freeze 필요</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TROUBLESHOOTING ===== -->
+  <div class="P" id="p-debug">
+    <div class="PH"><div class="bg bg-g">● Troubleshooting</div><h2>K8s 트러블슈팅 패턴</h2><p>Pod 상태별 진단 흐름, Node 문제 진단, Event/Audit 분석, 디버깅 도구.</p></div>
+
+    <div class="sec" id="pod-states">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Diagnosis</div>
+        <h3>Pod 상태별 진단 플로우</h3>
+        <div class="cs">Pending, CrashLoopBackOff, ImagePullBackOff, OOMKilled 등 상태별 원인과 해결</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>상태</th><th>의미</th><th>진단 명령</th><th>흔한 원인 & 해결</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Pending</strong></td><td>스케줄링 대기</td><td><code>kubectl describe pod</code><br>Events → FailedScheduling</td><td><strong>리소스 부족:</strong> 노드 추가, request 조정<br><strong>Taint:</strong> toleration 추가<br><strong>PV 바인딩 실패:</strong> StorageClass, 가용 PV 확인<br><strong>Affinity 불만족:</strong> 조건 완화</td></tr>
+            <tr><td><strong>CrashLoopBackOff</strong></td><td>컨테이너 반복 재시작</td><td><code>kubectl logs --previous</code><br><code>kubectl describe pod</code></td><td><strong>앱 에러:</strong> 이전 로그에서 스택트레이스 확인<br><strong>설정 오류:</strong> ConfigMap/Secret 값 검증<br><strong>Health check 실패:</strong> probe 설정 검토<br><strong>OOM:</strong> dmesg에서 OOM 확인, limit 증가</td></tr>
+            <tr><td><strong>ImagePullBackOff</strong></td><td>이미지 Pull 실패</td><td><code>kubectl describe pod</code><br>Events → Failed to pull image</td><td><strong>이미지 없음:</strong> 태그 확인<br><strong>레지스트리 인증:</strong> imagePullSecrets 확인<br><strong>네트워크:</strong> 노드에서 레지스트리 접근 가능 확인</td></tr>
+            <tr><td><strong>OOMKilled</strong></td><td>메모리 초과로 kill</td><td><code>kubectl describe pod</code><br>lastState → OOMKilled<br><code>dmesg | grep oom</code></td><td><strong>Memory limit 부족:</strong> limit 증가 또는 앱 메모리 최적화<br><strong>메모리 누수:</strong> heap dump 분석<br><strong>Page Cache:</strong> 대량 파일 I/O가 cgroup 메모리를 채움</td></tr>
+            <tr><td><strong>Evicted</strong></td><td>노드 리소스 압박</td><td><code>kubectl describe pod</code><br><code>kubectl describe node</code></td><td><strong>디스크 압박:</strong> 노드 ephemeral storage 정리<br><strong>메모리 압박:</strong> 노드 메모리 부족. Burstable Pod 먼저 퇴거<br><strong>방어:</strong> Guaranteed QoS, PDB 설정</td></tr>
+            <tr><td><strong>CreateContainerError</strong></td><td>컨테이너 생성 실패</td><td><code>kubectl describe pod</code></td><td><strong>Volume mount 실패:</strong> PV 상태, 권한 확인<br><strong>ConfigMap/Secret 없음:</strong> 참조 리소스 존재 확인<br><strong>SecurityContext:</strong> 권한 제약 확인</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 범용 진단 순서</strong><br><code>kubectl get pod -o wide</code> → <code>kubectl describe pod</code> → <code>kubectl logs</code> → <code>kubectl logs --previous</code> → <code>kubectl exec -it -- sh</code> → Node 레벨 확인 (<code>journalctl -u kubelet</code>)</div>
+    </div>
+
+    <div class="sec" id="node-debug">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Node</div>
+        <h3>Node 문제 진단</h3>
+        <div class="cs">NotReady, DiskPressure, MemoryPressure, PIDPressure — 노드 상태 문제 진단</div>
+        <div class="dt">
+          <div class="db"><div class="l">NotReady 진단</div><div class="v"><strong>1)</strong> <code>kubectl describe node</code> → Conditions 확인<br><strong>2)</strong> <code>journalctl -u kubelet -f</code> → kubelet 로그<br><strong>3)</strong> <code>systemctl status kubelet</code> → 프로세스 상태<br><strong>4)</strong> <code>systemctl status containerd</code> → 런타임 상태<br><br><strong>흔한 원인:</strong><br>• kubelet 프로세스 죽음 → restart<br>• 인증서 만료 → <code>kubeadm certs check-expiration</code><br>• API Server와 통신 불가 → 네트워크 확인<br>• 디스크 풀 → <code>df -h</code>, 이미지 GC 확인</div></div>
+          <div class="db"><div class="l">리소스 Pressure 진단</div><div class="v"><strong>DiskPressure:</strong><br><code>df -h</code> → /var/lib/containerd, /var/log 확인<br><code>crictl images</code> → 미사용 이미지 정리<br><code>journalctl --vacuum-size=500M</code> → 로그 정리<br><br><strong>MemoryPressure:</strong><br><code>free -h</code> → available 확인<br><code>top -o %MEM</code> → 메모리 과다 사용 프로세스<br>Eviction threshold: <code>memory.available < 100Mi</code><br><br><strong>PIDPressure:</strong><br><code>ps aux | wc -l</code> → PID 수<br>kubelet <code>--max-pods</code> 제한 확인</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="event">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Observability</div>
+        <h3>Event & Audit Logging</h3>
+        <div class="cs">클러스터에서 무슨 일이 일어났는지 추적하는 두 가지 메커니즘</div>
+        <div class="dt">
+          <div class="db"><div class="l">Events</div><div class="v"><strong>K8s 리소스의 상태 변경 기록.</strong> 기본 1시간 보존<br><code>kubectl get events --sort-by='.lastTimestamp'</code><br><code>kubectl get events -n kube-system --field-selector reason=Killing</code><br><br><strong>장기 보존:</strong> Event Exporter로 외부 저장소(Loki 등)에 전송<br>• <code>kubernetes-event-exporter</code> (Bitnami)<br>• Grafana에서 Event 검색 → 장애 타임라인 구성</div></div>
+          <div class="db"><div class="l">Audit Logging</div><div class="v"><strong>API Server에 대한 모든 요청을 기록.</strong> "누가, 언제, 무엇을, 왜" 추적<br><br><strong>Audit Level:</strong><br>• <strong>None:</strong> 로깅 안 함<br>• <strong>Metadata:</strong> 요청 메타데이터만<br>• <strong>Request:</strong> 요청 본문 포함<br>• <strong>RequestResponse:</strong> 요청+응답 본문 모두<br><br><strong>활용:</strong> 보안 감사, 문제 원인 추적 ("누가 이 Deployment를 삭제했나?"), 컴플라이언스</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="debug-tool">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Tools</div>
+        <h3>K8s 디버깅 도구 레퍼런스</h3>
+        <div class="cs">kubectl debug, ephemeral containers, nsenter — 프로덕션 디버깅 도구</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>도구</th><th>용도</th><th>사용법</th></tr></thead>
+          <tbody>
+            <tr><td><strong>kubectl debug</strong></td><td>실행 중인 Pod에 디버그 컨테이너 attach</td><td><code>kubectl debug -it pod/my-pod --image=nicolaka/netshoot --target=my-container</code><br>프로세스 네임스페이스를 공유하여 대상 컨테이너의 프로세스, 네트워크를 관찰</td></tr>
+            <tr><td><strong>kubectl debug node</strong></td><td>노드에 디버그 Pod 생성</td><td><code>kubectl debug node/my-node -it --image=ubuntu</code><br>호스트의 파일시스템이 /host에 마운트됨. <code>chroot /host</code>로 호스트 접근</td></tr>
+            <tr><td><strong>nsenter</strong></td><td>다른 컨테이너의 네임스페이스 진입</td><td><code>nsenter -t $(docker inspect -f '{{.State.Pid}}' CONTAINER) -n ip addr</code><br>net ns에 진입하여 네트워크 상태 확인</td></tr>
+            <tr><td><strong>netshoot</strong></td><td>네트워크 디버깅 만능 도구</td><td>tcpdump, nslookup, curl, ss, ip, iperf, mtr 등 포함<br>사이드카 또는 debug container로 사용</td></tr>
+            <tr><td><strong>kubectl top</strong></td><td>리소스 사용량 확인</td><td><code>kubectl top pod --containers</code><br><code>kubectl top node</code><br>Metrics Server 필요</td></tr>
+            <tr><td><strong>kubectl auth</strong></td><td>권한 확인</td><td><code>kubectl auth can-i create pods --as=system:serviceaccount:ns:sa</code><br>RBAC 문제 디버깅에 필수</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

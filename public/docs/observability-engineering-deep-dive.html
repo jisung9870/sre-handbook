@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observability Engineering Deep Dive — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--orange);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--blue)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="otel"].on{color:var(--teal)}.T[data-t="otel"].on::after{background:var(--teal);left:6%;right:6%}
+.T[data-t="prom"].on{color:var(--orange)}.T[data-t="prom"].on::after{background:var(--orange);left:6%;right:6%}
+.T[data-t="loki"].on{color:var(--green)}.T[data-t="loki"].on::after{background:var(--green);left:6%;right:6%}
+.T[data-t="tempo"].on{color:var(--blue)}.T[data-t="tempo"].on::after{background:var(--blue);left:6%;right:6%}
+.T[data-t="grafana"].on{color:var(--purple)}.T[data-t="grafana"].on::after{background:var(--purple);left:6%;right:6%}
+.T[data-t="card"].on{color:var(--red)}.T[data-t="card"].on::after{background:var(--red);left:6%;right:6%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:7px}.cd h4 .d{width:7px;height:7px;border-radius:50%}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt.b{background:var(--bbg);border-left-color:var(--blue)}.nt.b strong{color:var(--blue)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.fl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin:12px 0}.fn{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;text-align:center;min-width:90px;box-shadow:var(--sh)}.fn h4{font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:1px;font-weight:700}.fn p{font-size:9px;color:var(--td)}.fa{font-family:'JetBrains Mono',monospace;color:var(--tm);font-size:16px}
+.sr{display:flex;gap:4px;margin:6px 0}.si{flex:1;border-radius:5px;padding:8px 5px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700}.si small{display:block;font-weight:500;font-size:8px;opacity:.7;margin-top:1px}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:8.5px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Deep Dive</div><h1><em>Observability</em><br>Engineering</h1></div>
+  <div class="sl">OpenTelemetry</div>
+  <ul class="sn">
+    <li><a data-t="otel" data-s="otel-arch" class="on"><span class="d" style="background:var(--teal)"></span>OTel 아키텍처</a></li>
+    <li><a data-t="otel" data-s="otel-sdk"><span class="d" style="background:var(--teal)"></span>SDK & Auto-instrumentation</a></li>
+    <li><a data-t="otel" data-s="alloy"><span class="d" style="background:var(--teal)"></span>Alloy Collector</a></li>
+  </ul>
+  <div class="sl">Prometheus</div>
+  <ul class="sn">
+    <li><a data-t="prom" data-s="tsdb"><span class="d" style="background:var(--orange)"></span>TSDB 내부</a></li>
+    <li><a data-t="prom" data-s="scrape"><span class="d" style="background:var(--orange)"></span>Scrape & Federation</a></li>
+    <li><a data-t="prom" data-s="recording"><span class="d" style="background:var(--orange)"></span>Recording Rules 패턴</a></li>
+    <li><a data-t="prom" data-s="prom-scale"><span class="d" style="background:var(--orange)"></span>확장 전략</a></li>
+  </ul>
+  <div class="sl">Loki</div>
+  <ul class="sn">
+    <li><a data-t="loki" data-s="loki-arch"><span class="d" style="background:var(--green)"></span>아키텍처 & 인덱싱</a></li>
+    <li><a data-t="loki" data-s="label-strat"><span class="d" style="background:var(--green)"></span>라벨 전략</a></li>
+    <li><a data-t="loki" data-s="logql"><span class="d" style="background:var(--green)"></span>LogQL 고급</a></li>
+  </ul>
+  <div class="sl">Tempo</div>
+  <ul class="sn">
+    <li><a data-t="tempo" data-s="tempo-arch"><span class="d" style="background:var(--blue)"></span>아키텍처</a></li>
+    <li><a data-t="tempo" data-s="trace-ops"><span class="d" style="background:var(--blue)"></span>트레이싱 운영</a></li>
+  </ul>
+  <div class="sl">Grafana</div>
+  <ul class="sn">
+    <li><a data-t="grafana" data-s="dash-pattern"><span class="d" style="background:var(--purple)"></span>대시보드 패턴</a></li>
+    <li><a data-t="grafana" data-s="alert-route"><span class="d" style="background:var(--purple)"></span>Alerting 아키텍처</a></li>
+    <li><a data-t="grafana" data-s="correlation"><span class="d" style="background:var(--purple)"></span>시그널 연결</a></li>
+  </ul>
+  <div class="sl">Cardinality</div>
+  <ul class="sn">
+    <li><a data-t="card" data-s="card-problem"><span class="d" style="background:var(--red)"></span>카디널리티 폭발</a></li>
+    <li><a data-t="card" data-s="card-fix"><span class="d" style="background:var(--red)"></span>관리 전략</a></li>
+  </ul>
+  <div class="S-f"><p>Metrics + Logs + Traces<br>+ Profiles = Full Picture</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="otel" onclick="sw('otel')">● OTel</button>
+    <button class="T" data-t="prom" onclick="sw('prom')">● Prometheus</button>
+    <button class="T" data-t="loki" onclick="sw('loki')">● Loki</button>
+    <button class="T" data-t="tempo" onclick="sw('tempo')">● Tempo</button>
+    <button class="T" data-t="grafana" onclick="sw('grafana')">● Grafana</button>
+    <button class="T" data-t="card" onclick="sw('card')">● Cardinality</button>
+  </div>
+
+  <!-- ===== OTEL ===== -->
+  <div class="P on" id="p-otel">
+    <div class="PH"><div class="bg bg-t">● OpenTelemetry</div><h2>OTel 아키텍처와 수집 파이프라인</h2><p>SDK, Collector, Auto-instrumentation, Alloy — 벤더 중립적 관측 데이터 수집의 표준.</p></div>
+
+    <div class="sec" id="otel-arch">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Architecture</div>
+        <h3>OpenTelemetry 아키텍처</h3>
+        <div class="cs">CNCF의 관측 데이터 수집 표준 — Metrics, Logs, Traces를 하나의 프레임워크로</div>
+        <div class="cp">OTel은 <strong>계측과 수집·전달 계층</strong>을 담당한다. 저장/시각화/알림은 백엔드(Prometheus, Loki, Tempo 등)의 역할이다. 핵심 가치는 <strong>벤더 종속 없이</strong> 관측 데이터를 생성·수집·전달할 수 있다는 데 있다.<br><br>구성 요소: <strong>API</strong>(인터페이스 정의) → <strong>SDK</strong>(구현체, 앱에 내장) → <strong>Collector</strong>(중간 수집·변환·전달) → <strong>백엔드</strong>(저장·분석).</div>
+        <div class="dt">
+          <div class="db"><div class="l">데이터 파이프라인</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Application (OTel SDK / Auto-instrumentation)
+  → OTLP (gRPC/HTTP)
+    → Alloy / OTel Collector
+      → Receivers → Processors → Exporters
+        → Prometheus (Metrics)
+        → Loki (Logs)
+        → Tempo (Traces)</div></div></div>
+          <div class="db"><div class="l">OTLP (OpenTelemetry Protocol)</div><div class="v">OTel의 표준 전송 프로토콜<br><strong>gRPC:</strong> 고성능. 기본 포트 4317<br><strong>HTTP/protobuf:</strong> 프록시 친화적. 기본 포트 4318<br>Metrics, Logs, Traces 모두 동일 프로토콜로 전송<br>압축, 배치 전송, 재시도 내장</div></div>
+          <div class="db df"><div class="l">OTel Semantic Conventions</div><div class="v">라벨/속성 이름을 표준화하는 규약. 모든 OTel 구현체가 동일한 이름을 사용하면 대시보드와 알림을 벤더 간에 재사용할 수 있다.<br><strong>예시:</strong> <code>http.request.method</code>, <code>http.response.status_code</code>, <code>server.address</code>, <code>service.name</code>, <code>deployment.environment</code><br>K8s 리소스 속성: <code>k8s.pod.name</code>, <code>k8s.namespace.name</code>, <code>k8s.node.name</code></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="otel-sdk">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Instrumentation</div>
+        <h3>SDK & Auto-instrumentation</h3>
+        <div class="cs">앱에 계측 코드를 삽입하는 두 가지 방법 — 수동(SDK) vs 자동(Agent)</div>
+        <div class="dt">
+          <div class="db"><div class="l">수동 (SDK)</div><div class="v"><strong>Go:</strong> <code>go.opentelemetry.io/otel</code> 패키지 직접 사용<br>Span 생성, 속성 추가, 에러 기록을 코드로 명시<br><strong>장점:</strong> 비즈니스 로직에 맞는 정교한 계측<br><strong>단점:</strong> 코드 변경 필요, 유지보수 비용<br><br><strong>Go에서의 최소 설정:</strong><br>TracerProvider + OTLP Exporter 초기화<br>HTTP middleware로 자동 Span 생성<br>gRPC interceptor로 RPC 추적</div></div>
+          <div class="db"><div class="l">자동 (Auto-instrumentation)</div><div class="v"><strong>Java:</strong> javaagent로 바이트코드 조작. 코드 변경 없음<br><strong>Python:</strong> <code>opentelemetry-instrument</code> CLI<br><strong>Node.js:</strong> <code>@opentelemetry/auto-instrumentations-node</code><br><strong>K8s:</strong> OTel Operator의 Instrumentation CRD로 Pod에 자동 주입<br><br><strong>장점:</strong> 코드 수정 없이 HTTP, DB, gRPC 자동 추적<br><strong>단점:</strong> 비즈니스 로직 추적 불가, 오버헤드<br><br><strong>Go는 자동 계측 제한적</strong> (컴파일 언어 특성). SDK 직접 사용 권장</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="alloy">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Collector</div>
+        <h3>Grafana Alloy</h3>
+        <div class="cs">OTel Collector + Prometheus Agent + Loki Agent를 통합한 Grafana의 관측 데이터 수집기</div>
+        <div class="cp">Alloy는 <strong>Metrics, Logs, Traces 수집을 하나의 에이전트로 통합</strong>한다. 기존에 Prometheus 계열 scrape, Promtail 로그 수집, OTel Collector 트레이스 전달로 분리되어 있던 파이프라인을 Alloy 하나로 묶어 운영 복잡도를 낮출 수 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 특징</div><div class="v"><strong>River 언어:</strong> HCL 유사 설정 파일. 파이프라인을 컴포넌트 연결로 표현<br><strong>컴포넌트 기반:</strong> source → process → export 체인<br><strong>핫 리로드:</strong> 설정 변경 시 재시작 없이 반영<br><strong>K8s Service Discovery:</strong> Pod, Service, Node 자동 감지<br><strong>relabeling:</strong> Prometheus 호환 relabel_config 지원</div></div>
+          <div class="db"><div class="l">파이프라인 구성 예시</div><div class="v"><strong>Metrics:</strong> <code>prometheus.scrape</code> → <code>prometheus.relabel</code> → <code>prometheus.remote_write</code> (Mimir/Prometheus)<br><strong>Logs:</strong> <code>loki.source.kubernetes</code> → <code>loki.process</code> (파싱, 필터) → <code>loki.write</code> (Loki)<br><strong>Traces:</strong> <code>otelcol.receiver.otlp</code> → <code>otelcol.processor.batch</code> → <code>otelcol.exporter.otlp</code> (Tempo)<br><br>모든 파이프라인이 <strong>하나의 Alloy 인스턴스</strong>에서 동작</div></div>
+          <div class="db df"><div class="l">DaemonSet vs Deployment</div><div class="v"><strong>DaemonSet (노드 에이전트):</strong> 각 노드에 1개. 로그 수집(파일 tail), node_exporter 대체, host-level 메트릭에 사용<br><strong>Deployment (중앙 수집기):</strong> OTLP 수신, 원격 scrape, 중앙 집중 처리에 사용<br><strong>권장 구성:</strong> DaemonSet(로그+노드 메트릭) + Deployment(OTLP 트레이스 수신+서비스 scrape)</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PROMETHEUS ===== -->
+  <div class="P" id="p-prom">
+    <div class="PH"><div class="bg bg-o">● Prometheus Deep Dive</div><h2>Prometheus 내부 동작</h2><p>TSDB 구조, Scrape 메커니즘, Recording Rules 설계 패턴, 확장 전략.</p></div>
+
+    <div class="sec" id="tsdb">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Storage</div>
+        <h3>TSDB (Time Series Database) 내부</h3>
+        <div class="cs">Prometheus의 로컬 스토리지 엔진. Block 기반 + WAL + Compaction</div>
+        <div class="cp">Prometheus TSDB는 <strong>시계열 데이터를 2시간 블록 단위</strong>로 관리한다. 최근 데이터는 <strong>WAL(Write-Ahead Log)</strong>에 먼저 기록되고, 2시간마다 블록으로 압축(compaction)된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">블록 구조</div><div class="v"><strong>Head Block (메모리):</strong> 현재 수집 중인 데이터. WAL에 동시 기록<br><strong>Persistent Block (디스크):</strong> 2시간 단위로 flush된 불변 블록<br>각 블록: <code>chunks/</code>(시계열 데이터) + <code>index</code>(레이블 인덱스) + <code>meta.json</code><br><br><strong>Compaction:</strong> 작은 블록을 큰 블록으로 병합. 디스크 효율성 향상<br>최대 블록 크기 = retention 기간의 10% 또는 31일</div></div>
+          <div class="db"><div class="l">WAL (Write-Ahead Log)</div><div class="v">수집된 샘플은 <strong>먼저 WAL에 쓰이고</strong> 나중에 블록으로 변환<br>WAL 덕분에 Prometheus 재시작 시 데이터 손실 최소화<br><br><strong>WAL 구조:</strong> 128MB 세그먼트 파일로 분할<br><code>data/wal/</code> 디렉토리에 저장<br><strong>Checkpoint:</strong> 주기적으로 WAL을 정리하여 디스크 사용 제한<br><br>⚠ WAL 디스크가 느리면 <strong>scrape 지연</strong> 발생. SSD 필수</div></div>
+          <div class="db df"><div class="l">디스크 사이징</div><div class="v"><div class="fm" style="text-align:left;font-size:10.5px">디스크 = 수집 속도 × 샘플 크기 × retention 기간
+
+수집 속도 = 시계열 수 × scrape 빈도(1/interval)
+샘플 크기 ≈ 1~2 bytes (압축 후)
+
+예: 100,000 시계열, 15초 interval, 15일 retention
+= 100,000 × (1/15) × 1.5 × 86400 × 15 ≈ 86GB</div><br><code>prometheus_tsdb_storage_blocks_bytes</code> — 현재 블록 디스크 사용량<br><code>prometheus_tsdb_head_series</code> — 현재 활성 시계열 수 (카디널리티 직접 지표)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="scrape">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Collection</div>
+        <h3>Scrape & Federation</h3>
+        <div class="cs">Prometheus의 Pull 모델과 대규모 환경에서의 데이터 수집 전략</div>
+        <div class="dt">
+          <div class="db"><div class="l">Scrape 내부 동작</div><div class="v"><strong>Pull 모델:</strong> Prometheus가 타겟에 HTTP GET → /metrics 엔드포인트에서 텍스트 파싱<br><strong>Service Discovery:</strong> K8s API로 Pod/Service/Node를 자동 감지<br><code>kubernetes_sd_configs</code>의 role: pod, service, endpoints, node<br><br><strong>Relabeling:</strong> scrape 전에 라벨을 변환/필터<br><code>__meta_kubernetes_pod_label_*</code> → 커스텀 라벨로 변환<br><code>action: drop</code> / <code>keep</code>으로 타겟 필터링<br><br><strong>Stale Markers:</strong> 타겟이 사라지면 stale 마커 삽입 → 시계열 종료 표시</div></div>
+          <div class="db"><div class="l">Federation & Remote Write</div><div class="v"><strong>Federation (계층형):</strong> 하위 Prometheus가 수집 → 상위가 /federate 엔드포인트에서 선별 수집<br>장점: 단순. 단점: 데이터 선별 필요, 지연<br><br><strong>Remote Write (권장):</strong> Prometheus가 실시간으로 외부 스토리지에 push<br>→ Mimir, Thanos Receive, Cortex 등으로 전송<br>장점: 전체 데이터 전송, 중앙 쿼리 가능<br><br><strong>Alloy remote_write:</strong> Alloy가 Prometheus Agent 모드로 scrape → remote_write. 로컬 TSDB 불필요</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="recording">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Optimization</div>
+        <h3>Recording Rules 설계 패턴</h3>
+        <div class="cs">복잡한 PromQL을 사전 계산하여 쿼리 성능과 대시보드 응답 시간을 개선</div>
+        <div class="cp">Recording Rule은 <strong>자주 사용되는 복잡한 쿼리를 주기적으로 계산하여 새 시계열로 저장</strong>하는 메커니즘이다. 대시보드가 로드될 때마다 무거운 쿼리를 실행하는 대신, 미리 계산된 결과를 읽기만 하면 된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">네이밍 컨벤션</div><div class="v">Google SRE 권장 형식:<br><div class="fm" style="text-align:left;font-size:10px">level:metric_name:operations
+
+level  = 집계 수준 (namespace, job, cluster)
+metric = 원본 메트릭 이름
+operations = 적용된 연산 (rate, sum, ratio)
+
+예시:
+namespace:http_requests_total:rate5m
+job:sli_latency:ratio_rate30d
+cluster:node_cpu:utilization</div></div></div>
+          <div class="db"><div class="l">계층적 집계 패턴</div><div class="v"><strong>Level 1 (raw → rate):</strong><br><code>instance:http_requests_total:rate5m</code> = <code>rate(http_requests_total[5m])</code><br><br><strong>Level 2 (rate → sum by job):</strong><br><code>job:http_requests:rate5m</code> = <code>sum by(job)(instance:http_requests_total:rate5m)</code><br><br><strong>Level 3 (ratio / SLI):</strong><br><code>job:sli:ratio_rate5m</code> = good / total<br><br>이렇게 계층화하면 상위 level이 하위 level을 참조하므로 <strong>중복 계산 제거 + 쿼리 단순화</strong></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="prom-scale">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Scale</div>
+        <h3>Prometheus 확장 전략</h3>
+        <div class="cs">단일 Prometheus의 한계를 넘어서는 확장 아키텍처</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>전략</th><th>원리</th><th>장점</th><th>단점</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Functional Sharding</strong></td><td>서비스/네임스페이스별로 Prometheus 인스턴스 분리</td><td>단순, 격리. 한 인스턴스 장애가 다른 서비스에 영향 없음</td><td>글로벌 뷰 없음, 관리 복잡</td></tr>
+            <tr><td><strong>Thanos</strong></td><td>Sidecar가 블록을 Object Storage에 업로드. Querier가 통합 쿼리</td><td>무한 retention, 글로벌 뷰, 다운샘플링</td><td>운영 복잡도 높음 (Sidecar, Store, Compactor, Querier)</td></tr>
+            <tr><td><strong>Mimir</strong></td><td>Prometheus 호환 remote_write 수신. 분산 TSDB</td><td>수평 확장, 멀티테넌시, Grafana 네이티브</td><td>별도 클러스터 운영 필요</td></tr>
+            <tr><td><strong>Prometheus Agent</strong></td><td>remote_write만 수행. 로컬 TSDB 없음</td><td>메모리/디스크 최소. Edge/IoT에 적합</td><td>로컬 쿼리 불가</td></tr>
+            <tr><td><strong>Alloy Agent 모드</strong></td><td>Alloy가 scrape + remote_write</td><td>Prometheus Agent + 로그/트레이스 수집 통합</td><td>로컬 쿼리 불가</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 현재 환경 권장</strong><br>AWS EKS + NHN Cloud NKS 멀티클라우드 환경에서는 <strong>각 클러스터에 Alloy Agent → 중앙 Mimir/Prometheus로 remote_write</strong>가 가장 깔끔하다. 글로벌 뷰 확보 + 클러스터별 격리. Thanos보다 운영 부담이 적고, Grafana LGTM 스택과 네이티브 통합.</div>
+    </div>
+  </div>
+
+  <!-- ===== LOKI ===== -->
+  <div class="P" id="p-loki">
+    <div class="PH"><div class="bg bg-g">● Loki Deep Dive</div><h2>Loki 아키텍처와 로그 파이프라인</h2><p>인덱싱 전략, 라벨 설계, LogQL 고급 패턴 — 로그를 메트릭처럼 다루는 Prometheus 방식의 로깅.</p></div>
+
+    <div class="sec" id="loki-arch">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Architecture</div>
+        <h3>Loki 아키텍처 & 인덱싱</h3>
+        <div class="cs">"Like Prometheus, but for logs" — 라벨로 인덱싱, 로그 내용은 인덱싱하지 않음</div>
+        <div class="cp">Loki의 핵심 설계 철학: <strong>로그 내용을 인덱싱하지 않는다.</strong> Elasticsearch는 모든 단어를 인덱싱하여 빠른 풀텍스트 검색을 제공하지만, 인덱스 크기와 비용이 크다. Loki는 <strong>라벨(메타데이터)만 인덱싱</strong>하고 로그 내용은 압축 저장만 한다. 쿼리 시 라벨로 스트림을 선택한 뒤, 해당 스트림 내에서 grep처럼 필터한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 컴포넌트</div><div class="v"><strong>Distributor:</strong> 수신 → 해시링으로 Ingester에 분배<br><strong>Ingester:</strong> 메모리에 로그 청크 축적 → 주기적으로 Object Storage에 flush<br><strong>Querier:</strong> 쿼리 실행. Ingester(최근) + Storage(과거) 모두 검색<br><strong>Compactor:</strong> 인덱스 최적화, retention 적용<br><strong>Query Frontend:</strong> 쿼리 분할, 캐싱, 큐잉</div></div>
+          <div class="db"><div class="l">스토리지 구조</div><div class="v"><strong>Index:</strong> 라벨 → 청크 매핑. BoltDB-shipper 또는 TSDB(권장)<br><strong>Chunks:</strong> 압축된 로그 데이터. Object Storage(S3, GCS, MinIO)에 저장<br><br><strong>TSDB 인덱스 (Loki 2.8+):</strong> Prometheus TSDB와 유사한 구조. BoltDB 대비 성능 대폭 향상<br><code>schema_config</code>에서 <code>tsdb</code> 스키마 사용 권장</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="label-strat">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Critical</div>
+        <h3>라벨 전략 — Loki 성능의 핵심</h3>
+        <div class="cs">라벨이 Loki의 인덱스이므로, 라벨 설계가 쿼리 성능과 비용을 결정</div>
+        <div class="cp"><strong>Loki에서 라벨 = 스트림.</strong> 라벨 조합이 하나의 스트림을 정의하고, 각 스트림은 별도의 청크로 관리된다. 라벨이 많으면 스트림이 많아지고 → <strong>인덱스가 커지고 → Ingester 메모리 사용 증가 → 성능 저하.</strong></div>
+        <div class="dt">
+          <div class="db"><div class="l">✅ 좋은 라벨 (낮은 카디널리티)</div><div class="v"><code>namespace</code> — K8s 네임스페이스 (수십 개)<br><code>pod</code> — Pod 이름 (수백 개, 관리 가능)<br><code>container</code> — 컨테이너 이름<br><code>level</code> — info, warn, error (3~5개)<br><code>job</code> — 서비스명<br><br><strong>원칙:</strong> Prometheus에서 라벨로 쓸 만한 것만 Loki에서도 라벨로 사용</div></div>
+          <div class="db"><div class="l">❌ 나쁜 라벨 (높은 카디널리티)</div><div class="v"><code>trace_id</code> — ❌ 수백만 고유값. 스트림 폭발<br><code>user_id</code> — ❌ 사용자 수만큼 스트림<br><code>request_id</code> — ❌ 요청 수만큼 스트림<br><code>ip_address</code> — ❌ IP 수만큼 스트림<br><code>timestamp</code> — ❌ 절대 라벨로 쓰지 않음<br><br><strong>이런 값은 로그 내용에 포함</strong>하고, LogQL <code>|=</code> / <code>| json</code>으로 필터링</div></div>
+          <div class="db df"><div class="l">스트림 수 모니터링</div><div class="v"><code>loki_ingester_streams_created_total</code> — 생성된 스트림 총 수<br><code>loki_distributor_lines_received_total</code> — 수신 로그 라인 수<br><br><strong>경고 기준:</strong> Ingester당 활성 스트림 10만 개 이상이면 메모리 부족 위험<br><code>sum(loki_ingester_memory_streams)</code> 모니터링 필수<br><br><strong>스트림 수 = ∏(각 라벨의 고유값 수)</strong><br>namespace(10) × pod(100) × level(3) = 3,000 스트림 — 건강<br>namespace(10) × pod(100) × user_id(10000) = 10,000,000 — ❌ 폭발</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="logql">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Query</div>
+        <h3>LogQL 고급 패턴</h3>
+        <div class="cs">Log Stream Selector → Pipeline → Metric Query — LogQL의 3단계 구조</div>
+      </div>
+      <div class="co"><span class="c"># ① 기본: 라벨 선택 + 텍스트 필터</span>
+{<span class="s">namespace</span>=<span class="s">"production"</span>, <span class="s">level</span>=<span class="s">"error"</span>} |= <span class="s">"timeout"</span>
+
+<span class="c"># ② JSON 파싱 후 필드 필터</span>
+{<span class="s">job</span>=<span class="s">"api-server"</span>} | <span class="f">json</span> | <span class="s">status_code</span> >= <span class="n">500</span> | <span class="f">line_format</span> <span class="s">"{{.method}} {{.path}} {{.status_code}}"</span>
+
+<span class="c"># ③ 에러율 메트릭 (rate)</span>
+<span class="f">sum</span>(<span class="f">rate</span>({<span class="s">job</span>=<span class="s">"api-server"</span>} | <span class="f">json</span> | <span class="s">status_code</span> >= <span class="n">500</span> [<span class="n">5m</span>]))
+/ <span class="f">sum</span>(<span class="f">rate</span>({<span class="s">job</span>=<span class="s">"api-server"</span>} [<span class="n">5m</span>]))
+
+<span class="c"># ④ Latency P99 from logs (logfmt 파싱)</span>
+<span class="f">quantile_over_time</span>(<span class="n">0.99</span>,
+  {<span class="s">job</span>=<span class="s">"api-server"</span>} | <span class="f">logfmt</span> | <span class="f">unwrap</span> <span class="s">duration_ms</span> [<span class="n">5m</span>]
+) <span class="k">by</span> (<span class="s">path</span>)
+
+<span class="c"># ⑤ 특정 trace_id의 로그 (Trace↔Log 연결)</span>
+{<span class="s">namespace</span>=<span class="s">"production"</span>} |= <span class="s">"abc123def456"</span>
+
+<span class="c"># ⑥ Top 10 느린 API 경로</span>
+<span class="f">topk</span>(<span class="n">10</span>,
+  <span class="f">avg_over_time</span>(
+    {<span class="s">job</span>=<span class="s">"api-server"</span>} | <span class="f">json</span> | <span class="f">unwrap</span> <span class="s">duration_ms</span> [<span class="n">1h</span>]
+  ) <span class="k">by</span> (<span class="s">path</span>)
+)</div>
+      <div class="nt g"><strong>💡 LogQL 성능 팁</strong><br><strong>1)</strong> 라벨 선택자를 가능한 좁게 (namespace, job 필수 지정)<br><strong>2)</strong> 시간 범위를 최소한으로 (1h > 24h > 7d)<br><strong>3)</strong> <code>|=</code> 텍스트 필터를 JSON 파싱 전에 배치 (조기 필터링)<br><strong>4)</strong> <code>line_format</code>으로 불필요한 필드 제거 → 네트워크 전송량 감소</div>
+    </div>
+  </div>
+
+  <!-- ===== TEMPO ===== -->
+  <div class="P" id="p-tempo">
+    <div class="PH"><div class="bg bg-b">● Tempo</div><h2>Tempo & Distributed Tracing 운영</h2><p>트레이스 저장소 아키텍처, 샘플링 전략, 비용 관리.</p></div>
+
+    <div class="sec" id="tempo-arch">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Architecture</div>
+        <h3>Tempo 아키텍처</h3>
+        <div class="cs">트레이스 전용 Object Storage 백엔드. 인덱스 없이 Trace ID로 직접 조회</div>
+        <div class="cp">Tempo는 Loki와 유사하게 <strong>인덱스를 최소화</strong>한다. Trace ID를 기반으로 블룸 필터와 Object Storage에서 직접 조회한다. 이 덕분에 <strong>저비용 장기 저장</strong>이 가능하다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">컴포넌트</div><div class="v"><strong>Distributor:</strong> OTLP/Zipkin/Jaeger 수신 → 해시링으로 분배<br><strong>Ingester:</strong> 트레이스를 메모리에 버퍼링 → WAL → 블록으로 flush<br><strong>Compactor:</strong> 블록 병합, 블룸 필터 생성<br><strong>Querier:</strong> Trace ID 기반 조회. Ingester(최근) + Storage(과거)<br><strong>Query Frontend:</strong> 검색 쿼리 분할, 캐싱<br><br><strong>저장:</strong> Parquet 형식. S3/GCS/MinIO. 압축률 높고 쿼리 효율적</div></div>
+          <div class="db"><div class="l">TraceQL (Tempo 2.0+)</div><div class="v">SQL-like 쿼리 언어로 트레이스 검색:<br><code>{resource.service.name="api-server" && span.http.status_code>=500}</code><br><code>{duration > 1s && span.db.system="postgresql"}</code><br><br><strong>Structural:</strong> 특정 구조의 span 조합 검색<br><code>{span.http.method="GET"} >> {span.db.statement=~"SELECT.*"}</code><br>→ GET 요청 아래에 SELECT 쿼리가 있는 트레이스</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="trace-ops">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Operations</div>
+        <h3>트레이싱 운영 가이드</h3>
+        <div class="cs">샘플링, 비용 관리, Metric↔Trace↔Log 연결 실전</div>
+        <div class="dt">
+          <div class="db"><div class="l">샘플링 전략</div><div class="v"><strong>Head-based (기본):</strong> SDK에서 확률적 결정<br>Alloy/OTel Collector의 <code>probabilistic_sampler</code>: rate 0.1 = 10%<br><br><strong>Tail-based (권장):</strong> Alloy의 <code>tail_sampling</code> processor<br>정책 예시:<br>• <code>latency > 1s</code> → always sample<br>• <code>status = ERROR</code> → always sample<br>• 나머지 → 5% 확률<br><br><strong>비용 임팩트:</strong> 10% 샘플링 → 10% 스토리지. 에러/느린 요청은 100% 수집하면 디버깅에 충분</div></div>
+          <div class="db"><div class="l">Exemplar로 연결</div><div class="v"><strong>Exemplar:</strong> Prometheus 메트릭 샘플에 <strong>Trace ID를 첨부</strong>하는 기능<br><br>Grafana에서: 메트릭 그래프의 spike 지점 → Exemplar 클릭 → 해당 시점의 Trace 뷰로 이동<br><br><strong>설정:</strong> OTel SDK에서 Exemplar 활성화 → Prometheus가 수신 → Grafana에서 Exemplar + Tempo 데이터소스 연결<br><br><strong>Log 연결:</strong> 앱 로그에 <code>trace_id</code> 필드 포함 → Loki에서 <code>Derived Fields</code>로 Tempo 링크 생성</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== GRAFANA ===== -->
+  <div class="P" id="p-grafana">
+    <div class="PH"><div class="bg bg-p">● Grafana Advanced</div><h2>Grafana 고급 패턴</h2><p>대시보드 설계 패턴, Alerting 아키텍처, 시그널 간 연결 전략.</p></div>
+
+    <div class="sec" id="dash-pattern">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Design</div>
+        <h3>대시보드 설계 패턴</h3>
+        <div class="cs">USE/RED/Golden Signals 기반 대시보드 계층 구조</div>
+        <div class="dt">
+          <div class="db"><div class="l">4-Level 대시보드 계층</div><div class="v"><strong>L0 — Overview:</strong> 전체 클러스터/서비스 건강. SLO 상태, Error Budget 게이지. 경영진/온콜이 첫 번째로 보는 뷰<br><strong>L1 — Service:</strong> 서비스별 Golden Signals(Latency, Traffic, Errors, Saturation). 온콜이 장애 서비스 특정<br><strong>L2 — Component:</strong> DB, Redis, Kafka 등 개별 컴포넌트 상세. 인프라 팀이 병목 진단<br><strong>L3 — Debug:</strong> 특정 Pod/Node의 상세 메트릭, 로그 패널. 장애 진단 시 사용</div></div>
+          <div class="db"><div class="l">대시보드 규칙</div><div class="v"><strong>변수(Variables) 활용:</strong> namespace, service, pod를 드롭다운으로. 하나의 대시보드로 여러 서비스 커버<br><strong>Annotation:</strong> 배포 이벤트를 그래프에 수직선으로 표시. "이 spike는 배포 직후에 발생했나?"<br><strong>링크:</strong> 대시보드 간 drill-down 링크. Overview → Service → Component<br><strong>패널 수:</strong> 대시보드당 15~20개 이하. 많으면 로딩 느리고 정보 과부하<br><strong>새로고침:</strong> 실시간 모니터링은 30초, 일반은 5분, 리포트용은 수동</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="alert-route">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Alerting</div>
+        <h3>Grafana Alerting 아키텍처</h3>
+        <div class="cs">Alert Rule → Notification Policy → Contact Point — Grafana 내장 알림 체계</div>
+        <div class="cp">Grafana Alerting은 <strong>Alertmanager를 내장</strong>하고 있어 별도 Alertmanager 없이도 알림 라우팅, 그룹핑, 억제(silencing)가 가능하다. Grafana Alerting Webhook을 트리거로 사용하는 방식은 Alertmanager 의존성을 제거한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">3계층 구조</div><div class="v"><strong>Alert Rules:</strong> PromQL/LogQL 기반 조건 정의. 평가 주기(evaluation interval) 설정. 폴더별 그룹핑<br><br><strong>Notification Policies:</strong> 라벨 매칭으로 알림 라우팅<br>• <code>severity=page</code> → PagerDuty Contact Point<br>• <code>severity=ticket</code> → Slack + Jira<br>• <code>severity=log</code> → Slack only<br>그룹핑, 반복 주기, 음소거 설정<br><br><strong>Contact Points:</strong> 알림 전송 대상. Slack, PagerDuty, Webhook, Email 등<br>Webhook으로 커스텀 시스템 연동 가능</div></div>
+          <div class="db"><div class="l">Webhook 기반 인시던트 트리거</div><div class="v"><strong>Alertmanager 없이:</strong> Grafana Alerting → Webhook Contact Point → 커스텀 서비스<br><br><strong>활용:</strong><br>• Webhook → Incident 기록 서비스 (타임스탬프 저장)<br>• Webhook → HolmesGPT (AI 트리아지 트리거)<br>• Webhook → Slack Bot (구조화된 인시던트 메시지)<br>• Webhook → OpsGate (자동 Runbook 실행)<br><br><code>resolved</code> 상태도 Webhook으로 전달 → 인시던트 종료 자동 기록 → MTTR 자동 계산</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="correlation">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Connection</div>
+        <h3>시그널 간 연결 — Metrics ↔ Logs ↔ Traces</h3>
+        <div class="cs">LGTM 스택의 진짜 가치는 3개 시그널이 서로 연결될 때 발현</div>
+        <div class="cp">개별 시그널만으로는 "무엇이 느린가?"(Metrics), "무엇이 일어났나?"(Logs), "어디서 느린가?"(Traces)에 각각 답할 수 있다. <strong>연결되면 "왜 느린가?"에 한 번에 답할 수 있다.</strong></div>
+        <div class="dt">
+          <div class="db df"><div class="l">연결 매트릭스</div><div class="v">
+<strong>Metrics → Traces (Exemplar):</strong><br>
+Prometheus 메트릭에 Trace ID 첨부. Grafana에서 spike 지점 클릭 → 해당 Trace 뷰<br><br>
+<strong>Traces → Logs (Trace ID):</strong><br>
+Tempo Trace 뷰에서 "Logs for this span" 클릭 → Loki에서 해당 Trace ID의 로그 자동 조회<br>설정: Tempo 데이터소스에서 <code>tracesToLogs</code> 연결 설정<br><br>
+<strong>Logs → Traces (Derived Fields):</strong><br>
+Loki 로그에서 trace_id 필드를 감지 → 클릭하면 Tempo로 이동<br>설정: Loki 데이터소스에서 <code>Derived Fields</code> + regex로 trace_id 추출<br><br>
+<strong>Metrics → Logs (같은 라벨):</strong><br>
+Grafana에서 메트릭 그래프 → "Explore Logs" 버튼 → 같은 namespace/job의 Loki 로그 자동 조회<br>라벨이 Prometheus와 Loki에서 동일해야 연결 가능 (Alloy의 장점)
+          </div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 완전한 drill-down 시나리오</strong><br>SLO 대시보드에서 P99 latency spike 발견 → Exemplar 클릭 → Tempo에서 느린 Trace 확인 → 특정 Span에서 DB 쿼리가 3초 걸림 → "Logs for this span" 클릭 → Loki에서 해당 시점 slow query 로그 확인 → 근본 원인: 인덱스 없는 쿼리. <strong>이 전체 과정이 Grafana 안에서 클릭 3~4번으로 완료.</strong></div>
+    </div>
+  </div>
+
+  <!-- ===== CARDINALITY ===== -->
+  <div class="P" id="p-card">
+    <div class="PH"><div class="bg bg-r">● Cardinality Management</div><h2>메트릭 카디널리티 관리</h2><p>카디널리티 폭발의 원인, 진단, 관리 전략 — Prometheus와 Loki의 최대 운영 리스크.</p></div>
+
+    <div class="sec" id="card-problem">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Problem</div>
+        <h3>카디널리티 폭발이란?</h3>
+        <div class="cs">라벨 조합의 곱이 시계열 수를 결정. 하나의 라벨이 카디널리티를 수십만 배로 증폭</div>
+        <div class="cp"><strong>카디널리티 = 고유한 시계열 수.</strong> 시계열은 메트릭 이름 + 라벨 조합으로 정의된다. 라벨 하나를 추가할 때마다 시계열 수가 <strong>곱셈으로 증가</strong>한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">폭발 예시</div><div class="v"><code>http_requests_total{method, status, path}</code><br>method: 5개 × status: 10개 × path: 100개 = <strong>5,000 시계열</strong> — 건강<br><br><code>http_requests_total{method, status, path, user_id}</code><br>5 × 10 × 100 × <strong>100,000 users</strong> = <strong>5억 시계열</strong> — 💀 폭발<br><br><strong>user_id 라벨 하나가 시계열을 10만 배 증가시킴.</strong> Prometheus 메모리 폭발 → OOM Kill → 모니터링 전체 장애</div></div>
+          <div class="db"><div class="l">위험한 라벨 유형</div><div class="v"><strong>❌ 절대 라벨로 쓰면 안 되는 것:</strong><br>• user_id, session_id, request_id<br>• IP address, email<br>• 전체 URL path (<code>/users/12345</code>)<br>• 자유 텍스트 (에러 메시지 전체)<br>• UUID, 해시값<br><br><strong>✅ 안전한 라벨:</strong><br>• method (GET/POST 등 ~5개)<br>• status_code 그룹 (2xx, 3xx, 4xx, 5xx)<br>• service, namespace, pod<br>• 정규화된 path 패턴 (<code>/users/{id}</code>)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="card-fix">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Solution</div>
+        <h3>카디널리티 관리 전략</h3>
+        <div class="cs">탐지 → 제거 → 예방의 3단계 접근</div>
+        <div class="dt">
+          <div class="db"><div class="l">탐지</div><div class="v"><strong>TSDB Status API:</strong><br><code>curl prometheus:9090/api/v1/status/tsdb</code><br>→ seriesCountByMetricName (메트릭별 시계열 수)<br>→ labelValueCountByLabelName (라벨별 고유값 수)<br><br><strong>핵심 메트릭:</strong><br><code>prometheus_tsdb_head_series</code> — 현재 활성 시계열 수<br><code>prometheus_tsdb_head_chunks</code> — 메모리 청크 수<br><code>scrape_series_added</code> — 새로 추가된 시계열<br><br><strong>Grafana Mimir:</strong> Cardinality Analysis 대시보드 내장</div></div>
+          <div class="db"><div class="l">제거 & 예방</div><div class="v"><strong>① Relabeling으로 제거:</strong><br>scrape 단계에서 고카디널리티 라벨 drop<br><code>metric_relabel_configs</code>에서 <code>action: labeldrop</code><br><br><strong>② Recording Rules로 집계:</strong><br>상세 시계열 → recording rule로 집계 저장 → 원본 drop<br><br><strong>③ 앱 코드 수정:</strong><br>메트릭 생성 시 고카디널리티 라벨 자체를 넣지 않음<br>URL path를 정규화: <code>/users/123</code> → <code>/users/:id</code><br><br><strong>④ 리밋 설정:</strong><br><code>sample_limit</code>: scrape당 최대 샘플 수<br><code>target_limit</code>: scrape 대상 최대 수<br>Mimir: <code>max_series_per_user</code> 테넌트별 제한<br><br><strong>⑤ 코드 리뷰:</strong> 메트릭 추가 PR에 카디널리티 리뷰 포함</div></div>
+        </div>
+      </div>
+      <div class="nt r"><strong>⚠ 카디널리티 폭발 = 모니터링 장애 = 모든 것의 장애</strong><br>Prometheus가 OOM으로 죽으면 알림이 울리지 않고, 대시보드가 작동하지 않는다. <strong>모니터링 시스템의 장애는 다른 모든 장애의 MTTD를 급격히 악화시킨다.</strong> 카디널리티 관리는 "성능 최적화"가 아니라 <strong>"모니터링 시스템의 가용성 보장"</strong>이다.</div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

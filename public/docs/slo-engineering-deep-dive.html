@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SLO Engineering Deep Dive — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}
+.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--green);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:15px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--blue)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="sli"].on{color:var(--teal)}.T[data-t="sli"].on::after{background:var(--teal);left:8%;right:8%}
+.T[data-t="slo"].on{color:var(--blue)}.T[data-t="slo"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="burn"].on{color:var(--orange)}.T[data-t="burn"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="impl"].on{color:var(--green)}.T[data-t="impl"].on::after{background:var(--green);left:8%;right:8%}
+.T[data-t="ops"].on{color:var(--purple)}.T[data-t="ops"].on::after{background:var(--purple);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}
+.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt.b{background:var(--bbg);border-left-color:var(--blue)}.nt.b strong{color:var(--blue)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:7px}.cd h4 .d{width:7px;height:7px;border-radius:50%}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.cf{grid-column:1/-1}
+.fl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin:12px 0}.fn{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;text-align:center;min-width:90px;box-shadow:var(--sh)}.fn h4{font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:1px;font-weight:700}.fn p{font-size:9px;color:var(--td)}.fa{font-family:'JetBrains Mono',monospace;color:var(--tm);font-size:16px}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Deep Dive</div><h1><em>SLO</em> Engineering</h1></div>
+  <div class="sl">SLI 설계</div>
+  <ul class="sn">
+    <li><a data-t="sli" data-s="sli-method" class="on"><span class="d" style="background:var(--teal)"></span>SLI 선택 방법론</a></li>
+    <li><a data-t="sli" data-s="sli-types"><span class="d" style="background:var(--teal)"></span>SLI 유형별 설계</a></li>
+    <li><a data-t="sli" data-s="sli-spec"><span class="d" style="background:var(--teal)"></span>SLI Specification</a></li>
+  </ul>
+  <div class="sl">SLO 설계</div>
+  <ul class="sn">
+    <li><a data-t="slo" data-s="slo-target"><span class="d" style="background:var(--blue)"></span>목표치 결정</a></li>
+    <li><a data-t="slo" data-s="err-budget-math"><span class="d" style="background:var(--blue)"></span>Error Budget 수학</a></li>
+    <li><a data-t="slo" data-s="slo-window"><span class="d" style="background:var(--blue)"></span>Rolling vs Calendar</a></li>
+    <li><a data-t="slo" data-s="composite"><span class="d" style="background:var(--blue)"></span>Composite SLO</a></li>
+  </ul>
+  <div class="sl">Burn Rate Alerting</div>
+  <ul class="sn">
+    <li><a data-t="burn" data-s="burn-concept"><span class="d" style="background:var(--orange)"></span>Burn Rate 개념</a></li>
+    <li><a data-t="burn" data-s="multi-window"><span class="d" style="background:var(--orange)"></span>Multi-Window</a></li>
+    <li><a data-t="burn" data-s="burn-math"><span class="d" style="background:var(--orange)"></span>수학적 근거</a></li>
+  </ul>
+  <div class="sl">Prometheus 구현</div>
+  <ul class="sn">
+    <li><a data-t="impl" data-s="prom-sli"><span class="d" style="background:var(--green)"></span>SLI Recording Rules</a></li>
+    <li><a data-t="impl" data-s="prom-burn"><span class="d" style="background:var(--green)"></span>Burn Rate Rules</a></li>
+    <li><a data-t="impl" data-s="prom-alert"><span class="d" style="background:var(--green)"></span>Alert Rules</a></li>
+    <li><a data-t="impl" data-s="grafana"><span class="d" style="background:var(--green)"></span>Grafana 대시보드</a></li>
+  </ul>
+  <div class="sl">운영 프로세스</div>
+  <ul class="sn">
+    <li><a data-t="ops" data-s="budget-policy"><span class="d" style="background:var(--purple)"></span>Error Budget Policy</a></li>
+    <li><a data-t="ops" data-s="slo-doc"><span class="d" style="background:var(--purple)"></span>SLO 문서 템플릿</a></li>
+    <li><a data-t="ops" data-s="slo-review"><span class="d" style="background:var(--purple)"></span>SLO 리뷰 프로세스</a></li>
+    <li><a data-t="ops" data-s="pitfalls"><span class="d" style="background:var(--purple)"></span>흔한 실수</a></li>
+  </ul>
+  <div class="S-f"><p>SLO = the contract<br>between reliability<br>and innovation</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="sli" onclick="sw('sli')">● SLI 설계</button>
+    <button class="T" data-t="slo" onclick="sw('slo')">● SLO 설계</button>
+    <button class="T" data-t="burn" onclick="sw('burn')">● Burn Rate</button>
+    <button class="T" data-t="impl" onclick="sw('impl')">● Prometheus</button>
+    <button class="T" data-t="ops" onclick="sw('ops')">● 운영</button>
+  </div>
+
+  <!-- ===== SLI DESIGN ===== -->
+  <div class="P on" id="p-sli">
+    <div class="PH"><div class="bg bg-t">● SLI Design</div><h2>SLI 선택과 설계</h2><p>무엇을 측정할 것인가 — SLI는 SLO 전체 체계의 기초. 잘못된 SLI 위에 좋은 SLO는 없다.</p></div>
+
+    <div class="sec" id="sli-method">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Methodology</div>
+        <h3>SLI 선택 방법론</h3>
+        <div class="cs">"사용자가 체감하는 서비스 품질"을 수치화하는 지표를 선택하는 체계적 접근</div>
+        <div class="cp">SLI의 핵심 원칙: <strong>사용자 관점에서 측정한다.</strong> 서버 CPU 사용률이나 메모리 사용량은 SLI가 아니다. 사용자는 "응답이 빠른가", "에러가 나지 않는가", "결과가 맞는가"만 관심 있다.<br><br>Google SRE Workbook은 <strong>서비스 유형별 SLI 메뉴</strong>를 제안한다. 모든 서비스에 같은 SLI를 적용하는 것이 아니라, 서비스 특성에 맞게 선택해야 한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">SLI 선택 기준</div><div class="v"><strong>1) 사용자 여정(User Journey) 분석:</strong> 사용자가 서비스를 어떻게 사용하는가?<br><strong>2) Critical User Journey 식별:</strong> 가장 중요한 경로는 무엇인가?<br><strong>3) SLI 후보 나열:</strong> 해당 경로에서 "좋은 경험"을 수치화할 수 있는 지표는?<br><strong>4) 측정 가능성 검증:</strong> 현재 인프라에서 이 SLI를 자동 수집할 수 있는가?<br><strong>5) 단순성 우선:</strong> SLI 수가 적을수록 좋다 (서비스당 1~3개)</div></div>
+          <div class="db"><div class="l">서비스 유형별 SLI 메뉴</div><div class="v"><strong>Request-driven (API 서버):</strong> Availability, Latency, Quality<br><strong>Pipeline (데이터 처리):</strong> Freshness, Coverage, Correctness<br><strong>Storage (DB, 오브젝트):</strong> Durability, Throughput, Latency<br><strong>Streaming (이벤트):</strong> Throughput, Freshness, End-to-end Latency</div></div>
+          <div class="db df"><div class="l">SLI 공식 (ratio 형태)</div><div class="v"><div class="fm">SLI = (Good Events) ÷ (Total Valid Events) × 100%</div><strong>Good Events:</strong> 사용자 기준으로 "정상"인 이벤트 수<br><strong>Total Valid Events:</strong> 전체 이벤트에서 의도적 제외(health check 등)를 뺀 수<br>결과는 항상 <strong>0%~100%</strong> 범위. 이 ratio 형태가 SLO 설정과 Error Budget 계산을 가능하게 한다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="sli-types">
+      <h3>SLI 유형별 상세 설계</h3>
+      <div class="cg">
+        <div class="cd" style="border-top:3px solid var(--green);">
+          <h4 style="color:var(--green)">Availability SLI</h4>
+          <p><strong>정의:</strong> 전체 요청 중 성공(non-5xx) 응답 비율<br><strong>공식:</strong> <code>count(status≠5xx) / count(total)</code><br><strong>주의:</strong> 비즈니스 로직이 5xx를 반환하는 경우 noise. 특정 에러 코드를 제외하거나, Latency SLI로 대체 고려<br><strong>측정점:</strong> LB 레벨(가장 사용자에 가까움) 또는 Ingress 레벨</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--blue);">
+          <h4 style="color:var(--blue)">Latency SLI</h4>
+          <p><strong>정의:</strong> 전체 요청 중 threshold 이내 응답 비율<br><strong>공식:</strong> <code>count(latency ≤ 500ms) / count(total)</code><br><strong>threshold 선택:</strong> P50(사용자 대다수 체감)과 P99(최악 사용자 경험) 두 개를 병행하는 것이 이상적<br><strong>선택 이유:</strong> Error Rate SLI보다 noise가 적음. 비즈니스 에러 영향 없음</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--purple);">
+          <h4 style="color:var(--purple)">Freshness SLI (파이프라인)</h4>
+          <p><strong>정의:</strong> 데이터가 "최신"인 비율. 마지막 업데이트로부터 threshold 이내<br><strong>공식:</strong> <code>count(age ≤ 10min) / count(total records)</code><br><strong>적용:</strong> ETL 파이프라인, 검색 인덱스, 캐시 갱신<br><strong>측정:</strong> 타임스탬프 비교 또는 워터마크 기반</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--orange);">
+          <h4 style="color:var(--orange)">Correctness SLI</h4>
+          <p><strong>정의:</strong> 응답이 "올바른 결과"를 반환하는 비율<br><strong>공식:</strong> <code>count(correct response) / count(total)</code><br><strong>측정 어려움:</strong> "올바른"의 기준이 비즈니스 로직에 따라 다름. Synthetic probing(알려진 입출력)으로 검증하는 방법이 일반적<br><strong>적용:</strong> 결제, 추천, 검색 결과 품질</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="sli-spec">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Specification</div>
+        <h3>SLI Specification 작성법</h3>
+        <div class="cs">SLI를 엄밀하게 정의하여 측정 모호성을 제거하는 명세 문서</div>
+        <div class="cp">SLI가 모호하면 "이 요청은 good인가 bad인가"에 대한 해석이 팀마다 달라진다. <strong>SLI Specification</strong>은 이 모호성을 제거하기 위해 <strong>측정점, good event 정의, 필터 조건, 집계 방식</strong>을 명확히 기술한다.</div>
+        <div class="dt">
+          <div class="db df"><div class="l">SLI Spec 예시: API 서버 Latency</div><div class="v">
+<strong>서비스:</strong> api-server (production)<br>
+<strong>SLI 유형:</strong> Latency<br>
+<strong>측정점:</strong> Traefik IngressRoute (LB 레벨, 가장 사용자에 가까움)<br>
+<strong>Good Event 정의:</strong> HTTP response time ≤ 500ms AND status ≠ 5xx<br>
+<strong>Total Event 정의:</strong> 모든 HTTP 요청. 단, health check (/healthz), readiness probe (/readyz), Prometheus scrape (/metrics) 제외<br>
+<strong>집계 윈도우:</strong> 30일 rolling<br>
+<strong>데이터 소스:</strong> <code>traefik_service_request_duration_seconds_bucket</code><br>
+<strong>비고:</strong> 비즈니스 로직이 HTTP 500을 반환하는 케이스가 있어 Error Rate SLI 대신 Latency SLI를 사용. HTTP 500 중 비즈니스 에러는 "good"으로 분류해도 무방하나, Latency로 측정하면 이 문제 자체를 회피함
+          </div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 SLI 측정점 선택</strong><br>사용자에 가까울수록 좋다. <strong>LB/Ingress > Application > 내부 메트릭</strong> 순으로 선호. 단, 너무 멀면(CDN 등) 제어할 수 없는 외부 요인이 포함됨. 팀이 <strong>제어 가능한 범위 내에서 가장 사용자에 가까운 지점</strong>이 최적.</div>
+    </div>
+  </div>
+
+  <!-- ===== SLO DESIGN ===== -->
+  <div class="P" id="p-slo">
+    <div class="PH"><div class="bg bg-b">● SLO Design</div><h2>SLO 목표치 설계</h2><p>어떤 수준을 목표로 할 것인가 — Error Budget 수학, 윈도우 전략, Composite SLO.</p></div>
+
+    <div class="sec" id="slo-target">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Target</div>
+        <h3>SLO 목표치 결정 방법</h3>
+        <div class="cs">처음에는 현재 성능 기반으로 보수적으로, 점진적으로 조정</div>
+        <div class="cp">SLO를 처음 설정할 때 가장 흔한 실수는 <strong>"99.99%로 하자"</strong>처럼 근거 없이 높은 목표를 잡는 것이다. 높은 SLO는 Error Budget을 극단적으로 줄여서 <strong>배포 한 번도 못 하는 상황</strong>을 만든다.<br><br>올바른 접근: <strong>현재 서비스의 실제 성능을 먼저 측정</strong>하고, 그 수치를 기반으로 약간 느슨한 SLO를 설정. 운영하면서 점진적으로 조정한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">단계별 접근</div><div class="v"><strong>Step 1:</strong> SLI를 2~4주 수집하여 baseline 확인<br><strong>Step 2:</strong> 현재 P50 성능을 SLO로 설정 (예: 현재 99.95%면 SLO는 99.9%)<br><strong>Step 3:</strong> Error Budget이 합리적인지 확인 (배포 여유가 있는가?)<br><strong>Step 4:</strong> 분기마다 SLO 리뷰. 필요 시 강화 또는 완화<br><strong>Step 5:</strong> 내부 SLO가 안정되면 SLA 설정 (SLO보다 느슨하게)</div></div>
+          <div class="db"><div class="l">서비스 등급별 SLO 가이드</div><div class="v"><strong>Tier 1 (핵심):</strong> 결제, 인증 → 99.95%~99.99%<br><strong>Tier 2 (중요):</strong> 메인 API, 검색 → 99.9%~99.95%<br><strong>Tier 3 (일반):</strong> 관리도구, 내부 서비스 → 99%~99.9%<br><strong>Tier 4 (실험):</strong> 베타, 테스트 → SLO 없음 또는 95%<br>모든 서비스에 같은 SLO를 적용하면 안 됨</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="err-budget-math">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Mathematics</div>
+        <h3>Error Budget 수학</h3>
+        <div class="cs">SLO 목표치가 허용하는 장애 시간과 실패 요청 수를 정확히 계산</div>
+        <div class="cp">Error Budget은 SLO가 허용하는 <strong>"실패의 총량"</strong>이다. 이것을 정확히 계산하면 "배포를 몇 번 더 할 수 있나", "이번 장애가 Budget의 몇 %를 소진했나"를 수치로 답할 수 있다.</div>
+      </div>
+      <div class="bx">
+        <div class="bx-t">▼ Error Budget 계산 테이블 (30일 윈도우)</div>
+        <table class="tb">
+          <thead><tr><th>SLO Target</th><th>Error Budget</th><th>월간 허용 다운타임</th><th>월간 허용 실패 요청 (100만 req/일 기준)</th></tr></thead>
+          <tbody>
+            <tr><td>99%</td><td>1%</td><td>7.3시간</td><td>300,000건</td></tr>
+            <tr><td>99.5%</td><td>0.5%</td><td>3.65시간</td><td>150,000건</td></tr>
+            <tr><td>99.9%</td><td>0.1%</td><td>43.8분</td><td>30,000건</td></tr>
+            <tr><td>99.95%</td><td>0.05%</td><td>21.9분</td><td>15,000건</td></tr>
+            <tr><td>99.99%</td><td>0.01%</td><td>4.38분</td><td>3,000건</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="fm" style="margin-top:14px;">Error Budget (시간) = 30일 × 24h × 60m × (1 − SLO target)<br><br>Error Budget (요청) = 총 요청 수 × (1 − SLO target)<br><br>Budget 소진율 = (실제 bad events ÷ 허용 bad events) × 100%</div>
+
+      <div class="nt o"><strong>⚠ 99.99% vs 99.9%의 차이</strong><br>99.99%는 99.9%보다 <strong>10배 적은 Error Budget</strong>을 가진다. 월 4.38분 vs 43.8분. 9를 하나 추가하는 것은 운영 비용을 비선형적으로 증가시킨다. 반드시 비즈니스 가치와 대조하여 결정해야 한다.</div>
+    </div>
+
+    <div class="sec" id="slo-window">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Window</div>
+        <h3>Rolling Window vs Calendar Window</h3>
+        <div class="cs">SLO를 측정하는 시간 윈도우 전략의 선택</div>
+        <div class="cp">SLO 윈도우는 <strong>"어느 기간에 걸쳐 SLI를 평가하는가"</strong>를 결정한다. 선택에 따라 알림 민감도와 Error Budget 계산이 달라진다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Rolling Window (권장)</div><div class="v"><strong>항상 최근 N일</strong>을 윈도우로 사용. 예: "항상 최근 30일"<br><strong>장점:</strong> 윈도우 경계에서 Budget이 갑자기 리셋되지 않음. 월초에 장애 나도 월말까지 영향<br><strong>단점:</strong> 과거 장애가 윈도우에서 빠져나갈 때 Budget이 갑자기 회복<br><strong>구현:</strong> Prometheus <code>[30d]</code> range로 자연스럽게 구현</div></div>
+          <div class="db"><div class="l">Calendar Window</div><div class="v"><strong>월 1일~월 말일</strong> 같은 고정 기간<br><strong>장점:</strong> 리포팅과 회계 주기에 맞음. 월말에 Budget 리셋 = 새 시작<br><strong>단점:</strong> 월 1일에 대형 장애 → 나머지 29일 동안 배포 동결. 월 30일 장애 → 다음 날 리셋으로 학습 기회 소실<br><strong>사용처:</strong> SLA 보고, 경영진 리포트용</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="composite">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Advanced</div>
+        <h3>Composite SLO</h3>
+        <div class="cs">여러 SLI를 결합하여 하나의 종합적 서비스 품질 목표를 만드는 기법</div>
+        <div class="cp">하나의 서비스에 Availability SLI와 Latency SLI를 모두 적용하고 싶을 때, 두 가지 접근이 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">① 독립 SLO (권장)</div><div class="v">각 SLI에 독립적인 SLO를 설정하고 <strong>각각 따로 알림</strong><br>• Availability SLO: 99.9% over 30d<br>• Latency SLO: 97% over 30d (P99 ≤ 500ms)<br><strong>장점:</strong> 단순, 어떤 SLI가 위반인지 명확<br><strong>단점:</strong> 알림이 분산, 종합 건강 판단 어려움</div></div>
+          <div class="db"><div class="l">② Intersection SLO</div><div class="v">"Good event" = Availability good AND Latency good<br><div class="fm" style="text-align:left;font-size:10px">Good = (status ≠ 5xx) AND (latency ≤ 500ms)<br>SLI = count(Good) / count(Total)</div><strong>장점:</strong> 하나의 SLI/SLO로 종합 품질 표현<br><strong>단점:</strong> 두 SLI가 동시에 나빠질 때 원인 분리 어려움<br><strong>실무:</strong> SLO starter kit에서 사용 중인 방식과 유사</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== BURN RATE ===== -->
+  <div class="P" id="p-burn">
+    <div class="PH"><div class="bg bg-o">● Burn Rate Alerting</div><h2>Multi-Window Burn Rate 알림</h2><p>SLO 기반 알림의 핵심. 단순 threshold 대신 Error Budget 소진 속도로 알림하는 수학적 프레임워크.</p></div>
+
+    <div class="sec" id="burn-concept">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Concept</div>
+        <h3>Burn Rate란?</h3>
+        <div class="cs">"현재 속도로 Error Budget을 소진하면, SLO 윈도우 대비 몇 배 빠르게 소진되는가"</div>
+        <div class="cp">Burn Rate = 1이면 SLO 윈도우(30일) 끝에 정확히 Budget이 0이 된다. <strong>Burn Rate = 10이면 3일 만에 Budget이 소진</strong>된다. Burn Rate가 높을수록 상황이 급박하다.<br><br>Burn Rate 알림의 장점: <strong>짧은 장애는 무시하고, 지속적이고 심각한 품질 저하만 감지</strong>한다. 단발성 에러 spike에 울리지 않아 Alert Fatigue를 크게 줄인다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">공식</div><div class="v"><div class="fm">Burn Rate = (현재 Error Rate) ÷ (SLO가 허용하는 Error Rate)</div>SLO 99.9% → 허용 Error Rate = 0.1%<br>현재 Error Rate = 1% → Burn Rate = 1% ÷ 0.1% = <strong>10x</strong><br>= 30일 Budget이 3일 만에 소진되는 속도</div></div>
+          <div class="db"><div class="l">Burn Rate → Budget 소진 기간</div><div class="v"><div class="fm">소진 기간 = SLO Window ÷ Burn Rate</div>Burn Rate 1x → 30일 (정상)<br>Burn Rate 2x → 15일<br>Burn Rate 10x → 3일<br>Burn Rate 14.4x → <strong>~2일 (=50시간)</strong><br>Burn Rate 36x → ~20시간</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="multi-window">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Architecture</div>
+        <h3>Multi-Window, Multi-Burn-Rate 알림</h3>
+        <div class="cs">장단기 윈도우를 조합하여 false positive를 제거하고 대응 시간을 최적화</div>
+        <div class="cp">단일 윈도우로 Burn Rate를 보면 문제가 있다. <strong>긴 윈도우(6h)</strong>만 보면 이미 끝난 장애에도 계속 울리고, <strong>짧은 윈도우(5m)</strong>만 보면 순간 spike에 울린다.<br><br>해결: <strong>긴 윈도우(trigger)</strong>와 <strong>짧은 윈도우(confirmation)</strong>를 AND 조건으로 결합. 긴 윈도우가 Budget 소진 추세를 잡고, 짧은 윈도우가 "지금 이 순간에도 문제가 계속되고 있는가?"를 확인한다.</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>심각도</th><th>Burn Rate</th><th>Long Window</th><th>Short Window</th><th>Budget 소진</th><th>대응</th></tr></thead>
+          <tbody>
+            <tr><td style="color:var(--red);font-weight:700">Page (P1)</td><td>14.4x</td><td>1h</td><td>5m</td><td>2% in 1h</td><td>즉시 대응. 온콜 호출</td></tr>
+            <tr><td style="color:var(--red)">Page (P2)</td><td>6x</td><td>6h</td><td>30m</td><td>5% in 6h</td><td>긴급 대응. 근무시간 내</td></tr>
+            <tr><td style="color:var(--orange)">Ticket</td><td>3x</td><td>1d</td><td>2h</td><td>10% in 1d</td><td>이슈 생성. 1~2일 내 해결</td></tr>
+            <tr><td style="color:var(--blue)">Ticket</td><td>1x</td><td>3d</td><td>6h</td><td>10% in 3d</td><td>백로그 추가. 스프린트 내 해결</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 AND 조건의 핵심</strong><br><code>burn_rate_1h > 14.4 AND burn_rate_5m > 14.4</code><br>1시간 윈도우가 높아도(과거 장애 잔여), 5분 윈도우가 정상이면 → 알림 안 울림 = 이미 복구됨. 이 AND 조건이 <strong>false positive를 90% 이상 줄인다.</strong></div>
+    </div>
+
+    <div class="sec" id="burn-math">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Mathematics</div>
+        <h3>14.4x, 6x, 3x, 1x의 수학적 근거</h3>
+        <div class="cs">각 Burn Rate 값은 "N시간 내 Error Budget의 몇 %를 소진하는가"에서 역산</div>
+        <div class="cp">Google SRE Workbook의 Multi-Window 설계는 <strong>"어떤 시간 내에 Budget의 특정 비율을 소진하면 알림"</strong>이라는 원칙에서 수치를 도출한다.</div>
+        <div class="dt">
+          <div class="db df"><div class="l">도출 과정</div><div class="v">
+<strong>원칙:</strong> 30일 SLO 윈도우에서, 특정 시간(detection window) 내에 Budget의 특정 비율(x%)이 소진되면 알림<br><br>
+<div class="fm" style="text-align:left;font-size:10.5px">Burn Rate = (Budget 소진 비율) × (SLO Window) ÷ (Detection Window)
+
+● 1시간 내 2% 소진 → Page:
+  Burn Rate = 0.02 × (30×24) ÷ 1 = 14.4
+
+● 6시간 내 5% 소진 → Page:
+  Burn Rate = 0.05 × 720 ÷ 6 = 6.0
+
+● 1일 내 10% 소진 → Ticket:
+  Burn Rate = 0.10 × 720 ÷ 24 = 3.0
+
+● 3일 내 10% 소진 → Ticket:
+  Burn Rate = 0.10 × 720 ÷ 72 = 1.0</div>
+<br><strong>핵심:</strong> 14.4라는 "마법의 숫자"는 "1시간 만에 월간 Budget의 2%가 날아가는 속도". 2%가 작아 보이지만 <strong>1시간이면 감지하고 대응할 수 있어야 하는</strong> 수준.
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PROMETHEUS IMPL ===== -->
+  <div class="P" id="p-impl">
+    <div class="PH"><div class="bg bg-g">● Prometheus Implementation</div><h2>Prometheus로 구현하기</h2><p>SLI Recording Rules, Burn Rate 계산, Alert Rules, Grafana 대시보드 설계까지 전체 구현.</p></div>
+
+    <div class="sec" id="prom-sli">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Recording Rules</div>
+        <h3>SLI Recording Rules</h3>
+        <div class="cs">원본 메트릭에서 SLI ratio를 사전 계산하여 저장하는 recording rule</div>
+      </div>
+      <div class="co"><span class="c"># ── SLI Recording Rules ──</span>
+<span class="c"># Latency SLI: P99 ≤ 500ms 비율 (Traefik 기준)</span>
+<span class="k">groups</span>:
+  - <span class="k">name</span>: <span class="s">sli-recording</span>
+    <span class="k">rules</span>:
+      <span class="c"># Good events: 500ms 이내 응답</span>
+      - <span class="k">record</span>: <span class="f">sli:good_requests:rate5m</span>
+        <span class="k">expr</span>: |
+          <span class="f">sum</span>(<span class="f">rate</span>(
+            <span class="k">traefik_service_request_duration_seconds_bucket</span>{
+              <span class="s">le</span>=<span class="s">"0.5"</span>,
+              <span class="s">code</span>!~<span class="s">"5.."</span>
+            }[<span class="n">5m</span>]
+          )) <span class="k">by</span> (service)
+
+      <span class="c"># Total events: health check 등 제외</span>
+      - <span class="k">record</span>: <span class="f">sli:total_requests:rate5m</span>
+        <span class="k">expr</span>: |
+          <span class="f">sum</span>(<span class="f">rate</span>(
+            <span class="k">traefik_service_request_duration_seconds_count</span>{
+              <span class="s">service</span>!~<span class="s">".*healthz.*|.*metrics.*"</span>
+            }[<span class="n">5m</span>]
+          )) <span class="k">by</span> (service)
+
+      <span class="c"># SLI ratio (0~1)</span>
+      - <span class="k">record</span>: <span class="f">sli:ratio:rate5m</span>
+        <span class="k">expr</span>: |
+          <span class="f">sli:good_requests:rate5m</span>
+          / <span class="f">sli:total_requests:rate5m</span></div>
+    </div>
+
+    <div class="sec" id="prom-burn">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Burn Rate</div>
+        <h3>Burn Rate Recording Rules</h3>
+        <div class="cs">다양한 윈도우(5m, 30m, 1h, 2h, 6h, 1d, 3d)에서 Error Ratio를 사전 계산</div>
+      </div>
+      <div class="co"><span class="c"># ── Burn Rate를 위한 Error Ratio (다중 윈도우) ──</span>
+<span class="c"># SLO Target = 0.999 (99.9%)</span>
+
+  - <span class="k">name</span>: <span class="s">slo-burn-rates</span>
+    <span class="k">rules</span>:
+      <span class="c"># 각 윈도우별 error ratio = 1 - (good/total)</span>
+      - <span class="k">record</span>: <span class="f">slo:error_ratio:rate5m</span>
+        <span class="k">expr</span>: <span class="n">1</span> - (<span class="f">sli:good_requests:rate5m</span> / <span class="f">sli:total_requests:rate5m</span>)
+
+      - <span class="k">record</span>: <span class="f">slo:error_ratio:rate30m</span>
+        <span class="k">expr</span>: |
+          <span class="n">1</span> - (
+            <span class="f">sum</span>(<span class="f">rate</span>(<span class="k">traefik_service_request_duration_seconds_bucket</span>{<span class="s">le</span>=<span class="s">"0.5"</span>,<span class="s">code</span>!~<span class="s">"5.."</span>}[<span class="n">30m</span>]))
+            / <span class="f">sum</span>(<span class="f">rate</span>(<span class="k">traefik_service_request_duration_seconds_count</span>{<span class="s">service</span>!~<span class="s">".*healthz.*"</span>}[<span class="n">30m</span>]))
+          )
+
+      <span class="c"># 동일 패턴으로 1h, 2h, 6h, 1d, 3d 윈도우도 생성</span>
+      <span class="c"># (간결화를 위해 생략, 동일 구조로 range만 변경)</span>
+
+      <span class="c"># Burn Rate = error_ratio / (1 - SLO target)</span>
+      - <span class="k">record</span>: <span class="f">slo:burn_rate:1h</span>
+        <span class="k">expr</span>: <span class="f">slo:error_ratio:rate1h</span> / (<span class="n">1</span> - <span class="n">0.999</span>)
+
+      - <span class="k">record</span>: <span class="f">slo:burn_rate:6h</span>
+        <span class="k">expr</span>: <span class="f">slo:error_ratio:rate6h</span> / (<span class="n">1</span> - <span class="n">0.999</span>)</div>
+    </div>
+
+    <div class="sec" id="prom-alert">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Alerting</div>
+        <h3>Alert Rules</h3>
+        <div class="cs">Multi-Window Burn Rate 기반 알림 규칙</div>
+      </div>
+      <div class="co"><span class="c"># ── SLO Burn Rate Alerts ──</span>
+
+  - <span class="k">name</span>: <span class="s">slo-alerts</span>
+    <span class="k">rules</span>:
+      <span class="c"># P1: 1시간 내 Budget 2% 소진 (Burn Rate 14.4x)</span>
+      - <span class="k">alert</span>: <span class="f">SLOBurnRateCritical</span>
+        <span class="k">expr</span>: |
+          <span class="f">slo:burn_rate:1h</span> > <span class="n">14.4</span>
+          <span class="k">and</span>
+          <span class="f">slo:burn_rate:5m</span> > <span class="n">14.4</span>
+        <span class="k">for</span>: <span class="s">2m</span>
+        <span class="k">labels</span>:
+          <span class="s">severity</span>: <span class="s">page</span>
+          <span class="s">slo_window</span>: <span class="s">1h/5m</span>
+        <span class="k">annotations</span>:
+          <span class="s">summary</span>: <span class="s">"SLO Burn Rate Critical - {{ $labels.service }}"</span>
+          <span class="s">description</span>: <span class="s">"1시간 burn rate {{ $value | printf \"%.1f\" }}x. Budget 2%/h 소진 중"</span>
+
+      <span class="c"># P2: 6시간 내 Budget 5% 소진 (Burn Rate 6x)</span>
+      - <span class="k">alert</span>: <span class="f">SLOBurnRateHigh</span>
+        <span class="k">expr</span>: |
+          <span class="f">slo:burn_rate:6h</span> > <span class="n">6</span>
+          <span class="k">and</span>
+          <span class="f">slo:burn_rate:30m</span> > <span class="n">6</span>
+        <span class="k">for</span>: <span class="s">5m</span>
+        <span class="k">labels</span>:
+          <span class="s">severity</span>: <span class="s">page</span>
+
+      <span class="c"># Ticket: 1일 내 Budget 10% (Burn Rate 3x)</span>
+      - <span class="k">alert</span>: <span class="f">SLOBurnRateWarning</span>
+        <span class="k">expr</span>: |
+          <span class="f">slo:burn_rate:1d</span> > <span class="n">3</span>
+          <span class="k">and</span>
+          <span class="f">slo:burn_rate:2h</span> > <span class="n">3</span>
+        <span class="k">for</span>: <span class="s">15m</span>
+        <span class="k">labels</span>:
+          <span class="s">severity</span>: <span class="s">ticket</span></div>
+    </div>
+
+    <div class="sec" id="grafana">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Dashboard</div>
+        <h3>Grafana SLO 대시보드 설계</h3>
+        <div class="cs">한눈에 SLO 상태를 파악할 수 있는 대시보드 구성 요소</div>
+        <div class="cp">SLO 대시보드는 <strong>"지금 괜찮은가?"</strong>에 즉시 답할 수 있어야 한다. 복잡한 그래프보다 <strong>핵심 수치를 크게</strong> 보여주는 것이 중요.</div>
+        <div class="dt">
+          <div class="db"><div class="l">필수 패널</div><div class="v"><strong>1) SLI 현재값 (Stat):</strong> 큰 숫자로 현재 SLI ratio. 색상으로 상태 표시 (초록/노랑/빨강)<br><strong>2) Error Budget 잔여 (Gauge):</strong> 0~100% 게이지. 남은 Budget 비율<br><strong>3) Error Budget 소진 추이 (Time Series):</strong> 30일간 Budget이 줄어드는 그래프. 기울기로 소진 속도 확인<br><strong>4) Burn Rate 현재값 (Stat):</strong> 1h, 6h, 1d burn rate를 각각 표시<br><strong>5) SLI 히스토리 (Time Series):</strong> SLI ratio의 시간별 변동. SLO 라인을 수평선으로 표시</div></div>
+          <div class="db"><div class="l">유용한 추가 패널</div><div class="v"><strong>6) 배포 마커:</strong> 그래프에 배포 이벤트를 annotation으로 표시. SLI 변동의 원인 파악<br><strong>7) Top Bad Endpoints:</strong> 어떤 API 경로가 SLI를 떨어뜨리는지<br><strong>8) Error Budget 소비 분석:</strong> 계획된 변경 vs 비계획 장애 비율<br><strong>9) 서비스 비교:</strong> 여러 서비스의 SLI/Budget을 한눈에</div></div>
+          <div class="db df"><div class="l">Error Budget 잔여량 계산 PromQL</div><div class="v"><div class="co" style="margin:4px 0;"><span class="c"># Error Budget 잔여 비율 (0~1)</span>
+<span class="n">1</span> - (
+  (<span class="n">1</span> - <span class="f">avg_over_time</span>(<span class="f">sli:ratio:rate5m</span>[<span class="n">30d</span>]))
+  / (<span class="n">1</span> - <span class="n">0.999</span>)
+)
+
+<span class="c"># 음수면 Budget 소진됨</span>
+<span class="c"># 예: 0.3 → Budget 30% 남음</span>
+<span class="c"># 예: -0.2 → Budget 20% 초과 소진됨</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OPERATIONS ===== -->
+  <div class="P" id="p-ops">
+    <div class="PH"><div class="bg bg-p">● SLO Operations</div><h2>SLO 운영 프로세스</h2><p>Error Budget Policy, SLO 문서 템플릿, 리뷰 프로세스, 흔한 실수 — SLO를 실제 의사결정에 녹이기.</p></div>
+
+    <div class="sec" id="budget-policy">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Governance</div>
+        <h3>Error Budget Policy 상세 설계</h3>
+        <div class="cs">"Budget을 얼마나 쓰면 어떤 행동을 할지" 미리 합의하는 운영 규칙</div>
+        <div class="cp">Error Budget Policy가 없으면 SLO는 <strong>예쁜 대시보드</strong>에 불과하다. Policy는 Budget 수준에 따라 <strong>구체적인 행동(배포 제한, 리뷰 강화, 동결)</strong>을 자동으로 트리거하는 합의된 규칙이다.<br><br>이 Policy는 <strong>Dev팀과 SRE/Ops팀이 함께 합의</strong>해야 한다. 한쪽만 결정하면 무시당한다.</div>
+        <div class="dt">
+          <div class="db df"><div class="l">Error Budget Policy 템플릿</div><div class="v">
+<strong style="color:var(--green)">🟢 Budget > 50% (건강):</strong><br>
+• 자유롭게 배포. Feature 개발에 집중<br>
+• 실험적 변경(migration, refactoring) 허용<br>
+• SLO 리뷰: 분기 1회<br><br>
+
+<strong style="color:var(--blue)">🔵 Budget 25~50% (주의):</strong><br>
+• 배포 전 추가 리뷰(peer review 필수)<br>
+• Canary 배포 비율 10% → 1시간 관찰 후 진행<br>
+• Toil 줄이기 작업 백로그에 추가<br>
+• SLO 리뷰: 월 1회<br><br>
+
+<strong style="color:var(--orange)">🟠 Budget 10~25% (경고):</strong><br>
+• Feature 배포 중단. 버그 수정 + 안정화만 배포<br>
+• 모든 배포에 Canary + 자동 롤백 설정<br>
+• 주간 SLO 리뷰 미팅<br>
+• Reliability 개선 작업 우선순위 상향<br><br>
+
+<strong style="color:var(--red)">🔴 Budget < 10% (위험):</strong><br>
+• 배포 동결 (Deploy Freeze). 긴급 핫픽스만 예외<br>
+• 인시던트 레벨 대응: Incident Commander 지정<br>
+• 일일 SLO 리뷰<br>
+• Postmortem 작성 및 Action Item 최우선 처리<br><br>
+
+<strong style="color:var(--red)">⛔ Budget 소진 (위반):</strong><br>
+• 완전 동결. 모든 변경 중단<br>
+• Reliability sprint: 다음 스프린트 전체를 안정화에 투입<br>
+• 경영진 리포트 + 근본 원인 분석<br>
+• SLO 목표치 자체를 재검토 (너무 높지 않았는가?)
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="slo-doc">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Template</div>
+        <h3>SLO 문서 템플릿</h3>
+        <div class="cs">서비스별 SLO를 명세하는 표준 문서 구조</div>
+      </div>
+      <div class="bx">
+        <div class="bx-t">▼ SLO Document Template</div>
+        <div class="co" style="background:var(--s2);color:var(--tx);"><span class="c" style="color:var(--tm)">## Service: api-server</span>
+<span class="c" style="color:var(--tm)">## Owner: platform-team</span>
+<span class="c" style="color:var(--tm)">## Last Review: 2025-Q4</span>
+
+<strong>1. Service Overview</strong>
+   - 역할: 사용자 대면 REST API 서버
+   - 의존성: PostgreSQL, Redis, auth-service
+   - 트래픽: 평균 50K RPM, 피크 150K RPM
+
+<strong>2. SLI Definition</strong>
+   - 유형: Latency (Request-based)
+   - Good Event: status ≠ 5xx AND latency ≤ 500ms
+   - Total Event: 모든 HTTP 요청 (healthz, metrics 제외)
+   - 측정점: Traefik IngressRoute 레벨
+   - 데이터소스: traefik_service_request_duration_seconds_bucket
+
+<strong>3. SLO Target</strong>
+   - Target: 99.9% over 30-day rolling window
+   - Error Budget: 0.1% = 월 ~43분 = ~30,000 bad requests
+
+<strong>4. Error Budget Policy</strong>
+   - (위 Error Budget Policy 템플릿 참조)
+
+<strong>5. Alerting</strong>
+   - P1: Burn Rate 14.4x (1h/5m window)
+   - P2: Burn Rate 6x (6h/30m window)
+   - Ticket: Burn Rate 3x (1d/2h window)
+
+<strong>6. Escalation</strong>
+   - P1: 즉시 온콜 → 15분 내 미응답 시 TL 에스컬레이션
+   - P2: 1시간 내 담당자 확인
+   - Ticket: 스프린트 내 해결
+
+<strong>7. Review Schedule</strong>
+   - 분기별 SLO 리뷰 (목표치, SLI 정의 적정성)
+   - Budget 25% 이하 시 임시 리뷰 소집</div>
+      </div>
+    </div>
+
+    <div class="sec" id="slo-review">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Process</div>
+        <h3>SLO 리뷰 프로세스</h3>
+        <div class="cs">SLO는 한 번 설정하고 끝이 아니다. 정기적으로 점검하고 조정해야 살아있는 도구가 된다</div>
+        <div class="dt">
+          <div class="db"><div class="l">분기 리뷰 체크리스트</div><div class="v"><strong>□</strong> SLI 정의가 여전히 사용자 경험을 대표하는가?<br><strong>□</strong> SLO 목표치가 적절한가? (너무 높거나 낮지 않은가)<br><strong>□</strong> Error Budget이 합리적으로 소진되고 있는가?<br><strong>□</strong> 알림이 정확한가? (false positive/negative 비율)<br><strong>□</strong> Budget Policy가 실제로 지켜지고 있는가?<br><strong>□</strong> 새로운 Critical User Journey가 추가되었는가?<br><strong>□</strong> 의존성 변경이 SLI에 영향을 주는가?</div></div>
+          <div class="db"><div class="l">SLO 조정 기준</div><div class="v"><strong>SLO 강화 (높이기):</strong><br>• Budget을 거의 안 쓰고 남음 → 목표가 너무 낮음<br>• 고객 불만이 있는데 SLO 내 → SLI가 잘못됨<br><br><strong>SLO 완화 (낮추기):</strong><br>• Budget이 항상 부족 → 배포 동결이 일상화됨<br>• 비용 대비 효과가 없는 극단적 목표 (99.999%)<br>• 서비스 중요도가 낮아짐</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="pitfalls">
+      <h3>흔한 실수와 안티패턴</h3>
+      <div class="cg">
+        <div class="cd" style="border-top:3px solid var(--red);">
+          <h4 style="color:var(--red)">❌ SLO = 100%</h4>
+          <p>100% 신뢰성은 불가능하고, Error Budget = 0이므로 아무 변경도 못 한다. "최대한 높게"가 아니라 "비즈니스에 맞게"가 올바른 접근.</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--red);">
+          <h4 style="color:var(--red)">❌ 서버 메트릭을 SLI로</h4>
+          <p>CPU 80%, 메모리 90%는 SLI가 아니다. 사용자는 CPU를 보지 않는다. 사용자가 체감하는 latency, error rate만 SLI.</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--red);">
+          <h4 style="color:var(--red)">❌ Budget Policy 없이 SLO만</h4>
+          <p>SLO가 빨간색인데 아무 행동도 안 하면 대시보드 장식. Policy가 실제 행동(배포 제한 등)에 연결되어야 의미가 있다.</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--red);">
+          <h4 style="color:var(--red)">❌ 모든 서비스에 같은 SLO</h4>
+          <p>결제 API와 내부 관리 도구가 같은 99.9%일 수 없다. Tier별 차등이 필수. 중요하지 않은 서비스에 높은 SLO = Budget 낭비.</p>
+        </div>
+        <div class="cd cf" style="border-top:3px solid var(--orange);">
+          <h4 style="color:var(--orange)">⚠ SLO를 팀 성과 평가에 사용</h4>
+          <p>SLO 위반이 팀 평가에 직결되면, 팀은 SLO를 낮추거나 SLI를 조작하려는 유인이 생긴다. SLO는 <strong>학습과 개선의 도구</strong>지 성과 평가 도구가 아니다. DORA 팀도 동일한 경고를 한다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

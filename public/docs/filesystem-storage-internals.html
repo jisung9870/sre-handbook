@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filesystem & Storage Internals — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--orange);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--orange)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="vfs"].on{color:var(--blue)}.T[data-t="vfs"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="fs"].on{color:var(--green)}.T[data-t="fs"].on::after{background:var(--green);left:8%;right:8%}
+.T[data-t="cache"].on{color:var(--orange)}.T[data-t="cache"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="nvme"].on{color:var(--purple)}.T[data-t="nvme"].on::after{background:var(--purple);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">CS for SRE</div><h1><em>Filesystem</em><br>& Storage</h1></div>
+  <div class="sl">VFS</div>
+  <ul class="sn">
+    <li><a data-t="vfs" data-s="vfs-layer" class="on"><span class="d" style="background:var(--blue)"></span>VFS 계층</a></li>
+    <li><a data-t="vfs" data-s="inode"><span class="d" style="background:var(--blue)"></span>Inode & Dentry</a></li>
+  </ul>
+  <div class="sl">파일시스템</div>
+  <ul class="sn">
+    <li><a data-t="fs" data-s="ext4"><span class="d" style="background:var(--green)"></span>ext4 내부</a></li>
+    <li><a data-t="fs" data-s="xfs"><span class="d" style="background:var(--green)"></span>XFS 내부</a></li>
+    <li><a data-t="fs" data-s="fs-choose"><span class="d" style="background:var(--green)"></span>선택 가이드</a></li>
+  </ul>
+  <div class="sl">Page Cache & I/O</div>
+  <ul class="sn">
+    <li><a data-t="cache" data-s="page-cache"><span class="d" style="background:var(--orange)"></span>Page Cache</a></li>
+    <li><a data-t="cache" data-s="direct-io"><span class="d" style="background:var(--orange)"></span>Direct I/O</a></li>
+    <li><a data-t="cache" data-s="writeback"><span class="d" style="background:var(--orange)"></span>Writeback</a></li>
+    <li><a data-t="cache" data-s="io-sched"><span class="d" style="background:var(--orange)"></span>I/O Scheduler</a></li>
+  </ul>
+  <div class="sl">NVMe & 현대 스토리지</div>
+  <ul class="sn">
+    <li><a data-t="nvme" data-s="nvme-arch"><span class="d" style="background:var(--purple)"></span>NVMe 내부</a></li>
+    <li><a data-t="nvme" data-s="io-uring"><span class="d" style="background:var(--purple)"></span>io_uring 연결</a></li>
+    <li><a data-t="nvme" data-s="ebs-internal"><span class="d" style="background:var(--purple)"></span>EBS/클라우드 디스크</a></li>
+  </ul>
+  <div class="S-f"><p>Storage is the<br>slowest layer.<br>Understand it.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="vfs" onclick="sw('vfs')">● VFS</button>
+    <button class="T" data-t="fs" onclick="sw('fs')">● 파일시스템</button>
+    <button class="T" data-t="cache" onclick="sw('cache')">● Page Cache</button>
+    <button class="T" data-t="nvme" onclick="sw('nvme')">● NVMe</button>
+  </div>
+
+  <!-- ===== VFS ===== -->
+  <div class="P on" id="p-vfs">
+    <div class="PH"><div class="bg bg-b">● Virtual File System</div><h2>VFS 계층 구조</h2><p>Linux의 모든 파일시스템을 통합하는 추상화 계층 — 앱은 VFS만 보고, 실제 구현은 다양.</p></div>
+
+    <div class="sec" id="vfs-layer">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Architecture</div>
+        <h3>VFS 계층 구조</h3>
+        <div class="cs">Application → System Call → VFS → Filesystem → Block Layer → Device Driver → Hardware</div>
+        <div class="cp">VFS(Virtual File System)는 Linux 커널이 <strong>모든 파일시스템에 대해 동일한 인터페이스</strong>를 제공하는 추상화 계층이다. 앱이 <code>open()</code>, <code>read()</code>, <code>write()</code>를 호출하면 VFS가 실제 파일시스템(ext4, XFS, NFS, procfs 등)으로 요청을 라우팅한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">I/O 경로</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Application
+  → write() system call
+    → VFS (Virtual File System)
+      → Filesystem (ext4/XFS)
+        → Page Cache (buffered I/O)
+          → Block Layer (blk-mq)
+            → I/O Scheduler (mq-deadline/none)
+              → Device Driver (nvme/scsi)
+                → Hardware (SSD/HDD)
+
+Direct I/O: Page Cache를 건너뜀
+  App → VFS → Filesystem → Block Layer → Device</div></div></div>
+          <div class="db"><div class="l">VFS 핵심 오브젝트</div><div class="v"><strong>Superblock:</strong> 파일시스템의 메타데이터. 블록 크기, inode 수, 마운트 옵션<br><strong>Inode:</strong> 파일의 메타데이터. 크기, 권한, 타임스탬프, 데이터 블록 위치<br><strong>Dentry (Directory Entry):</strong> 파일 이름 → inode 매핑. 디렉토리 구조 표현<br><strong>File:</strong> 열린 파일의 상태. 오프셋, 접근 모드<br><br><strong>핵심:</strong> 파일 이름은 Dentry에, 파일 데이터 위치는 Inode에, 실제 데이터는 데이터 블록에 저장. <strong>"파일 이름을 바꾸면 데이터가 이동하지 않는다"</strong> — Dentry만 변경됨</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="inode">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Core</div>
+        <h3>Inode & Dentry 캐시</h3>
+        <div class="cs">파일 메타데이터 접근 성능의 핵심 — 디스크 읽기 없이 메모리에서 해결</div>
+        <div class="dt">
+          <div class="db"><div class="l">Inode 구조</div><div class="v"><strong>Inode 번호:</strong> 파일시스템 내 고유 식별자<br><strong>포함 정보:</strong> 파일 크기, 소유자(UID/GID), 권한(mode), 타임스탬프(atime/mtime/ctime), 데이터 블록 포인터, 링크 수<br><strong>포함하지 않는 것:</strong> 파일 이름! (Dentry가 담당)<br><br><code>ls -i filename</code> — inode 번호 확인<br><code>stat filename</code> — inode 상세 정보<br><code>df -i</code> — inode 사용량 (inode 소진 시 파일 생성 불가!)<br><br><strong>SRE 이슈:</strong> 작은 파일이 수백만 개(컨테이너 로그 등)면 <strong>inode가 먼저 소진</strong>되어 디스크 여유가 있어도 파일 생성 불가</div></div>
+          <div class="db"><div class="l">Dentry Cache</div><div class="v"><strong>경로 이름 → inode 매핑을 메모리에 캐시:</strong><br><code>/var/log/nginx/access.log</code> 접근 시:<br>→ <code>/</code> dentry → <code>var</code> dentry → <code>log</code> dentry → <code>nginx</code> dentry → <code>access.log</code> dentry<br>→ 각 dentry가 inode를 가리킴<br><br><strong>캐시 히트 시:</strong> 디스크 읽기 없이 즉시 inode 접근<br><strong>모니터링:</strong> <code>/proc/slabinfo</code> → dentry, inode_cache 크기<br><br><strong>Negative Dentry:</strong> "이 파일은 존재하지 않는다"도 캐시. 없는 파일을 반복 조회할 때 디스크 접근 방지<br><br><strong>SRE 관점:</strong> <code>echo 2 > /proc/sys/vm/drop_caches</code>로 dentry/inode 캐시를 강제 해제할 수 있지만, 프로덕션에서는 <strong>성능 급락</strong>을 유발하므로 피해야 함</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FILESYSTEM ===== -->
+  <div class="P" id="p-fs">
+    <div class="PH"><div class="bg bg-g">● Filesystem Internals</div><h2>ext4 & XFS 내부</h2><p>저널링, Extent, Allocation — Linux 양대 파일시스템의 핵심 동작 원리.</p></div>
+
+    <div class="sec" id="ext4">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Default</div>
+        <h3>ext4 내부 동작</h3>
+        <div class="cs">Linux 기본 파일시스템 — Extent, 저널링, delayed allocation이 핵심</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 특성</div><div class="v"><strong>Extent 기반 할당:</strong> ext3의 간접 블록 포인터 대신, <strong>연속 블록의 시작+길이</strong>로 표현. 큰 파일의 메타데이터 크기 대폭 감소. 순차 읽기 성능 향상<br><br><strong>저널링 (JBD2):</strong> 메타데이터(기본) 또는 데이터+메타데이터를 저널에 먼저 기록하여 크래시 복구 보장<br>• <code>journal</code>: 데이터+메타 모두 저널 (가장 안전, 느림)<br>• <code>ordered</code>: 데이터를 먼저 쓰고 메타를 저널 (기본, 균형)<br>• <code>writeback</code>: 메타만 저널 (빠르지만 데이터 손실 가능)<br><br><strong>Delayed Allocation:</strong> 블록 할당을 실제 쓰기 시까지 지연. 연속 블록 할당 확률 증가 → fragmentation 감소</div></div>
+          <div class="db"><div class="l">한계 & 제한</div><div class="v"><strong>최대 파일 크기:</strong> 16TB<br><strong>최대 파일시스템:</strong> 1EB (1 Exabyte)<br><strong>서브디렉토리 수:</strong> ~64,000 (HTree로 성능 개선됨)<br><br><strong>단편화:</strong> 시간이 지나면 fragmentation 증가. <code>e4defrag</code>로 온라인 defrag 가능하지만 권장하지 않음 (SSD에서는 의미 없음)<br><br><strong>SRE 튜닝:</strong><br><code>noatime</code> 마운트 옵션: 읽기 시 접근 시간 업데이트 안 함 → 불필요한 쓰기 제거. K8s 노드에 권장<br><code>discard</code> 마운트 옵션: SSD TRIM 지원. <code>fstrim.timer</code>로 주기적 TRIM이 더 권장됨</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="xfs">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Scale</div>
+        <h3>XFS 내부 동작</h3>
+        <div class="cs">대규모 파일과 높은 병렬 I/O에 최적화된 파일시스템 — RHEL/CentOS 기본</div>
+        <div class="dt">
+          <div class="db"><div class="l">XFS의 차별점</div><div class="v"><strong>Allocation Group (AG):</strong> 파일시스템을 여러 독립 영역으로 분할. 각 AG가 독립적으로 할당/관리 → <strong>병렬 I/O 성능</strong> 극대화. 멀티스레드 워크로드에 최적<br><br><strong>B+Tree Everywhere:</strong> 디렉토리, inode 할당, extent, free space 모두 B+Tree로 관리. 대규모 파일/디렉토리에서 안정적 성능<br><br><strong>Online 기능:</strong><br>• Online resize (확장만, 축소 불가)<br>• Online defrag (<code>xfs_fsr</code>)<br>• Online dump/restore<br><br><strong>최대 파일 크기:</strong> 8EB<br><strong>최대 파일시스템:</strong> 8EB</div></div>
+          <div class="db"><div class="l">SRE 관점 ext4 vs XFS</div><div class="v"><strong>ext4 선택:</strong><br>• 소규모 파일시스템 (< 1TB)<br>• 일반 워크로드. 기본값으로 충분<br>• 파일시스템 축소가 필요한 경우<br>• Ubuntu 기본<br><br><strong>XFS 선택:</strong><br>• 대규모 파일시스템 (> 1TB)<br>• 높은 병렬 I/O (DB, 로그 서버)<br>• 대규모 파일 (백업, 미디어)<br>• RHEL/CentOS 기본<br><br><strong>K8s PV:</strong> EBS gp3는 기본 ext4로 포맷됨. <code>StorageClass.parameters.fsType: xfs</code>로 XFS 지정 가능. DB 워크로드에 XFS 권장</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="fs-choose">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Guide</div>
+        <h3>파일시스템 선택 가이드</h3>
+        <div class="cs">워크로드에 따른 최적 파일시스템 선택</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>워크로드</th><th>권장 FS</th><th>이유</th><th>마운트 옵션</th></tr></thead>
+          <tbody>
+            <tr><td><strong>K8s Node Root</strong></td><td>ext4</td><td>범용, 안정</td><td><code>noatime,nodiratime</code></td></tr>
+            <tr><td><strong>etcd Data</strong></td><td>ext4</td><td>작은 파일, 빈번한 fsync</td><td><code>noatime,data=ordered</code></td></tr>
+            <tr><td><strong>Prometheus TSDB</strong></td><td>XFS</td><td>대량 순차 쓰기, compaction</td><td><code>noatime</code></td></tr>
+            <tr><td><strong>PostgreSQL</strong></td><td>XFS</td><td>병렬 I/O, 큰 테이블</td><td><code>noatime,nobarrier</code> (배터리 백업 시)</td></tr>
+            <tr><td><strong>Container Layer</strong></td><td>OverlayFS</td><td>레이어 기반 이미지</td><td>containerd 기본</td></tr>
+            <tr><td><strong>NFS (공유)</strong></td><td>NFS v4</td><td>ReadWriteMany PV</td><td><code>hard,nointr</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PAGE CACHE ===== -->
+  <div class="P" id="p-cache">
+    <div class="PH"><div class="bg bg-o">● Page Cache & I/O Patterns</div><h2>Page Cache, Direct I/O, Writeback</h2><p>메모리와 디스크 사이의 캐시 계층 — DB와 파일 서버의 I/O 성능을 좌우하는 핵심.</p></div>
+
+    <div class="sec" id="page-cache">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Cache</div>
+        <h3>Page Cache</h3>
+        <div class="cs">디스크 데이터를 메모리 페이지에 캐시하여 반복 읽기를 메모리 속도로 제공</div>
+        <div class="cp">Linux는 <strong>사용 가능한 메모리를 최대한 Page Cache로 활용</strong>한다. 파일을 읽으면 해당 페이지가 캐시되고, 다음 읽기는 디스크 대신 메모리에서 즉시 제공된다. <code>free</code> 명령의 <code>buff/cache</code>가 이것이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">동작</div><div class="v"><strong>읽기:</strong><br>1. 앱이 <code>read()</code> 호출<br>2. VFS가 Page Cache에 해당 페이지가 있는지 확인<br>3. <strong>Hit:</strong> 메모리에서 직접 반환 (마이크로초)<br>4. <strong>Miss:</strong> 디스크에서 읽어 Cache에 적재 후 반환 (밀리초)<br><br><strong>쓰기 (Buffered):</strong><br>1. 앱이 <code>write()</code> 호출<br>2. 데이터가 Page Cache에 기록 (<strong>dirty page</strong>로 마킹)<br>3. <code>write()</code> 즉시 반환 (앱 입장에서 빠름)<br>4. 커널이 나중에 dirty page를 디스크에 flush (<strong>writeback</strong>)<br><br><strong>모니터링:</strong><br><code>cat /proc/meminfo | grep -E "Cached|Dirty|Writeback"</code></div></div>
+          <div class="db"><div class="l">K8s에서의 Page Cache</div><div class="v"><strong>cgroup memory와의 상호작용:</strong><br>Page Cache는 해당 cgroup(컨테이너)의 메모리 사용량에 <strong>포함</strong>된다.<br><br><strong>문제:</strong> 컨테이너가 대량 파일을 읽으면 Page Cache가 cgroup 메모리를 채움 → memory limit 도달 → <strong>OOMKill</strong><br>실제 앱 메모리가 아니라 캐시가 원인인데 OOM 발생!<br><br><strong>지표:</strong><br><code>container_memory_working_set_bytes</code> — Page Cache 일부 포함<br><code>container_memory_rss</code> — 실제 앱 메모리<br><br><strong>해결:</strong><br>• memory limit에 Page Cache 여유분 포함<br>• 대량 파일 I/O는 Direct I/O 사용 (Page Cache 우회)<br>• <code>memory.high</code> (soft limit)으로 조기 회수 유도</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="direct-io">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Bypass</div>
+        <h3>Direct I/O — Page Cache 우회</h3>
+        <div class="cs">"내가 캐시를 직접 관리하겠다" — DB가 O_DIRECT를 쓰는 이유</div>
+        <div class="cp"><code>O_DIRECT</code> 플래그로 파일을 열면 <strong>Page Cache를 경유하지 않고 디스크에 직접 읽기/쓰기</strong>한다. DB(PostgreSQL, MySQL)가 자체 버퍼 풀(<code>shared_buffers</code>)을 운영하므로 Page Cache는 <strong>이중 캐싱(double buffering)</strong>이 되어 메모리 낭비를 유발한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">왜 DB는 Direct I/O를 쓰는가</div><div class="v"><strong>PostgreSQL:</strong> 기본적으로 Buffered I/O 사용. <code>shared_buffers</code>가 자체 캐시 역할. Page Cache에도 같은 데이터가 캐시됨 → 메모리 2배 낭비 가능<br>→ PostgreSQL 16+: <code>io_method = io_uring</code> (Direct I/O + io_uring 조합 실험적 지원)<br><br><strong>MySQL/InnoDB:</strong> <code>innodb_flush_method = O_DIRECT</code> 권장. InnoDB Buffer Pool이 자체 캐시. OS Page Cache 불필요<br><br><strong>RocksDB (etcd, Loki):</strong> <code>use_direct_io_for_flush_and_compaction = true</code>. Compaction 중 대량 데이터를 읽고 쓰는데, Page Cache를 오염시키면 다른 앱의 캐시 히트율이 떨어짐</div></div>
+          <div class="db"><div class="l">Direct I/O 제약</div><div class="v"><strong>정렬 요구:</strong> 읽기/쓰기 버퍼, 오프셋, 크기가 <strong>블록 크기(보통 512B 또는 4KB)에 정렬</strong>되어야 함. 정렬 안 되면 에러<br><br><strong>성능:</strong> Page Cache가 없으므로 <strong>모든 읽기가 디스크를 히트</strong>. 랜덤 읽기에서 Buffered I/O보다 느릴 수 있음. 자체 캐시가 있는 앱(DB)에서만 의미<br><br><strong>K8s 영향:</strong> Direct I/O를 사용하는 Pod은 Page Cache를 소비하지 않으므로 <code>container_memory_working_set_bytes</code>가 실제 앱 메모리에 가까워짐. OOMKill 위험 감소</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="writeback">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Flush</div>
+        <h3>Writeback — Dirty Page 플러시</h3>
+        <div class="cs">Page Cache의 dirty page가 실제 디스크에 기록되는 메커니즘</div>
+        <div class="dt">
+          <div class="db"><div class="l">Writeback 트리거</div><div class="v"><strong>1) 주기적:</strong> <code>dirty_writeback_centisecs</code> (기본 500 = 5초) 간격으로 flush 스레드가 dirty page를 디스크에 쓴다<br><strong>2) Dirty ratio 초과:</strong> <code>dirty_background_ratio</code> (기본 10%) 초과 → 백그라운드 flush 시작<br><code>dirty_ratio</code> (기본 20%) 초과 → <strong>앱의 write()가 블록됨!</strong> (동기 writeback 강제)<br><strong>3) fsync():</strong> 앱이 명시적으로 호출. 해당 파일의 모든 dirty page를 즉시 디스크에<br><strong>4) sync:</strong> 전체 dirty page flush. <code>sync</code> 명령<br><br><strong>SRE 관점:</strong> <code>dirty_ratio</code>에 도달하면 <strong>write latency가 급증</strong>한다. etcd의 WAL fsync가 느려지면 리더 선출 실패. I/O 워크로드에서는 dirty ratio 모니터링 필수</div></div>
+          <div class="db"><div class="l">튜닝</div><div class="v"><code>vm.dirty_background_ratio = 5</code> — 빠른 백그라운드 flush 시작<br><code>vm.dirty_ratio = 10</code> — 앱 블록 임계값 낮춤<br><code>vm.dirty_writeback_centisecs = 100</code> — flush 주기 단축 (1초)<br><br><strong>DB 서버:</strong> dirty ratio를 낮게 설정하여 <strong>갑작스러운 flush storm 방지</strong>. 꾸준히 조금씩 flush가 더 예측 가능<br><br><strong>etcd:</strong> WAL fsync 성능이 핵심. SSD에서도 dirty page가 많으면 fsync가 느려짐. <code>dirty_background_ratio = 5</code> 권장<br><br><strong>모니터링:</strong><br><code>node_memory_Dirty_bytes</code> — 현재 dirty page 크기<br><code>node_memory_Writeback_bytes</code> — 현재 writeback 중인 크기<br>급증하면 I/O 스파이크 예고</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="io-sched">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Scheduler</div>
+        <h3>I/O Scheduler</h3>
+        <div class="cs">디스크에 보낼 I/O 요청의 순서를 결정하는 커널 레이어</div>
+        <div class="dt">
+          <div class="db"><div class="l">Linux I/O 스케줄러</div><div class="v"><strong>none (noop):</strong> 스케줄링 없음. FIFO 큐. <strong>NVMe에 최적</strong>. NVMe 자체가 내부적으로 128K+ 큐를 가지고 있어 커널 스케줄링이 불필요<br><br><strong>mq-deadline:</strong> 읽기/쓰기 별도 큐. deadline으로 starvation 방지. HDD/SATA SSD에 적합. K8s 노드 기본<br><br><strong>kyber:</strong> 경량 스케줄러. latency 목표 기반으로 I/O 제한. SSD에 적합<br><br><strong>bfq (Budget Fair Queueing):</strong> 프로세스별 공정한 I/O 대역폭 분배. 데스크톱/인터랙티브 환경<br><br><strong>확인:</strong> <code>cat /sys/block/sda/queue/scheduler</code><br><strong>변경:</strong> <code>echo none > /sys/block/nvme0n1/queue/scheduler</code></div></div>
+          <div class="db"><div class="l">NVMe에서 none인 이유</div><div class="v"><strong>HDD 시대:</strong> 디스크 헤드 이동이 가장 비싼 연산. 인접한 섹터의 요청을 모아서 처리(elevator)하면 헤드 이동 최소화 → 큰 성능 향상<br><br><strong>SSD/NVMe:</strong> 기계적 헤드 없음. 랜덤 접근 성능이 순차와 거의 동일. 커널 스케줄러가 순서를 재배치해봐야 <strong>오버헤드만 추가</strong><br><br><strong>NVMe 특성:</strong><br>• 내부 FTL(Flash Translation Layer)이 자체 스케줄링<br>• 64K 하드웨어 큐 × 64K depth = 40억 동시 I/O 가능<br>• 커널의 소프트웨어 스케줄러는 방해만 됨<br><br><strong>EBS gp3:</strong> AWS 내부에서 네트워크를 통해 NVMe 프로토콜 사용. none 스케줄러 권장</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== NVME ===== -->
+  <div class="P" id="p-nvme">
+    <div class="PH"><div class="bg bg-p">● NVMe & Modern Storage</div><h2>NVMe와 현대 스토리지</h2><p>NVMe 내부, io_uring 연결, EBS/클라우드 디스크 — 스토리지 계층의 현재와 미래.</p></div>
+
+    <div class="sec" id="nvme-arch">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Architecture</div>
+        <h3>NVMe 내부 아키텍처</h3>
+        <div class="cs">PCIe 직결, 멀티큐, 64K 큐 깊이 — SSD의 성능을 완전히 활용하는 프로토콜</div>
+        <div class="cp">SATA/SAS는 <strong>HDD 시대에 설계</strong>된 프로토콜이다. 단일 큐, 32 큐 깊이가 SSD의 병렬성을 병목으로 만든다. NVMe(Non-Volatile Memory Express)는 <strong>SSD에 최적화</strong>되어 PCIe 버스를 직접 사용하고, 최대 64K 큐 × 64K depth의 병렬 I/O를 지원한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">NVMe vs SATA 비교</div><div class="v"><strong>SATA SSD:</strong><br>• AHCI 프로토콜, 1 커맨드 큐, 32 depth<br>• 순차 읽기: ~550 MB/s (SATA 인터페이스 한계)<br>• IOPS: ~100K<br>• latency: ~100μs<br><br><strong>NVMe SSD:</strong><br>• NVMe 프로토콜, 64K 큐, 64K depth/큐<br>• 순차 읽기: ~3500 MB/s (PCIe Gen3) / ~7000+ (Gen4)<br>• IOPS: ~500K~1M<br>• latency: ~10~20μs<br><br><strong>핵심:</strong> NVMe는 CPU 코어당 별도 Submission Queue + Completion Queue를 할당하여 <strong>Lock-free 병렬 I/O</strong>를 달성</div></div>
+          <div class="db"><div class="l">NVMe Namespace</div><div class="v"><strong>Namespace:</strong> NVMe 디바이스 내의 논리적 저장 단위. 하나의 NVMe 디바이스에 여러 namespace를 생성하여 별도 블록 디바이스로 사용<br><br><code>nvme list</code> — NVMe 디바이스 목록<br><code>nvme smart-log /dev/nvme0</code> — SMART 상태 확인<br><br><strong>SRE 관점:</strong><br>• <strong>Wear Leveling:</strong> SSD 셀 수명 관리. <code>percentage_used</code> > 80%면 교체 계획<br>• <strong>Temperature:</strong> 과열 시 성능 throttling 발생<br>• <strong>Write Amplification Factor (WAF):</strong> 실제 쓰기/앱 쓰기. 높으면 SSD 수명 감소</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="io-uring">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Async</div>
+        <h3>io_uring — NVMe의 성능을 최대로 끌어내는 I/O 인터페이스</h3>
+        <div class="cs">커널과 유저스페이스 사이의 공유 링 버퍼로 syscall 오버헤드를 제거한 비동기 I/O</div>
+        <div class="cp">전통적인 <code>read()/write()</code>는 <strong>syscall마다 커널-유저 컨텍스트 스위칭</strong>이 발생한다. NVMe가 10μs 만에 I/O를 완료하는데, syscall 오버헤드가 수 μs이면 <strong>오버헤드가 I/O 자체보다 클 수 있다</strong>. io_uring은 <strong>공유 메모리 링 버퍼</strong>를 사용하여 syscall 없이 I/O를 제출/완료한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">동작 원리</div><div class="v"><strong>두 개의 Ring Buffer:</strong><br>• <strong>Submission Queue (SQ):</strong> 앱이 I/O 요청을 넣는 큐<br>• <strong>Completion Queue (CQ):</strong> 커널이 완료 결과를 넣는 큐<br><br>두 큐가 커널-유저 <strong>공유 메모리</strong>에 있으므로:<br>1. 앱이 SQ에 요청을 넣음 (syscall 없음!)<br>2. 커널 폴링 스레드가 SQ에서 요청을 가져감<br>3. I/O 완료 → CQ에 결과 넣음<br>4. 앱이 CQ에서 결과를 읽음 (syscall 없음!)<br><br><strong>SQPOLL 모드:</strong> 커널 스레드가 SQ를 지속 폴링. 완전히 syscall-free. CPU를 소비하지만 latency 극소화</div></div>
+          <div class="db"><div class="l">인프라 적용</div><div class="v"><strong>PostgreSQL 16+:</strong> <code>io_method = io_uring</code> (실험적). Direct I/O + io_uring 조합으로 대용량 WAL/checkpoint 성능 향상<br><strong>RocksDB:</strong> io_uring 지원으로 compaction 속도 향상<br><strong>liburing:</strong> io_uring의 Go/C 래퍼 라이브러리<br><br><strong>Linux Kernel Deep Internals 문서</strong>에서 다룬 io_uring의 SQ/CQ 구조와 직접 연결되는 내용<br><br><strong>Go에서:</strong> Go 런타임이 아직 io_uring을 네이티브 지원하지 않음. <code>iceber/iouring-go</code> 등 3rd party 라이브러리 존재. Go의 goroutine + epoll 모델이 대부분의 I/O에서 충분히 효율적이지만, 고빈도 디스크 I/O에서는 io_uring이 이점</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="ebs-internal">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Cloud</div>
+        <h3>EBS / 클라우드 디스크 내부</h3>
+        <div class="cs">네트워크로 연결된 블록 스토리지 — 로컬 디스크와 다른 성능 특성을 이해해야 한다</div>
+        <div class="dt">
+          <div class="db"><div class="l">EBS 내부 동작</div><div class="v"><strong>EBS는 네트워크 스토리지:</strong><br>EC2 인스턴스 → EBS Nitro Card → 네트워크 → EBS 서버<br><br>물리적으로 같은 머신에 있지 않으므로:<br>• <strong>Latency:</strong> 로컬 NVMe ~10μs vs EBS gp3 ~1~3ms (100배 차이)<br>• <strong>IOPS 제한:</strong> gp3 기본 3000 IOPS. 프로비저닝으로 16000까지<br>• <strong>Throughput 제한:</strong> gp3 기본 125 MB/s. 최대 1000 MB/s<br>• <strong>Burst:</strong> gp3는 burst 없음 (일정한 baseline). gp2는 burst 모델<br><br><strong>Instance Store (로컬 NVMe):</strong><br>EC2에 물리적으로 연결된 NVMe. 초저 latency, 초고 IOPS. 하지만 <strong>인스턴스 종료 시 데이터 소실</strong>. 캐시, 임시 데이터용</div></div>
+          <div class="db"><div class="l">SRE 운영 포인트</div><div class="v"><strong>IOPS 제한 도달:</strong><br><code>iostat -x 1</code> → <code>%util</code> 100% + <code>await</code> 급증<br>→ EBS IOPS 제한에 도달. 프로비저닝 IOPS 증가 또는 볼륨 타입 변경<br><br><strong>EBS Throughput 제한:</strong><br>대용량 순차 읽기/쓰기에서 125 MB/s가 병목될 수 있음<br>→ gp3 throughput을 250~1000 MB/s로 증가<br><br><strong>EC2 인스턴스별 EBS 대역폭 제한:</strong><br>인스턴스 자체에도 EBS 대역폭 제한이 있음<br>m5.xlarge: 최대 4750 Mbps ≈ 594 MB/s<br>여러 EBS 볼륨의 합이 이 제한을 초과하면 스로틀링<br><br><strong>모니터링:</strong><br><code>aws cloudwatch get-metric-statistics</code><br><code>VolumeReadOps</code>, <code>VolumeWriteOps</code>, <code>VolumeQueueLength</code><br>Prometheus: <code>node_disk_*</code> 메트릭과 CloudWatch 메트릭 교차 확인</div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 스토리지 성능 계층 정리</strong><br><strong>L1 Cache:</strong> ~1ns — CPU 내부<br><strong>L3 Cache:</strong> ~10ns — CPU 공유<br><strong>DRAM:</strong> ~100ns — Page Cache가 여기에<br><strong>Local NVMe:</strong> ~10μs — Instance Store<br><strong>EBS gp3:</strong> ~1ms — 네트워크 스토리지<br><strong>S3:</strong> ~50~100ms — 오브젝트 스토리지<br><br>각 계층이 <strong>10~100배씩 느려진다.</strong> Page Cache 히트 여부가 성능을 100,000배 바꿀 수 있다.</div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

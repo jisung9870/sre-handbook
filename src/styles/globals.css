@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* 배경 */
+  --color-bg: #f8f9fb;
+  --color-surface: #fff;
+  --color-surface-alt: #f0f2f5;
+  --color-border: #e2e6eb;
+  --color-border-strong: #d0d5dc;
+
+  /* 텍스트 */
+  --color-text-primary: #1a1d23;
+  --color-text-secondary: #5c6370;
+  --color-text-muted: #8b929e;
+
+  /* 액센트 */
+  --color-blue: #0969b2;
+  --color-green: #1a7f37;
+  --color-orange: #c2600c;
+  --color-red: #cf222e;
+  --color-purple: #7c3aed;
+  --color-teal: #0e7c6b;
+  --color-indigo: #4338ca;
+
+  /* 코드 블록 */
+  --color-code-bg: #1e2530;
+
+  /* 레이아웃 */
+  --sidebar-width: 260px;
+  --topbar-height: 56px;
+}
+
+/* ── 다크 모드 앱 셸 변수 ──────────────────────────────────── */
+[data-theme="dark"] {
+  /* 배경 */
+  --color-bg: #0d1117;
+  --color-surface: #161b22;
+  --color-surface-alt: #1c2128;
+  --color-border: #30363d;
+  --color-border-strong: #484f58;
+
+  /* 텍스트 */
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-muted: #6e7681;
+
+  /* 액센트 — 다크 배경에서 가독성을 위해 밝기 증가 */
+  --color-blue: #58a6ff;
+  --color-green: #3fb950;
+  --color-orange: #f0883e;
+  --color-red: #f85149;
+  --color-purple: #a371f7;
+  --color-teal: #2ea043;
+  --color-indigo: #818cf8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: 'Noto Sans KR', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 스크롤바 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* 포커스 링 */
+:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+/* 스크롤 부드럽게 */
+html {
+  scroll-behavior: smooth;
+}
+
+/* 페이지/모달 전환 애니메이션 */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-up-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-page-in {
+  animation: slide-up-fade 0.2s ease-out;
+}
+
+.animate-modal-in {
+  animation: slide-up-fade 0.15s ease-out;
+}

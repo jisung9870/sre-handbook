@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Container Networking Internals — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--orange);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--orange)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="primitives"].on{color:var(--teal)}.T[data-t="primitives"].on::after{background:var(--teal);left:8%;right:8%}
+.T[data-t="path"].on{color:var(--blue)}.T[data-t="path"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="overlay"].on{color:var(--orange)}.T[data-t="overlay"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="debug-net"].on{color:var(--green)}.T[data-t="debug-net"].on::after{background:var(--green);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">Network Deep Dive</div><h1><em>Container</em><br>Networking</h1></div>
+  <div class="sl">네트워크 프리미티브</div>
+  <ul class="sn">
+    <li><a data-t="primitives" data-s="netns" class="on"><span class="d" style="background:var(--teal)"></span>Network Namespace</a></li>
+    <li><a data-t="primitives" data-s="veth"><span class="d" style="background:var(--teal)"></span>veth pair</a></li>
+    <li><a data-t="primitives" data-s="bridge"><span class="d" style="background:var(--teal)"></span>Linux Bridge</a></li>
+    <li><a data-t="primitives" data-s="cni-spec"><span class="d" style="background:var(--teal)"></span>CNI 스펙</a></li>
+  </ul>
+  <div class="sl">패킷 경로</div>
+  <ul class="sn">
+    <li><a data-t="path" data-s="pod-pod"><span class="d" style="background:var(--blue)"></span>Pod → Pod (같은 노드)</a></li>
+    <li><a data-t="path" data-s="pod-pod-cross"><span class="d" style="background:var(--blue)"></span>Pod → Pod (다른 노드)</a></li>
+    <li><a data-t="path" data-s="pod-svc"><span class="d" style="background:var(--blue)"></span>Pod → Service</a></li>
+    <li><a data-t="path" data-s="pod-ext"><span class="d" style="background:var(--blue)"></span>Pod → External</a></li>
+  </ul>
+  <div class="sl">Overlay vs Native</div>
+  <ul class="sn">
+    <li><a data-t="overlay" data-s="vxlan"><span class="d" style="background:var(--orange)"></span>VXLAN Overlay</a></li>
+    <li><a data-t="overlay" data-s="native-route"><span class="d" style="background:var(--orange)"></span>Native Routing</a></li>
+    <li><a data-t="overlay" data-s="vpc-cni"><span class="d" style="background:var(--orange)"></span>AWS VPC CNI</a></li>
+  </ul>
+  <div class="sl">디버깅</div>
+  <ul class="sn">
+    <li><a data-t="debug-net" data-s="tcpdump-k8s"><span class="d" style="background:var(--green)"></span>tcpdump in K8s</a></li>
+    <li><a data-t="debug-net" data-s="conntrack-debug"><span class="d" style="background:var(--green)"></span>conntrack 디버깅</a></li>
+    <li><a data-t="debug-net" data-s="dns-debug"><span class="d" style="background:var(--green)"></span>DNS 문제 진단</a></li>
+  </ul>
+  <div class="S-f"><p>Every packet tells<br>a story. Learn<br>to read it.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="primitives" onclick="sw('primitives')">● 프리미티브</button>
+    <button class="T" data-t="path" onclick="sw('path')">● 패킷 경로</button>
+    <button class="T" data-t="overlay" onclick="sw('overlay')">● Overlay/Native</button>
+    <button class="T" data-t="debug-net" onclick="sw('debug-net')">● 디버깅</button>
+  </div>
+
+  <!-- ===== PRIMITIVES ===== -->
+  <div class="P on" id="p-primitives">
+    <div class="PH"><div class="bg bg-t">● Network Primitives</div><h2>컨테이너 네트워크 기본 구성 요소</h2><p>Network Namespace, veth pair, Bridge, CNI — 컨테이너 네트워킹의 레고 블록.</p></div>
+
+    <div class="sec" id="netns">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Isolation</div>
+        <h3>Network Namespace</h3>
+        <div class="cs">각 Pod에 독립적인 네트워크 스택(인터페이스, 라우팅 테이블, iptables)을 제공하는 커널 기능</div>
+        <div class="cp">Linux의 <strong>Network Namespace</strong>는 프로세스에게 <strong>격리된 네트워크 환경</strong>을 제공한다. 각 namespace는 자신만의 네트워크 인터페이스, IP 주소, 라우팅 테이블, iptables 규칙, 소켓을 가진다. K8s Pod의 모든 컨테이너는 <strong>같은 Network Namespace를 공유</strong>한다. 이것이 같은 Pod의 컨테이너끼리 <code>localhost</code>로 통신할 수 있는 이유다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 동작</div><div class="v"><strong>Pod 생성 시:</strong><br>1. containerd가 새 Network Namespace 생성<br>2. Pause 컨테이너가 namespace를 점유 (namespace holder)<br>3. CNI 플러그인이 veth pair 생성, IP 할당<br>4. 앱 컨테이너가 같은 namespace에 진입<br><br><strong>확인:</strong><br><code>lsns -t net</code> — 시스템의 네트워크 namespace 목록<br><code>ip netns list</code> — named namespace (Docker/K8s는 unnamed)<br><code>nsenter -t [PID] -n ip addr</code> — Pod namespace에서 네트워크 확인</div></div>
+          <div class="db"><div class="l">Pause 컨테이너의 역할</div><div class="v"><strong>왜 Pause 컨테이너가 필요한가?</strong><br><br>Network Namespace는 <strong>마지막 프로세스가 종료되면 삭제</strong>된다. 앱 컨테이너가 재시작되면 namespace가 사라질 수 있다.<br><br>Pause 컨테이너(무한 sleep)가 <strong>namespace를 영구히 점유</strong>하여, 앱 컨테이너가 재시작되어도 같은 IP, 같은 네트워크 설정을 유지한다.<br><br><code>pause</code>: 리소스 ~1MB. 거의 CPU/Memory 사용 없음</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="veth">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Connection</div>
+        <h3>veth pair — 가상 이더넷 쌍</h3>
+        <div class="cs">두 개의 Network Namespace를 연결하는 가상 네트워크 케이블</div>
+        <div class="cp">veth pair는 <strong>한쪽에 들어온 패킷이 반드시 다른 쪽으로 나가는</strong> 가상 네트워크 인터페이스 쌍이다. Pod의 <code>eth0</code>와 노드의 <code>vethXXXX</code>가 하나의 veth pair다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">구조</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">┌─ Pod Namespace ─┐    ┌─ Host Namespace ─┐
+│                  │    │                   │
+│  eth0 ◄──────────┼────┼── vethXXXX        │
+│  10.244.1.5      │    │   (bridge에 연결)  │
+│                  │    │                   │
+└──────────────────┘    └───────────────────┘</div><br><strong>Pod 내:</strong> <code>eth0</code>으로 보임. Pod IP가 할당됨<br><strong>Host에서:</strong> <code>vethXXXX</code>로 보임. Bridge 또는 라우팅 테이블에 연결<br><br><code>ip link show type veth</code> — 노드의 모든 veth 확인<br><code>ip -n [netns] link show</code> — Pod namespace의 인터페이스</div></div>
+          <div class="db"><div class="l">Pod의 veth 찾기</div><div class="v"><strong>Pod의 eth0 → 호스트의 veth 매핑:</strong><br><br>1. Pod에서: <code>cat /sys/class/net/eth0/iflink</code> → 인덱스 번호<br>2. 호스트에서: <code>ip link | grep [인덱스번호]:</code> → vethXXXX<br><br>또는:<br><code>kubectl exec -it pod -- ip link show eth0</code><br>→ <code>eth0@if7</code>에서 <code>7</code>이 호스트의 인터페이스 인덱스<br>→ 호스트에서 <code>ip link | grep "^7:"</code>로 veth 확인<br><br><strong>디버깅에 필수:</strong> 특정 Pod의 트래픽을 호스트에서 tcpdump로 캡처할 때 해당 veth를 지정해야 함</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="bridge">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Switch</div>
+        <h3>Linux Bridge — 가상 L2 스위치</h3>
+        <div class="cs">같은 노드의 Pod들을 연결하는 소프트웨어 스위치</div>
+        <div class="cp">Linux Bridge는 <strong>가상 L2 스위치</strong>다. 여러 veth의 호스트 측 끝을 Bridge에 연결하면, Bridge가 MAC 주소를 학습하여 <strong>같은 노드의 Pod 간 L2 통신</strong>을 중계한다.<br><br>CNI에 따라 Bridge 사용 여부가 다르다. <strong>Flannel과 기본 bridge CNI</strong>는 Bridge를 사용하지만, <strong>Cilium과 AWS VPC CNI</strong>는 Bridge 없이 직접 라우팅한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Bridge 기반 CNI 구조</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Pod A (10.244.1.5)         Pod B (10.244.1.6)
+  eth0                       eth0
+   │                          │
+   vethA                    vethB
+   │                          │
+   └───── cbr0 (bridge) ──────┘
+          10.244.1.1/24
+              │
+         host routing table
+              │
+          eth0 (node IP)</div><br><code>brctl show</code> 또는 <code>bridge link show</code> — Bridge 상태<br><code>cbr0</code>, <code>cni0</code> — CNI가 생성하는 Bridge 이름</div></div>
+          <div class="db"><div class="l">Bridge 없는 CNI</div><div class="v"><strong>Cilium:</strong> veth의 호스트 측에 tc BPF를 직접 연결. Bridge 경유 없이 eBPF가 라우팅 결정<br><br><strong>AWS VPC CNI:</strong> Pod에 ENI의 secondary IP를 직접 할당. VPC 라우팅 테이블이 직접 Pod IP를 라우팅. Bridge 불필요<br><br><strong>장점:</strong> Bridge의 MAC learning/flooding 오버헤드 제거. 더 빠른 패킷 처리<br><strong>단점:</strong> L2 브로드캐스트가 없으므로 일부 레거시 프로토콜(ARP-heavy) 호환 문제 가능</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="cni-spec">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Spec</div>
+        <h3>CNI 스펙 — kubelet이 네트워킹을 설정하는 방법</h3>
+        <div class="cs">Pod 생성 → kubelet → CRI → CNI 플러그인 호출 → 네트워크 설정 완료</div>
+        <div class="dt">
+          <div class="db"><div class="l">CNI 호출 흐름</div><div class="v"><strong>1)</strong> kubelet이 Pod 생성 요청 수신<br><strong>2)</strong> CRI(containerd)가 Pod의 Network Namespace 생성<br><strong>3)</strong> kubelet이 CNI 바이너리를 실행 (<code>/opt/cni/bin/</code>)<br><strong>4)</strong> CNI 플러그인이:<br>   • veth pair 생성<br>   • IP 할당 (IPAM 플러그인 호출)<br>   • 라우팅 규칙 설정<br>   • Bridge 또는 eBPF 프로그램 연결<br><strong>5)</strong> 결과(IP, 인터페이스)를 kubelet에 반환<br><strong>6)</strong> kubelet이 Pod status에 IP 기록</div></div>
+          <div class="db"><div class="l">CNI 설정 파일</div><div class="v"><strong>위치:</strong> <code>/etc/cni/net.d/</code><br><br><strong>예시 (bridge CNI):</strong><br><code>{ "cniVersion": "1.0.0", "name": "k8s-pod-network", "type": "bridge", "bridge": "cni0", "ipam": { "type": "host-local", "subnet": "10.244.1.0/24" } }</code><br><br><strong>CNI 체이닝:</strong> 여러 CNI 플러그인을 순서대로 실행 가능. 예: AWS VPC CNI(IPAM) + Cilium(정책/라우팅)<br><br><strong>IPAM 플러그인:</strong><br>• <code>host-local</code>: 노드별 서브넷에서 IP 할당<br>• <code>calico-ipam</code>: Calico의 IP Pool에서 할당<br>• AWS VPC CNI: ENI secondary IP에서 할당</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PACKET PATH ===== -->
+  <div class="P" id="p-path">
+    <div class="PH"><div class="bg bg-b">● Packet Path Tracing</div><h2>패킷 경로 추적</h2><p>Pod→Pod, Pod→Service, Pod→External — K8s에서 패킷이 실제로 흐르는 경로.</p></div>
+
+    <div class="sec" id="pod-pod">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Same Node</div>
+        <h3>Pod → Pod (같은 노드)</h3>
+        <div class="cs">같은 노드의 두 Pod 간 통신 — Bridge 또는 BPF를 거쳐 직접 전달</div>
+        <div class="dt">
+          <div class="db"><div class="l">Bridge CNI 경로</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Pod A eth0 → vethA → cbr0 (bridge)
+  → MAC learning으로 vethB 찾기
+  → vethB → Pod B eth0
+
+경로: 패킷이 호스트 네트워크 스택을 통과
+  → iptables/netfilter도 통과
+  → conntrack에 기록됨</div></div></div>
+          <div class="db"><div class="l">Cilium eBPF 경로</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Pod A eth0 → vethA → [tc BPF ingress]
+  → BPF가 destination Pod의 veth를 직접 조회
+  → bpf_redirect() → vethB → [tc BPF ingress]
+  → Pod B eth0
+
+경로: Bridge 없음, iptables 없음, netfilter 없음
+  → 커널 네트워크 스택 대부분을 우회
+  → latency 대폭 감소</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="pod-pod-cross">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Cross Node</div>
+        <h3>Pod → Pod (다른 노드)</h3>
+        <div class="cs">Overlay(VXLAN) 또는 Native Routing에 따라 다른 경로</div>
+        <div class="dt">
+          <div class="db"><div class="l">VXLAN Overlay 경로</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Node 1                           Node 2
+Pod A → vethA → bridge/BPF       → bridge/BPF → vethB → Pod B
+  → host routing: 10.244.2.0/24 via vxlan0
+  → VXLAN 캡슐화 (외부: Node1→Node2 UDP 8472)
+  →        [원본 패킷]
+     [UDP 8472][VXLAN Header]
+     [Node1 IP → Node2 IP]
+  → Node 2의 vxlan0에서 디캡슐화
+  → 내부 라우팅 → Pod B</div><br><strong>VXLAN 오버헤드:</strong> 50바이트 추가 헤더. MTU를 1450으로 조정 필요 (기본 1500 - 50)</div></div>
+          <div class="db"><div class="l">Native Routing 경로</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Node 1                           Node 2
+Pod A → vethA → host routing
+  → 10.244.2.0/24 via Node2 IP
+  → 원본 패킷 그대로 (캡슐화 없음)
+  → 물리 네트워크가 Pod CIDR를 인식해야 함
+  → Node 2의 라우팅 → Pod B
+
+AWS VPC CNI: VPC 라우팅 테이블이 Pod IP 인식
+Calico BGP: BGP로 Pod CIDR 경로를 전파</div><br><strong>장점:</strong> 캡슐화 없음 → MTU 감소 없음, latency 낮음, 네트워크 장비에서 Pod IP 직접 접근 가능<br><strong>제약:</strong> 물리 네트워크(또는 클라우드 VPC)가 Pod CIDR 라우팅을 지원해야 함</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="pod-svc">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Service</div>
+        <h3>Pod → Service</h3>
+        <div class="cs">가상 ClusterIP가 실제 Pod IP로 변환(DNAT)되는 과정</div>
+        <div class="dt">
+          <div class="db"><div class="l">iptables 기반 (kube-proxy)</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Pod A → ClusterIP:port (예: 10.96.1.100:80)
+  → OUTPUT chain → KUBE-SERVICES chain
+  → KUBE-SVC-XXXX (Service에 해당하는 chain)
+  → iptables probability로 Pod 선택
+     33% → KUBE-SEP-AAA (10.244.1.5:8080)
+     33% → KUBE-SEP-BBB (10.244.2.3:8080)
+     33% → KUBE-SEP-CCC (10.244.3.7:8080)
+  → DNAT: dst 10.96.1.100 → 10.244.2.3
+  → conntrack에 매핑 기록
+  → 라우팅 → Pod B</div><br>Service 1000개 × Pod 10개 = <strong>~10,000 iptables 규칙</strong><br>매 패킷마다 순차 평가 → O(n) 성능</div></div>
+          <div class="db"><div class="l">eBPF 기반 (Cilium)</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Pod A → ClusterIP:port
+  → tc BPF ingress on vethA
+  → BPF Map에서 Service IP:port 조회 (O(1))
+  → endpoint 목록에서 LB 알고리즘으로 선택
+  → DNAT: dst → 선택된 Pod IP
+  → bpf_redirect() → 대상 veth 또는 routing
+  → Pod B</div><br><strong>iptables 체인 전체를 우회.</strong> conntrack도 BPF 자체 구현.<br>Service 수와 무관한 <strong>O(1) 성능</strong></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="pod-ext">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">External</div>
+        <h3>Pod → External (인터넷)</h3>
+        <div class="cs">Pod에서 외부로 나갈 때 SNAT가 적용되는 과정</div>
+        <div class="dt">
+          <div class="db"><div class="l">SNAT 과정</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Pod A (10.244.1.5) → google.com:443
+  → vethA → host routing
+  → POSTROUTING chain → KUBE-POSTROUTING
+  → MASQUERADE: src 10.244.1.5 → Node IP
+  → 노드의 eth0 → NAT Gateway (또는 직접 인터넷)
+  → google.com
+
+응답:
+google.com → Node IP → conntrack에서 매핑 확인
+  → 역 DNAT: dst Node IP → 10.244.1.5
+  → routing → Pod A</div><br><strong>핵심:</strong> Pod IP는 VPC 내부에서만 유효. 외부에서는 Node IP(또는 NAT GW IP)로 보임<br><strong>예외:</strong> AWS VPC CNI에서 Pod IP가 VPC IP면 → SNAT 없이 직접 라우팅 가능 (VPC 내부 리소스 접근 시)</div></div>
+          <div class="db"><div class="l">conntrack 테이블</div><div class="v"><strong>SNAT/DNAT된 연결의 매핑을 기록:</strong><br><code>conntrack -L</code> — 전체 conntrack 테이블<br><code>conntrack -L -d 10.244.1.5</code> — 특정 Pod으로의 연결<br><br><strong>conntrack 테이블 크기:</strong><br><code>net.netfilter.nf_conntrack_max</code> — 최대 엔트리 수<br>기본 ~26만. 대규모 클러스터에서 부족할 수 있음<br>소진 시 새 연결 drop → <strong>Random 503 에러</strong>의 원인<br><br><strong>모니터링:</strong><br><code>node_nf_conntrack_entries</code> / <code>node_nf_conntrack_entries_limit</code><br>80% 이상이면 알림</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OVERLAY ===== -->
+  <div class="P" id="p-overlay">
+    <div class="PH"><div class="bg bg-o">● Overlay vs Native Routing</div><h2>네트워크 모드 비교</h2><p>VXLAN, Native Routing, AWS VPC CNI — 노드 간 Pod 트래픽 전달 방식의 트레이드오프.</p></div>
+
+    <div class="sec" id="vxlan">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Overlay</div>
+        <h3>VXLAN Overlay</h3>
+        <div class="cs">UDP 캡슐화로 물리 네트워크 위에 가상 L2 네트워크를 구축</div>
+        <div class="dt">
+          <div class="db"><div class="l">동작 원리</div><div class="v"><strong>VXLAN(Virtual Extensible LAN):</strong> 원본 L2 프레임을 UDP 패킷 안에 캡슐화<br><br><strong>구조:</strong><br><code>[Outer Ethernet][Outer IP][UDP:8472][VXLAN Hdr][Original Frame]</code><br><br><strong>VNI (VXLAN Network Identifier):</strong> 16M개의 가상 네트워크를 식별하는 24비트 ID<br><br><strong>VTEP:</strong> VXLAN Tunnel EndPoint. 각 노드에서 캡슐화/디캡슐화를 수행하는 인터페이스 (<code>flannel.1</code>, <code>cilium_vxlan</code>)<br><br><strong>FDB (Forwarding Database):</strong> Pod MAC → 대상 노드 IP 매핑. ARP 대신 FDB로 대상 VTEP를 결정</div></div>
+          <div class="db"><div class="l">장단점</div><div class="v"><strong>장점:</strong><br>• 물리 네트워크 변경 없음. 어떤 환경에서든 동작<br>• Pod CIDR이 물리 네트워크와 독립<br>• 멀티테넌트, 멀티클러스터에서 네트워크 격리<br><br><strong>단점:</strong><br>• <strong>50바이트 오버헤드</strong> → MTU 1450 (1500 - 50). jumbo frame 시 조정 필요<br>• 캡슐화/디캡슐화 <strong>CPU 오버헤드</strong><br>• 외부 네트워크에서 Pod IP로 직접 접근 불가<br>• 트러블슈팅 시 <strong>패킷 캡처가 어려움</strong> (캡슐화된 패킷은 외부에서 내용을 볼 수 없음)<br><br><strong>사용:</strong> Flannel(기본), Calico(옵션), Cilium(옵션)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="native-route">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Native</div>
+        <h3>Native Routing (Direct Routing)</h3>
+        <div class="cs">캡슐화 없이 물리 네트워크가 직접 Pod CIDR을 라우팅</div>
+        <div class="dt">
+          <div class="db"><div class="l">BGP 기반 (Calico, Cilium)</div><div class="v"><strong>BGP(Border Gateway Protocol)</strong>로 각 노드의 Pod CIDR을 네트워크 라우터에 광고:<br><br><code>Node 1: "10.244.1.0/24는 나(Node 1)에게 보내라"</code><br><code>Node 2: "10.244.2.0/24는 나(Node 2)에게 보내라"</code><br><br>물리 라우터 또는 ToR 스위치가 이 경로를 학습 → Pod IP를 직접 라우팅<br><br><strong>적합:</strong> 온프레미스 환경에서 네트워크 팀과 협업 가능할 때<br><strong>Calico:</strong> BGP가 기본 모드. 가장 성숙한 BGP 구현<br><strong>Cilium:</strong> BGP Control Plane 지원 (1.12+)</div></div>
+          <div class="db"><div class="l">클라우드 라우팅 (AWS VPC CNI)</div><div class="v"><strong>AWS VPC CNI:</strong> BGP 대신 <strong>VPC 라우팅 테이블</strong>이 직접 Pod IP를 라우팅<br>각 Pod에 ENI의 secondary IP(VPC CIDR 내)를 할당 → VPC가 이미 라우팅을 알고 있음<br><br><strong>장점:</strong><br>• 캡슐화 없음 → MTU 1500 유지, latency 최소<br>• AWS 보안 그룹을 Pod에 직접 적용 가능<br>• VPC 내 모든 리소스(RDS, ELB)와 Pod이 직접 통신<br><br><strong>단점:</strong><br>• ENI 수와 secondary IP 수에 의한 <strong>Pod 수 제한</strong><br>• VPC CIDR의 IP를 소비 → IP 부족 위험<br>• Pod IP가 VPC에 노출 → 보안 고려 필요</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="vpc-cni">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">AWS</div>
+        <h3>AWS VPC CNI 내부 동작</h3>
+        <div class="cs">ENI + Secondary IP로 Pod에 VPC IP를 직접 할당하는 AWS 네이티브 CNI</div>
+        <div class="dt">
+          <div class="db"><div class="l">IP 할당 과정</div><div class="v"><strong>1)</strong> CNI가 EC2에 <strong>추가 ENI를 attach</strong><br><strong>2)</strong> 각 ENI에 <strong>secondary private IP</strong>를 여러 개 할당<br><strong>3)</strong> Pod 생성 시 secondary IP 중 하나를 Pod에 배정<br><strong>4)</strong> veth pair 생성, Pod namespace에 IP 설정<br><strong>5)</strong> 호스트 라우팅 테이블에 <code>Pod IP → veth</code> 추가<br><br><strong>Warm Pool:</strong> <code>WARM_IP_TARGET</code>만큼 IP를 미리 할당해두어 Pod 시작 시 IP 할당 지연 방지<br><br><strong>Prefix Delegation:</strong> /28 prefix(16 IP)를 한 번에 할당하여 ENI당 Pod 수 대폭 증가</div></div>
+          <div class="db"><div class="l">ENI 제한과 영향</div><div class="v"><strong>인스턴스 타입별 ENI/IP 제한:</strong><br><code>m5.large</code>: 3 ENI × 10 IP = 29 Pod<br><code>m5.xlarge</code>: 4 ENI × 15 IP = 58 Pod<br><code>m5.2xlarge</code>: 4 ENI × 15 IP = 58 Pod<br><br><strong>Prefix Delegation 시:</strong><br><code>m5.xlarge</code>: 4 ENI × 4 prefix × 16 IP = 250+ Pod<br><br><strong>조회:</strong><br><code>kubectl describe node | grep -A5 "Allocatable"</code><br><code>aws ec2 describe-instance-types --instance-types m5.xlarge --query "InstanceTypes[].NetworkInfo"</code></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DEBUGGING ===== -->
+  <div class="P" id="p-debug-net">
+    <div class="PH"><div class="bg bg-g">● Network Debugging</div><h2>K8s 네트워크 디버깅 실전</h2><p>tcpdump, conntrack, DNS — 패킷 레벨에서 네트워크 문제를 진단하는 실전 기법.</p></div>
+
+    <div class="sec" id="tcpdump-k8s">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Capture</div>
+        <h3>K8s에서 tcpdump 사용법</h3>
+        <div class="cs">Pod의 네트워크 트래픽을 캡처하는 3가지 방법</div>
+        <div class="dt">
+          <div class="db"><div class="l">방법 1: Pod 내부 (exec)</div><div class="v"><code>kubectl exec -it pod-name -- tcpdump -i eth0 -nn port 8080</code><br><br><strong>제약:</strong> Pod 이미지에 tcpdump가 있어야 함. Distroless 이미지에서는 불가<br><br><strong>해결:</strong> netshoot 디버그 컨테이너 사용:<br><code>kubectl debug -it pod-name --image=nicolaka/netshoot --target=app-container -- tcpdump -i eth0 -nn port 8080</code><br><br>ephemeral container가 같은 network namespace를 공유하므로 eth0 캡처 가능</div></div>
+          <div class="db"><div class="l">방법 2: 노드에서 veth 캡처</div><div class="v"><strong>1)</strong> Pod의 veth 찾기 (위의 veth pair 섹션 참조)<br><strong>2)</strong> 노드에서 해당 veth 캡처:<br><code>tcpdump -i vethXXXX -nn -w /tmp/capture.pcap</code><br><br><strong>장점:</strong> Pod 이미지와 무관. 모든 Pod에 적용 가능<br><strong>단점:</strong> 노드 접근 필요 (kubectl debug node 또는 SSH)<br><br><strong>유용한 필터:</strong><br><code>tcpdump -i vethXXXX -nn 'tcp port 5432'</code> — DB 트래픽만<br><code>tcpdump -i vethXXXX -nn 'tcp[tcpflags] & (tcp-rst) != 0'</code> — RST 패킷만 (연결 강제 종료)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="conntrack-debug">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Conntrack</div>
+        <h3>conntrack 디버깅</h3>
+        <div class="cs">DNAT/SNAT 매핑 확인, conntrack 테이블 소진 문제 진단</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 명령</div><div class="v"><code>conntrack -L</code> — 전체 conntrack 테이블 출력<br><code>conntrack -L -s 10.244.1.5</code> — 특정 소스 IP 필터<br><code>conntrack -L -d 10.96.1.100</code> — Service ClusterIP로의 연결<br><code>conntrack -L -p tcp --dport 5432</code> — DB 커넥션 추적<br><code>conntrack -C</code> — 현재 엔트리 수<br><code>conntrack -E</code> — 실시간 이벤트 모니터링 (new/update/destroy)<br><br><strong>DNAT 확인:</strong><br><code>conntrack -L -d 10.96.1.100 | head</code><br>→ <code>dst=10.96.1.100 → dst=10.244.2.3</code> 매핑 확인</div></div>
+          <div class="db"><div class="l">conntrack 테이블 소진 문제</div><div class="v"><strong>증상:</strong> 간헐적 연결 실패, 503 에러, DNS 타임아웃<br><strong>확인:</strong> <code>dmesg | grep conntrack</code> → "table full, dropping packet"<br><br><strong>해결:</strong><br><code>sysctl -w net.netfilter.nf_conntrack_max=524288</code><br>또는 <code>/etc/sysctl.d/</code>에 영구 설정<br><br><strong>Cilium eBPF 모드:</strong><br>netfilter conntrack을 사용하지 않으므로 이 문제가 근본적으로 발생하지 않음. BPF conntrack Map이 대체<br><br><strong>모니터링:</strong><br><code>node_nf_conntrack_entries</code> / <code>node_nf_conntrack_entries_limit</code><br>알림: 사용률 80% 초과 시</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="dns-debug">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">DNS</div>
+        <h3>K8s DNS 문제 진단</h3>
+        <div class="cs">ndots:5 문제, DNS 타임아웃, NXDOMAIN — K8s 환경의 DNS 특수 이슈</div>
+        <div class="dt">
+          <div class="db"><div class="l">ndots:5 문제</div><div class="v"><strong>K8s Pod의 <code>/etc/resolv.conf</code>:</strong><br><code>nameserver 10.96.0.10</code><br><code>search production.svc.cluster.local svc.cluster.local cluster.local</code><br><code>options ndots:5</code><br><br><strong>ndots:5의 의미:</strong> 도메인에 점(.)이 5개 미만이면 search 도메인을 먼저 시도<br><code>api.external.com</code> (점 2개) → 먼저 <code>api.external.com.production.svc.cluster.local</code> 시도 → NXDOMAIN → <code>api.external.com.svc.cluster.local</code> → NXDOMAIN → 원본 시도<br><br><strong>결과:</strong> 외부 도메인 조회 시 <strong>최대 4~5회 불필요한 DNS 쿼리</strong>가 먼저 발생. latency 추가<br><br><strong>해결:</strong><br>• FQDN에 trailing dot: <code>api.external.com.</code> (search 건너뜀)<br>• <code>dnsConfig.options: [{name: ndots, value: "2"}]</code> (Pod spec에서)<br>• CoreDNS <code>autopath</code> 플러그인 (서버 측에서 해결)</div></div>
+          <div class="db"><div class="l">DNS 타임아웃 진단</div><div class="v"><strong>Pod에서 테스트:</strong><br><code>kubectl exec -it pod -- nslookup kubernetes.default</code><br><code>kubectl exec -it pod -- dig @10.96.0.10 api-server.production.svc.cluster.local</code><br><br><strong>CoreDNS Pod 상태:</strong><br><code>kubectl -n kube-system get pods -l k8s-app=kube-dns</code><br><code>kubectl -n kube-system logs -l k8s-app=kube-dns</code><br><br><strong>흔한 원인:</strong><br>• CoreDNS Pod이 Pending/CrashLoopBackOff<br>• CoreDNS에 HPA가 없어 부하 초과<br>• conntrack 테이블 소진 → DNS UDP 패킷 drop<br>• NetworkPolicy가 DNS egress를 차단 (kube-dns:53 허용 필수!)<br>• 노드의 /etc/resolv.conf 상속 문제</div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 네트워크 디버깅 순서</strong><br><strong>1)</strong> <code>kubectl exec -- curl/wget</code> → 앱 레벨 연결 테스트<br><strong>2)</strong> <code>kubectl exec -- nslookup</code> → DNS 해석 확인<br><strong>3)</strong> <code>kubectl debug --image=netshoot -- tcpdump</code> → 패킷 레벨 확인<br><strong>4)</strong> 노드에서 <code>conntrack -L</code> → DNAT/SNAT 매핑 확인<br><strong>5)</strong> <code>iptables -t nat -L -n -v</code> → kube-proxy 규칙 확인 (또는 <code>cilium bpf ct list global</code>)<br><strong>6)</strong> <code>ip route</code> → 라우팅 테이블 확인</div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

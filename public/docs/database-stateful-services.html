@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Database & Stateful Services — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--indigo);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--blue)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="pg"].on{color:var(--blue)}.T[data-t="pg"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="redis"].on{color:var(--red)}.T[data-t="redis"].on::after{background:var(--red);left:8%;right:8%}
+.T[data-t="kafka"].on{color:var(--orange)}.T[data-t="kafka"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="backup"].on{color:var(--green)}.T[data-t="backup"].on::after{background:var(--green);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Deep Dive</div><h1><em>Database</em> &<br>Stateful</h1></div>
+  <div class="sl">PostgreSQL</div>
+  <ul class="sn">
+    <li><a data-t="pg" data-s="pg-conn" class="on"><span class="d" style="background:var(--blue)"></span>커넥션 관리</a></li>
+    <li><a data-t="pg" data-s="pg-repl"><span class="d" style="background:var(--blue)"></span>Replication</a></li>
+    <li><a data-t="pg" data-s="pg-vacuum"><span class="d" style="background:var(--blue)"></span>VACUUM & Bloat</a></li>
+    <li><a data-t="pg" data-s="pg-perf"><span class="d" style="background:var(--blue)"></span>쿼리 성능 진단</a></li>
+    <li><a data-t="pg" data-s="pg-monitor"><span class="d" style="background:var(--blue)"></span>모니터링</a></li>
+  </ul>
+  <div class="sl">Redis</div>
+  <ul class="sn">
+    <li><a data-t="redis" data-s="redis-mem"><span class="d" style="background:var(--red)"></span>메모리 관리</a></li>
+    <li><a data-t="redis" data-s="redis-persist"><span class="d" style="background:var(--red)"></span>Persistence</a></li>
+    <li><a data-t="redis" data-s="redis-ha"><span class="d" style="background:var(--red)"></span>HA 아키텍처</a></li>
+    <li><a data-t="redis" data-s="redis-valkey"><span class="d" style="background:var(--red)"></span>Valkey 전환</a></li>
+  </ul>
+  <div class="sl">Kafka</div>
+  <ul class="sn">
+    <li><a data-t="kafka" data-s="kafka-arch"><span class="d" style="background:var(--orange)"></span>아키텍처</a></li>
+    <li><a data-t="kafka" data-s="kafka-ops"><span class="d" style="background:var(--orange)"></span>운영 핵심</a></li>
+  </ul>
+  <div class="sl">Backup & DR</div>
+  <ul class="sn">
+    <li><a data-t="backup" data-s="rpo-rto"><span class="d" style="background:var(--green)"></span>RPO / RTO</a></li>
+    <li><a data-t="backup" data-s="backup-strat"><span class="d" style="background:var(--green)"></span>백업 전략</a></li>
+    <li><a data-t="backup" data-s="dr"><span class="d" style="background:var(--green)"></span>DR 설계</a></li>
+    <li><a data-t="backup" data-s="connpool"><span class="d" style="background:var(--green)"></span>Connection Pooling</a></li>
+  </ul>
+  <div class="S-f"><p>Data is the hardest<br>thing to recover.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="pg" onclick="sw('pg')">● PostgreSQL</button>
+    <button class="T" data-t="redis" onclick="sw('redis')">● Redis</button>
+    <button class="T" data-t="kafka" onclick="sw('kafka')">● Kafka</button>
+    <button class="T" data-t="backup" onclick="sw('backup')">● Backup & DR</button>
+  </div>
+
+  <!-- ===== POSTGRESQL ===== -->
+  <div class="P on" id="p-pg">
+    <div class="PH"><div class="bg bg-b">● PostgreSQL for SRE</div><h2>PostgreSQL SRE 운영</h2><p>커넥션 관리, Replication, VACUUM, 쿼리 성능 진단, 모니터링 — DB 장애의 80%를 커버하는 핵심.</p></div>
+
+    <div class="sec" id="pg-conn">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Connection</div>
+        <h3>커넥션 관리</h3>
+        <div class="cs">max_connections, 커넥션 폭발, 풀링 — DB 장애의 가장 흔한 원인</div>
+        <div class="cp">PostgreSQL은 <strong>프로세스 기반</strong> 모델이다. 클라이언트 커넥션마다 <strong>별도의 백엔드 프로세스</strong>를 fork한다. 각 프로세스는 <strong>~10MB 메모리</strong>를 사용하므로, 커넥션 수가 많으면 메모리 폭증과 context switch 오버헤드가 발생한다.<br><br>K8s 환경에서 Pod 수 × Pod당 커넥션 풀 크기가 <code>max_connections</code>를 초과하면 <strong>모든 새 연결이 거부</strong>된다. 이것이 Cascading Failure의 시작점이 된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 파라미터</div><div class="v"><code>max_connections</code> — 기본 100. K8s 환경에서 200~500 정도. 무작정 높이면 메모리 부족<br><code>superuser_reserved_connections</code> — 기본 3. 관리자 긴급 접근용<br><br><strong>메모리 계산:</strong><br><code>shared_buffers</code> + (<code>max_connections</code> × <code>work_mem</code>)<br>max_connections=500, work_mem=4MB → 커넥션만으로 2GB 필요<br><br><strong>진단:</strong><br><code>SELECT count(*) FROM pg_stat_activity;</code><br><code>SELECT state, count(*) FROM pg_stat_activity GROUP BY state;</code></div></div>
+          <div class="db"><div class="l">K8s에서의 커넥션 관리</div><div class="v"><strong>문제:</strong> Pod 10개 × 풀 크기 20 = 200 커넥션. HPA가 30개로 스케일 → 600. max_connections=200이면 즉시 장애<br><br><strong>해결 1 — PgBouncer:</strong> 커넥션 풀러를 DB 앞에 배치. Pod→PgBouncer(수천)→PostgreSQL(수십). Transaction 모드 권장<br><strong>해결 2 — 풀 크기 계산:</strong> max_connections ÷ 최대 Pod 수 = Pod당 풀 크기<br><strong>해결 3 — 앱 레벨 풀링:</strong> Go의 <code>sql.DB</code>의 <code>SetMaxOpenConns</code>를 적절히 설정<br><br><strong>PgBouncer 모드:</strong><br>• <strong>Session:</strong> 커넥션 1:1 매핑. 풀링 효과 없음<br>• <strong>Transaction:</strong> 트랜잭션 단위 공유. 가장 효율적<br>• <strong>Statement:</strong> 쿼리 단위. prepared statement 불가</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="pg-repl">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">HA</div>
+        <h3>Replication & HA</h3>
+        <div class="cs">Streaming Replication, Replication Lag, Failover — 고가용성 PostgreSQL 운영</div>
+        <div class="dt">
+          <div class="db"><div class="l">Streaming Replication</div><div class="v"><strong>비동기 (기본):</strong> Primary가 WAL을 보내고 Replica의 확인을 기다리지 않는다. 빠르지만 장애 시 데이터 손실 가능성이 있다<br><strong>동기:</strong> Replica가 WAL 수신을 확인할 때까지 commit을 대기한다. 데이터 손실 가능성은 줄지만 latency가 증가한다<br><code>synchronous_commit = on/off/remote_write/remote_apply</code><br><br><strong>Read Replica 활용:</strong><br>• 읽기 트래픽 분산: 리포트, 분석 쿼리를 Replica로<br>• 백업: Replica에서 pg_dump 실행 (Primary 부하 회피)<br>• Cascading: Primary→Replica1→Replica2 체인 가능</div></div>
+          <div class="db"><div class="l">Replication Lag</div><div class="v"><strong>측정:</strong><br><code>SELECT now() - pg_last_xact_replay_timestamp() AS lag;</code><br><code>SELECT * FROM pg_stat_replication;</code> (Primary에서)<br><br><strong>lag 원인:</strong><br>• Replica의 디스크 I/O가 느림 (SSD 미사용 등)<br>• 네트워크 대역폭 부족<br>• Replica에서 장시간 실행되는 쿼리가 recovery 적용을 막음<br>• Primary의 대량 쓰기 급증<br><br><strong>알림:</strong> <code>pg_replication_lag_seconds > 30</code> → 경고<br><strong>SLO 영향:</strong> lag 동안 Replica에서 최신이 아닌 데이터를 읽을 수 있다</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="pg-vacuum">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Maintenance</div>
+        <h3>VACUUM & Table Bloat</h3>
+        <div class="cs">MVCC의 대가 — dead tuple을 정리하지 않으면 테이블이 무한히 커진다</div>
+        <div class="cp">PostgreSQL의 MVCC(Multi-Version Concurrency Control)는 UPDATE/DELETE 시 <strong>이전 row를 즉시 삭제하지 않고 "dead tuple"로 남긴다.</strong> 다른 트랜잭션이 참조할 수 있기 때문이다. VACUUM은 이 dead tuple을 <strong>정리하여 공간을 재사용 가능하게</strong> 하는 프로세스다.<br><br>VACUUM이 제대로 작동하지 않으면 <strong>table bloat(테이블 비대화)</strong>이 발생하여 쿼리 성능이 저하되고, 디스크가 고갈되며, 최악의 경우 <strong>Transaction ID Wraparound</strong>로 DB가 읽기 전용이 된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">VACUUM 유형</div><div class="v"><strong>VACUUM (일반):</strong> dead tuple 정리, 공간을 재사용 가능하게. OS에 반환은 안 함<br><strong>VACUUM FULL:</strong> 테이블 재작성. 공간을 OS에 반환. 배타 잠금 필요 → 프로덕션에서 위험<br><strong>autovacuum:</strong> 자동 실행. <code>autovacuum_vacuum_threshold</code> + <code>autovacuum_vacuum_scale_factor</code> × 행 수 = 트리거 기준<br><strong>ANALYZE:</strong> 통계 정보 갱신. 쿼리 플래너가 최적 실행 계획을 세우는 데 필수</div></div>
+          <div class="db"><div class="l">autovacuum 튜닝</div><div class="v"><strong>기본값이 대규모 테이블에 부적절:</strong><br><code>autovacuum_vacuum_scale_factor = 0.2</code> → 1억 행 테이블은 2천만 행이 죽어야 실행<br><strong>해결:</strong> 테이블별 설정<br><code>ALTER TABLE big_table SET (autovacuum_vacuum_scale_factor = 0.01, autovacuum_vacuum_threshold = 5000);</code><br><br><strong>autovacuum worker 수:</strong><br><code>autovacuum_max_workers = 5</code> (기본 3)<br><strong>I/O 제한:</strong><br><code>autovacuum_vacuum_cost_limit = 1000</code> (기본 200. 너무 낮으면 vacuum이 느림)</div></div>
+          <div class="db df"><div class="l">Transaction ID Wraparound 방지</div><div class="v"><strong>PostgreSQL의 XID는 32비트</strong> (약 42억). 모든 트랜잭션에 순번이 부여되고, 오래된 XID의 행은 "미래"로 보여 invisible이 된다. VACUUM이 오래된 XID를 <strong>frozen</strong>으로 마킹하여 이 문제를 방지한다.<br><strong>위험 신호:</strong> <code>age(datfrozenxid)</code>가 2억에 접근하면 DB가 <strong>자동으로 읽기 전용 모드</strong>에 진입하여 데이터 보호.<br><strong>모니터링:</strong> <code>SELECT datname, age(datfrozenxid) FROM pg_database;</code><br><strong>알림:</strong> age > 150,000,000 → 긴급 VACUUM 필요</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="pg-perf">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Performance</div>
+        <h3>쿼리 성능 진단</h3>
+        <div class="cs">pg_stat_statements, EXPLAIN ANALYZE, 느린 쿼리 추적</div>
+        <div class="dt">
+          <div class="db"><div class="l">pg_stat_statements</div><div class="v"><strong>필수 확장.</strong> 모든 쿼리의 실행 통계를 수집<br><code>SELECT query, calls, mean_exec_time, rows, shared_blks_hit, shared_blks_read FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;</code><br><br><strong>핵심 지표:</strong><br>• <strong>mean_exec_time:</strong> 평균 실행 시간<br>• <strong>calls:</strong> 호출 횟수. 느린 쿼리 × 높은 calls = 최우선 최적화<br>• <strong>shared_blks_read:</strong> 디스크 읽기. 높으면 인덱스 필요<br>• <strong>blk_read_time:</strong> I/O 대기 시간 (<code>track_io_timing = on</code> 필요)</div></div>
+          <div class="db"><div class="l">EXPLAIN ANALYZE</div><div class="v"><code>EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) SELECT ...;</code><br><br><strong>주의할 노드:</strong><br>• <strong>Seq Scan</strong> on large table → 인덱스 필요<br>• <strong>Nested Loop</strong> with large outer → JOIN 순서 확인<br>• <strong>Sort</strong> → sort_mem 부족하면 디스크 정렬<br>• <strong>actual rows</strong> ≫ <strong>plan rows</strong> → 통계 부정확. ANALYZE 필요<br><br><strong>느린 쿼리 로깅:</strong><br><code>log_min_duration_statement = 1000</code> (1초 이상 쿼리 로그)<br><code>log_statement = 'none'</code> (모든 쿼리 로그는 성능 저하)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="pg-monitor">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Monitoring</div>
+        <h3>PostgreSQL 핵심 모니터링 메트릭</h3>
+        <div class="cs">postgres_exporter + Prometheus로 수집해야 할 핵심 메트릭</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>메트릭</th><th>의미</th><th>알림 기준</th></tr></thead>
+          <tbody>
+            <tr><td><code>pg_stat_activity_count</code></td><td>활성 커넥션 수</td><td>> max_connections × 0.8</td></tr>
+            <tr><td><code>pg_stat_activity{state="idle in transaction"}</code></td><td>트랜잭션 내 유휴 커넥션</td><td>> 10 (Lock 유지 중일 수 있음)</td></tr>
+            <tr><td><code>pg_replication_lag</code></td><td>Replication 지연 (초)</td><td>> 30초</td></tr>
+            <tr><td><code>pg_stat_user_tables_n_dead_tup</code></td><td>Dead tuple 수</td><td>> live tuple × 0.1</td></tr>
+            <tr><td><code>pg_database_age_datfrozenxid</code></td><td>XID 나이</td><td>> 150,000,000</td></tr>
+            <tr><td><code>pg_locks_count{mode="ExclusiveLock"}</code></td><td>배타 잠금 수</td><td>> 5 (장시간 유지 시)</td></tr>
+            <tr><td><code>pg_stat_bgwriter_buffers_checkpoint</code></td><td>체크포인트 버퍼 쓰기</td><td>급증 시 I/O 스파이크</td></tr>
+            <tr><td>Cache Hit Ratio</td><td>shared_buffers 적중률</td><td>< 99% (OLTP 기준)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 Cache Hit Ratio 계산</strong><br><code>sum(pg_stat_database_blks_hit) / (sum(pg_stat_database_blks_hit) + sum(pg_stat_database_blks_read))</code><br>OLTP 워크로드에서 99% 이상이어야 정상. 90% 미만이면 <code>shared_buffers</code> 증가 또는 인덱스 재검토.</div>
+    </div>
+  </div>
+
+  <!-- ===== REDIS ===== -->
+  <div class="P" id="p-redis">
+    <div class="PH"><div class="bg bg-r">● Redis for SRE</div><h2>Redis 운영 심화</h2><p>메모리 관리, Persistence, HA 아키텍처, Valkey 전환 — 인메모리 데이터 스토어 운영의 핵심.</p></div>
+
+    <div class="sec" id="redis-mem">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Memory</div>
+        <h3>Redis 메모리 관리</h3>
+        <div class="cs">maxmemory, eviction policy, 메모리 단편화 — Redis 장애의 핵심 원인</div>
+        <div class="cp">Redis는 <strong>모든 데이터를 메모리에 보관</strong>한다. 메모리가 가득 차면 <strong>eviction policy</strong>에 따라 키를 삭제하거나, 새 쓰기를 거부한다. <code>maxmemory</code>를 설정하지 않으면 시스템 메모리를 모두 소진하여 OOM Kill될 수 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">maxmemory & Eviction</div><div class="v"><code>maxmemory 4gb</code> — 반드시 설정. 시스템 메모리의 70~80%<br><br><strong>Eviction Policy:</strong><br><code>noeviction</code> — 쓰기 거부 (기본값. 데이터 손실 방지)<br><code>allkeys-lru</code> — 모든 키 중 LRU 삭제 (캐시 용도 최적)<br><code>volatile-lru</code> — TTL이 있는 키만 LRU 삭제<br><code>allkeys-lfu</code> — 사용 빈도 기반 삭제 (4.0+)<br><br><strong>캐시:</strong> <code>allkeys-lru</code> 또는 <code>allkeys-lfu</code><br><strong>세션 저장소:</strong> <code>volatile-ttl</code> (TTL 짧은 것부터 삭제)<br><strong>영속 데이터:</strong> <code>noeviction</code> (데이터 손실 불가)</div></div>
+          <div class="db"><div class="l">메모리 단편화</div><div class="v"><strong>mem_fragmentation_ratio</strong> = used_memory_rss / used_memory<br>• <strong>> 1.5:</strong> 심한 단편화. 메모리 낭비<br>• <strong>< 1.0:</strong> 스왑 사용 중. 매우 위험<br>• <strong>1.0~1.5:</strong> 정상<br><br><strong>원인:</strong> 크기가 다양한 키의 생성/삭제 반복<br><strong>해결:</strong><br>• <code>activedefrag yes</code> (4.0+, 온라인 defrag)<br>• Redis 재시작 (가장 확실)<br>• jemalloc 튜닝 (<code>MALLOC_CONF</code>)<br><br><code>INFO memory</code>로 전체 메모리 상태 확인</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="redis-persist">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Durability</div>
+        <h3>Persistence 전략</h3>
+        <div class="cs">RDB vs AOF vs RDB+AOF — 데이터 영속성과 성능의 트레이드오프</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>항목</th><th>RDB (Snapshot)</th><th>AOF (Append-Only File)</th><th>RDB + AOF</th></tr></thead>
+          <tbody>
+            <tr><td>원리</td><td>주기적 메모리 스냅샷</td><td>모든 쓰기 명령 로깅</td><td>AOF로 복구 + RDB로 빠른 로드</td></tr>
+            <tr><td>데이터 손실</td><td>마지막 스냅샷 이후 손실</td><td>fsync 정책에 따라 0~1초</td><td>최소</td></tr>
+            <tr><td>성능 영향</td><td>fork() 시 순간 latency spike</td><td>fsync 빈도에 비례</td><td>둘 다 적용</td></tr>
+            <tr><td>파일 크기</td><td>작음 (바이너리 압축)</td><td>큼 (명령 로그). rewrite로 축소</td><td>둘 다</td></tr>
+            <tr><td>권장 용도</td><td>캐시 (손실 허용)</td><td>세션, 큐 (손실 최소화)</td><td>프로덕션 영속 데이터</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt r"><strong>⚠ RDB fork() 문제</strong><br>RDB 스냅샷 시 <code>fork()</code>를 호출하여 자식 프로세스가 데이터를 디스크에 쓴다. Copy-on-Write 덕분에 즉시 복사는 안 하지만, <strong>대량 쓰기 중이면 CoW로 메모리가 2배</strong>까지 증가할 수 있다. <code>vm.overcommit_memory=1</code> 설정이 필요한 이유. 이것 없으면 fork 실패 → RDB 저장 실패.</div>
+    </div>
+
+    <div class="sec" id="redis-ha">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">HA</div>
+        <h3>HA 아키텍처: Sentinel vs Cluster</h3>
+        <div class="cs">자동 장애 감지와 장애 조치를 위한 두 가지 접근</div>
+        <div class="dt">
+          <div class="db"><div class="l">Redis Sentinel</div><div class="v"><strong>용도:</strong> Master-Replica 구성의 자동 장애 조치<br>• Sentinel 프로세스 3+ 가 Master를 감시<br>• Master 장애 감지 → Replica를 새 Master로 승격<br>• 클라이언트에게 새 Master 주소 통지<br><br><strong>장점:</strong> 단순. 데이터 파티셔닝 불필요<br><strong>단점:</strong> 단일 Master가 쓰기 병목. 수평 확장 불가<br><strong>적합:</strong> 소~중규모, 단일 인스턴스로 충분한 경우</div></div>
+          <div class="db"><div class="l">Redis Cluster</div><div class="v"><strong>용도:</strong> 데이터를 여러 노드에 분산 (16384 hash slots)<br>• 각 Master가 slot의 일부를 담당<br>• 각 Master에 1+ Replica<br>• Master 장애 시 해당 slot의 Replica가 승격<br><br><strong>장점:</strong> 수평 확장. 쓰기 분산. 최대 1000 노드<br><strong>단점:</strong> 멀티키 연산 제한 (같은 slot만), 운영 복잡도 높음<br><strong>적합:</strong> 대규모 데이터, 높은 쓰기 처리량 필요 시</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="redis-valkey">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Migration</div>
+        <h3>Valkey 전환</h3>
+        <div class="cs">Redis의 라이선스 변경(SSPL) → Linux Foundation 산하 Valkey (BSD 라이선스)로의 전환</div>
+        <div class="cp">Redis가 7.4부터 <strong>SSPL/RSALv2 듀얼 라이선스</strong>로 전환하면서, 클라우드 서비스 제공자와 오픈소스 사용자에게 제약이 생겼다. <strong>Valkey</strong>는 Redis 7.2.4에서 fork된 <strong>BSD 라이선스</strong> 프로젝트로, Linux Foundation이 관리한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Valkey 장점</div><div class="v"><strong>라이선스:</strong> BSD 3-Clause (진정한 오픈소스)<br><strong>거버넌스:</strong> Linux Foundation (벤더 중립)<br><strong>호환성:</strong> Redis 7.2 프로토콜 완전 호환<br><strong>성능:</strong> io-threads 개선, 메모리 효율 향상<br><strong>후원:</strong> AWS, Google, Oracle, Ericsson 등<br><br><strong>전환 근거:</strong> BSD 라이선스로 법적 리스크 제거, 낮은 메모리 사용, 커뮤니티 주도 개발</div></div>
+          <div class="db"><div class="l">전환 방법</div><div class="v"><strong>Drop-in replacement에 가깝다:</strong> 설정과 프로토콜 호환성이 높아 바이너리 교체만으로 전환 가능한 경우가 많다<br>• Redis conf 파일 그대로 사용 가능<br>• 클라이언트 라이브러리 변경 불필요<br>• RDB/AOF 파일 호환<br><br><strong>K8s 전환:</strong><br>1. Helm chart에서 이미지를 <code>valkey/valkey:8</code>로 변경<br>2. ConfigMap의 설정 파일은 그대로 유지<br>3. Rolling update로 Pod 교체<br>4. 클라이언트 연결 문자열 변경 없음</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== KAFKA ===== -->
+  <div class="P" id="p-kafka">
+    <div class="PH"><div class="bg bg-o">● Kafka for SRE</div><h2>Kafka 운영 핵심</h2><p>파티션 설계, Consumer Lag, ISR, 장애 대응 — 이벤트 스트리밍 플랫폼의 SRE 관점.</p></div>
+
+    <div class="sec" id="kafka-arch">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Architecture</div>
+        <h3>Kafka 아키텍처 핵심</h3>
+        <div class="cs">Topic → Partition → Broker — 분산 로그 기반 메시지 시스템</div>
+        <div class="cp">Kafka는 <strong>"분산 커밋 로그"</strong>다. 메시지를 순서대로 추가(append-only)하고, Consumer가 offset을 관리하여 원하는 위치부터 읽는다. 파티션 단위로 병렬 처리하고, Replica로 내구성을 보장한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 개념</div><div class="v"><strong>Topic:</strong> 메시지의 논리적 카테고리. 여러 Partition으로 분할<br><strong>Partition:</strong> 순서 보장 단위. 병렬 처리의 단위. Consumer Group 내 파티션:Consumer = 1:1<br><strong>Broker:</strong> Kafka 서버. 여러 Partition을 호스팅<br><strong>Replica:</strong> 파티션의 복제본. Leader + Follower(ISR)<br><strong>ISR (In-Sync Replicas):</strong> Leader와 동기화된 Replica 집합. ISR에서 빠지면 데이터 손실 위험<br><strong>Consumer Group:</strong> 파티션을 나눠 읽는 Consumer 집합</div></div>
+          <div class="db"><div class="l">파티션 설계</div><div class="v"><strong>파티션 수 = 최대 병렬 Consumer 수</strong><br>파티션 3개 → Consumer 최대 3개 동시 처리<br><br><strong>너무 적으면:</strong> 병렬성 부족<br><strong>너무 많으면:</strong> Leader 선출 시간 증가, 메모리/파일 핸들 증가, rebalancing 느림<br><br><strong>가이드:</strong><br>• 목표 throughput ÷ Consumer당 처리량 = 최소 파티션 수<br>• 보통 6~12개로 시작, 필요 시 증가 (감소 불가!)<br>• 순서 보장이 필요한 키(user_id 등)는 같은 파티션으로 라우팅</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="kafka-ops">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Operations</div>
+        <h3>Kafka 운영 핵심 포인트</h3>
+        <div class="cs">Consumer Lag, ISR 관리, 보존 정책, 모니터링 — 안정적 운영을 위한 핵심</div>
+        <div class="dt">
+          <div class="db"><div class="l">Consumer Lag</div><div class="v"><strong>정의:</strong> (Latest Offset - Consumer Offset). 처리되지 않은 메시지 수<br><br><strong>Lag 원인:</strong><br>• Consumer 처리 속도 < Producer 속도<br>• Consumer 재시작/rebalancing 중 처리 중단<br>• 느린 외부 시스템 호출 (DB 쓰기 등)<br><br><strong>대응:</strong><br>• Consumer 인스턴스 추가 (파티션 수까지)<br>• 배치 크기 증가 (<code>max.poll.records</code>)<br>• 처리 로직 최적화<br><br><strong>알림:</strong> <code>kafka_consumer_group_lag > 10000</code> → 경고<br>Prometheus: <code>kafka_exporter</code> 또는 <code>burrow</code></div></div>
+          <div class="db"><div class="l">ISR & 내구성</div><div class="v"><strong>min.insync.replicas:</strong> 쓰기 시 최소 동기화 Replica 수<br><code>min.insync.replicas=2</code> + <code>acks=all</code> → 2개 Replica에 기록되어야 commit<br><br><strong>ISR Shrink:</strong> Follower가 뒤처지면 ISR에서 제거됨<br>원인: 느린 디스크, 네트워크 지연, GC pause<br>알림: <code>kafka_server_replica_manager_isrshrinksrate</code> > 0<br><br><strong>Under-Replicated Partitions:</strong><br><code>kafka.server:type=ReplicaManager,name=UnderReplicatedPartitions</code><br>0이어야 정상. > 0이면 데이터 손실 위험<br><br><strong>보존 정책:</strong><br><code>retention.ms=604800000</code> (7일)<br><code>retention.bytes=-1</code> (무제한 크기)<br>디스크 사용량과 비즈니스 요구사항 사이 균형</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== BACKUP ===== -->
+  <div class="P" id="p-backup">
+    <div class="PH"><div class="bg bg-g">● Backup & DR</div><h2>백업과 재해 복구</h2><p>RPO/RTO 설계, 백업 전략, DR 아키텍처, Connection Pooling — 상태 저장 시스템 운영의 마지막 방어선.</p></div>
+
+    <div class="sec" id="rpo-rto">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Target</div>
+        <h3>RPO & RTO 설계</h3>
+        <div class="cs">Recovery Point Objective(얼마나 잃을 수 있는가) × Recovery Time Objective(얼마나 빨리 복구할 수 있는가)</div>
+        <div class="cp"><strong>RPO</strong>는 "장애 시 최대 몇 분/시간의 데이터 손실을 허용하는가"이고, <strong>RTO</strong>는 "장애 후 최대 몇 분/시간 내에 서비스를 복구해야 하는가"이다. 이 두 값이 백업 빈도, 복제 방식, DR 아키텍처, 비용 수준을 결정한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">RPO/RTO 설계</div><div class="v"><div class="fm" style="text-align:left;font-size:10.5px">RPO = 0        → 동기 복제 필수 (비용 최고)
+RPO = 1분      → 비동기 복제 + 빈번한 WAL 아카이브
+RPO = 1시간    → 시간별 스냅샷
+RPO = 24시간   → 일별 백업
+
+RTO = 분 단위  → Hot standby (항상 실행 중인 Replica)
+RTO = 시간 단위 → Warm standby (스냅샷에서 복원)
+RTO = 일 단위  → Cold backup (테이프/S3에서 복원)</div></div></div>
+          <div class="db"><div class="l">서비스 등급별 가이드</div><div class="v"><strong>Tier 1 (결제 DB):</strong> RPO=0, RTO=5분. 동기 복제 + 자동 장애 조치<br><strong>Tier 2 (서비스 DB):</strong> RPO=1분, RTO=30분. 비동기 복제 + 자동 장애 조치<br><strong>Tier 3 (로그/분석):</strong> RPO=1시간, RTO=4시간. 시간별 스냅샷<br><strong>Tier 4 (아카이브):</strong> RPO=24시간, RTO=24시간. 일별 백업<br><br><strong>비용 원칙:</strong> RPO/RTO를 절반으로 줄이면 비용은 대체로 2배 가까이 증가</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="backup-strat">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Strategy</div>
+        <h3>백업 전략</h3>
+        <div class="cs">논리 백업 vs 물리 백업, PITR, 백업 검증 — 백업이 없으면 데이터도 없다</div>
+        <div class="dt">
+          <div class="db"><div class="l">PostgreSQL 백업</div><div class="v"><strong>논리 백업 (pg_dump):</strong><br><code>pg_dump -Fc -h localhost -U postgres mydb > backup.dump</code><br>장점: 버전 간 이식성, 선택적 복원<br>단점: 대규모 DB에서는 느리고, 일관성 확보를 위해 부하가 커질 수 있음<br><br><strong>물리 백업 (pg_basebackup):</strong><br><code>pg_basebackup -h localhost -D /backup/base -Fp -Xs -P</code><br>장점: 빠름, 전체 클러스터 복원<br>단점: 같은 메이저 버전에서만 복원<br><br><strong>PITR (Point-In-Time Recovery):</strong><br>기본 백업 + WAL 아카이브로 특정 시점까지 복원<br><code>recovery_target_time = '2025-03-20 14:00:00'</code><br>RPO를 최소화하는 가장 강력한 방법</div></div>
+          <div class="db"><div class="l">백업 검증 — 가장 중요</div><div class="v"><strong>"검증하지 않은 백업은 백업이 아니다."</strong><br><br><strong>자동 검증 CronJob:</strong><br>1. 백업 파일에서 별도 인스턴스로 복원<br>2. 기본 데이터 정합성 쿼리 실행<br>3. 결과를 메트릭으로 Prometheus에 push<br>4. 실패 시 알림<br><br><strong>검증 빈도:</strong><br>• Tier 1: 매일<br>• Tier 2: 주 1회<br>• Tier 3/4: 월 1회<br><br><strong>DR 훈련:</strong> 분기 1회 백업에서 전체 복원 연습. 실제 RTO 측정</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="dr">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">DR</div>
+        <h3>Disaster Recovery 설계</h3>
+        <div class="cs">리전/AZ 장애에서 서비스를 유지하는 아키텍처 패턴</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>전략</th><th>RPO</th><th>RTO</th><th>구성</th><th>비용</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Active-Active</strong></td><td>0</td><td>0 (무중단)</td><td>양쪽 리전에서 동시 서비스. 데이터 동기 복제</td><td>최고 (2배+)</td></tr>
+            <tr><td><strong>Active-Passive (Hot)</strong></td><td>~0</td><td>분 단위</td><td>대기 리전에 실시간 복제. DNS 전환으로 장애 조치</td><td>높음 (1.5배)</td></tr>
+            <tr><td><strong>Active-Passive (Warm)</strong></td><td>분~시간</td><td>시간 단위</td><td>대기 리전에 주기적 복제. 스케일업 후 서비스</td><td>중간</td></tr>
+            <tr><td><strong>Backup-Restore (Cold)</strong></td><td>시간~일</td><td>시간~일</td><td>백업만 외부 저장. 장애 시 새 인프라에 복원</td><td>최저</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 멀티클라우드 DR 전략</strong><br>AWS EKS(주) + NHN Cloud NKS(DR) 구성에서:<br>• <strong>DB:</strong> PostgreSQL Streaming Replication (AWS → NHN) 또는 WAL 아카이브를 S3 → NHN Object Storage로 복제<br>• <strong>앱:</strong> ArgoCD App-of-Apps로 두 클러스터에 동일 배포. DNS 전환으로 트래픽 이동<br>• <strong>Stateless 서비스:</strong> 양쪽 모두 Active-Active 가능<br>• <strong>Stateful 서비스:</strong> 데이터 복제가 핵심. cross-cloud 네트워크 지연 시간을 고려해야 함</div>
+    </div>
+
+    <div class="sec" id="connpool">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Infrastructure</div>
+        <h3>Connection Pooling 아키텍처</h3>
+        <div class="cs">PgBouncer, ProxySQL — DB 커넥션 폭발을 방지하는 인프라 계층</div>
+        <div class="dt">
+          <div class="db"><div class="l">PgBouncer (PostgreSQL)</div><div class="v"><strong>배포 위치:</strong><br>• <strong>DB 사이드카:</strong> DB Pod 옆에 배치. 가장 단순<br>• <strong>독립 Deployment:</strong> 별도 Pod으로 배포. DB와 분리된 스케일링<br>• <strong>앱 사이드카:</strong> 각 앱 Pod 옆에 배치. 로컬 연결로 latency 최소화<br><br><strong>Transaction 모드 설정:</strong><br><code>pool_mode = transaction</code><br><code>max_client_conn = 1000</code><br><code>default_pool_size = 20</code><br><code>min_pool_size = 5</code><br><code>reserve_pool_size = 5</code><br><code>server_lifetime = 3600</code></div></div>
+          <div class="db"><div class="l">사이징 가이드</div><div class="v"><strong>DB측 max_connections:</strong><br><code>default_pool_size × DB 수 + reserve + 관리용</code><br>예: 20 × 2 + 5 + 3 = 48<br><br><strong>Little's Law 적용:</strong><br>목표 1000 TPS, 평균 쿼리 시간 5ms<br>필요 커넥션 = 1000 × 0.005 = 5 (이론치)<br>여유 3배 = 15 → <code>default_pool_size = 15</code><br><br><strong>모니터링:</strong><br><code>SHOW POOLS;</code> — 풀 사용 현황<br><code>SHOW STATS;</code> — 요청 통계<br><code>cl_active</code> → 활성 클라이언트 커넥션<br><code>sv_active</code> → 활성 서버 커넥션<br><code>cl_waiting</code> → 대기 중인 클라이언트 (> 0이면 풀 부족)</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distributed Systems Internals — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--orange);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--red)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="theory"].on{color:var(--teal)}.T[data-t="theory"].on::after{background:var(--teal);left:8%;right:8%}
+.T[data-t="failure"].on{color:var(--red)}.T[data-t="failure"].on::after{background:var(--red);left:8%;right:8%}
+.T[data-t="resil"].on{color:var(--blue)}.T[data-t="resil"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="observe"].on{color:var(--green)}.T[data-t="observe"].on::after{background:var(--green);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:7px}.cd h4 .d{width:7px;height:7px;border-radius:50%}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.cf{grid-column:1/-1}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt.b{background:var(--bbg);border-left-color:var(--blue)}.nt.b strong{color:var(--blue)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.fl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin:12px 0}.fn{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;text-align:center;min-width:90px;box-shadow:var(--sh)}.fn h4{font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:1px;font-weight:700}.fn p{font-size:9px;color:var(--td)}.fa{font-family:'JetBrains Mono',monospace;color:var(--tm);font-size:16px}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Deep Dive</div><h1><em>Distributed</em><br>Systems</h1></div>
+  <div class="sl">이론 기초</div>
+  <ul class="sn">
+    <li><a data-t="theory" data-s="fallacies" class="on"><span class="d" style="background:var(--teal)"></span>8가지 오류</a></li>
+    <li><a data-t="theory" data-s="cap"><span class="d" style="background:var(--teal)"></span>CAP Theorem</a></li>
+    <li><a data-t="theory" data-s="consensus"><span class="d" style="background:var(--teal)"></span>Consensus (Raft)</a></li>
+    <li><a data-t="theory" data-s="consistency"><span class="d" style="background:var(--teal)"></span>Consistency 모델</a></li>
+  </ul>
+  <div class="sl">장애 패턴</div>
+  <ul class="sn">
+    <li><a data-t="failure" data-s="cascade"><span class="d" style="background:var(--red)"></span>Cascading Failure</a></li>
+    <li><a data-t="failure" data-s="retry-storm"><span class="d" style="background:var(--red)"></span>Retry Storm</a></li>
+    <li><a data-t="failure" data-s="thundering"><span class="d" style="background:var(--red)"></span>Thundering Herd</a></li>
+    <li><a data-t="failure" data-s="partial"><span class="d" style="background:var(--red)"></span>Partial Failure</a></li>
+  </ul>
+  <div class="sl">방어 패턴</div>
+  <ul class="sn">
+    <li><a data-t="resil" data-s="circuit"><span class="d" style="background:var(--blue)"></span>Circuit Breaker</a></li>
+    <li><a data-t="resil" data-s="bulkhead"><span class="d" style="background:var(--blue)"></span>Bulkhead</a></li>
+    <li><a data-t="resil" data-s="backpressure"><span class="d" style="background:var(--blue)"></span>Backpressure</a></li>
+    <li><a data-t="resil" data-s="shed"><span class="d" style="background:var(--blue)"></span>Load Shedding</a></li>
+    <li><a data-t="resil" data-s="timeout"><span class="d" style="background:var(--blue)"></span>Timeout 전략</a></li>
+    <li><a data-t="resil" data-s="idempotency"><span class="d" style="background:var(--blue)"></span>Idempotency</a></li>
+  </ul>
+  <div class="sl">관측</div>
+  <ul class="sn">
+    <li><a data-t="observe" data-s="dtrace"><span class="d" style="background:var(--green)"></span>Distributed Tracing</a></li>
+    <li><a data-t="observe" data-s="propagation"><span class="d" style="background:var(--green)"></span>Context Propagation</a></li>
+    <li><a data-t="observe" data-s="sampling"><span class="d" style="background:var(--green)"></span>Sampling 전략</a></li>
+  </ul>
+  <div class="S-f"><p>Everything fails,<br>all the time.<br>— Werner Vogels</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="theory" onclick="sw('theory')">● 이론 기초</button>
+    <button class="T" data-t="failure" onclick="sw('failure')">● 장애 패턴</button>
+    <button class="T" data-t="resil" onclick="sw('resil')">● 방어 패턴</button>
+    <button class="T" data-t="observe" onclick="sw('observe')">● 관측</button>
+  </div>
+
+  <!-- ===== THEORY ===== -->
+  <div class="P on" id="p-theory">
+    <div class="PH"><div class="bg bg-t">● Fundamentals</div><h2>분산 시스템 이론 기초</h2><p>네트워크는 신뢰할 수 없고, 장애는 반드시 발생하며, 완벽한 일관성과 가용성은 동시에 불가능하다.</p></div>
+
+    <div class="sec" id="fallacies">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Foundation</div>
+        <h3>분산 컴퓨팅의 8가지 오류 (Fallacies)</h3>
+        <div class="cs">Peter Deutsch / James Gosling — "개발자가 분산 시스템에서 처음에 가정하지만 틀린 것들"</div>
+        <div class="cp">이 8가지는 분산 시스템을 설계할 때 <strong>절대 가정해선 안 되는 것</strong>이다. 이 오류를 기반으로 코드를 짜면 프로덕션에서 반드시 문제가 된다.</div>
+        <div class="dt">
+          <div class="db df"><div class="l">8 Fallacies & SRE 영향</div><div class="v">
+<strong>1) 네트워크는 신뢰할 수 있다</strong> → 패킷 손실, 파티션 발생. <strong>재시도, 타임아웃, 서킷 브레이커 필수</strong><br>
+<strong>2) 지연시간은 0이다</strong> → 원격 호출은 항상 지연. <strong>비동기 설계, 캐시, batch 처리</strong><br>
+<strong>3) 대역폭은 무한하다</strong> → 대량 데이터 전송 시 병목. <strong>압축, 페이지네이션, 스트리밍</strong><br>
+<strong>4) 네트워크는 안전하다</strong> → mTLS, NetworkPolicy, zero-trust<br>
+<strong>5) 토폴로지는 변하지 않는다</strong> → K8s Pod IP는 매번 바뀜. <strong>Service Discovery 필수</strong><br>
+<strong>6) 관리자는 한 명이다</strong> → 멀티팀, 멀티클라우드. <strong>표준화된 운영 체계</strong><br>
+<strong>7) 전송 비용은 0이다</strong> → 클라우드 네트워크 비용. <strong>cross-AZ/region 트래픽 최적화</strong><br>
+<strong>8) 네트워크는 균일하다</strong> → 이기종 환경, MTU 차이, NHN Cloud↔AWS 간 차이
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="cap">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Theorem</div>
+        <h3>CAP Theorem</h3>
+        <div class="cs">Consistency, Availability, Partition Tolerance — 네트워크 파티션이 생기면 C와 A 사이에서 선택이 필요하다</div>
+        <div class="cp">CAP은 <strong>"파티션이 발생했을 때"</strong>의 선택에 관한 것이다. 파티션이 없을 때는 C와 A를 모두 어느 정도 만족시킬 수 있다. 현실에서 네트워크 파티션은 반드시 발생하므로(Fallacy #1), 결국 <strong>CP와 AP 중 어디에 더 무게를 둘지</strong> 결정해야 한다.<br><br>실무에서 CAP는 이분법보다 <strong>스펙트럼</strong>에 가깝다. 완전한 C도, 완전한 A도 아닌 중간 지점(eventual consistency 등)을 선택하는 것이 일반적이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">CP 시스템</div><div class="v"><strong>파티션 시 일관성 유지, 일부 요청 거부</strong><br>• etcd/ZooKeeper: 과반수 합의 필요. 소수 파티션은 read/write 불가<br>• PostgreSQL (sync replication): 레플리카 응답까지 대기<br><strong>적합:</strong> 금융, 재고, 설정(etcd), 리더 선출<br><strong>대가:</strong> 파티션 시 가용성 감소</div></div>
+          <div class="db"><div class="l">AP 시스템</div><div class="v"><strong>파티션 시 가용성 유지, 일관성 포기</strong><br>• Cassandra, DynamoDB: 모든 노드가 읽기/쓰기 가능<br>• DNS: TTL 안에서는 최신이 아닌 데이터를 허용<br>• Redis (async replication): 쓰기 후 복제 전 장애 시 데이터 손실 가능<br><strong>적합:</strong> 세션, 캐시, 소셜 피드, IoT 데이터<br><strong>대가:</strong> conflict resolution 필요 (last-write-wins, vector clock 등)</div></div>
+          <div class="db df"><div class="l">K8s에서의 CAP</div><div class="v"><strong>etcd는 CP 시스템이다.</strong> Raft consensus로 과반수 노드가 살아있어야 동작. 3노드 etcd에서 2노드가 죽으면 <strong>클러스터 전체가 read-only</strong>가 되고 새 Pod을 생성할 수 없다. 이것이 etcd가 반드시 홀수 노드(3, 5, 7)로 구성되어야 하는 이유이며, etcd 가용성이 K8s 전체 가용성의 상한선이 되는 이유다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="consensus">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Algorithm</div>
+        <h3>Consensus — Raft 알고리즘</h3>
+        <div class="cs">분산 노드들이 하나의 값에 합의하는 알고리즘. etcd의 핵심 엔진</div>
+        <div class="cp">Consensus는 <strong>"여러 노드가 같은 데이터를 같은 순서로 가지고 있다"</strong>를 보장하는 알고리즘이다. Paxos가 이론적 기초이고, <strong>Raft</strong>는 이해하기 쉽게 재설계된 실용적 구현이다. etcd, Consul, CockroachDB 등이 Raft를 사용한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Raft 핵심 동작</div><div class="v"><strong>Leader Election:</strong> 노드는 Follower, Candidate, Leader 중 하나. Leader가 죽으면 Candidate가 투표 요청 → 과반수 득표 시 새 Leader<br><strong>Log Replication:</strong> 모든 쓰기는 Leader → 과반수 Follower에 복제 → commit 확인 → 클라이언트에 응답<br><strong>Safety:</strong> commit된 로그 엔트리는 모든 미래 Leader에 포함 보장</div></div>
+          <div class="db"><div class="l">SRE 관점: etcd 운영</div><div class="v"><strong>홀수 노드 필수:</strong> quorum = N/2+1. 3→1 장애 허용, 5→2 허용<br><strong>디스크 지연 시간에 민감:</strong> Raft heartbeat/election timeout이 디스크 fsync에 의존한다. SSD 필수, <code>WAL_DIR</code>을 별도 디스크로 두는 편이 좋다<br><strong>모니터링:</strong> <code>etcd_server_leader_changes_seen_total</code>, <code>etcd_disk_wal_fsync_duration_seconds</code>, <code>etcd_server_proposals_failed_total</code><br><strong>백업:</strong> <code>etcdctl snapshot save</code> 정기 실행</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="consistency">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Model</div>
+        <h3>Consistency 모델 스펙트럼</h3>
+        <div class="cs">Strong → Eventual — 일관성 강도에 따른 성능과 가용성 트레이드오프</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>모델</th><th>보장</th><th>대가</th><th>예시</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Linearizable</strong></td><td>모든 읽기가 가장 최근 쓰기를 반영</td><td>높은 latency. 모든 노드 동기화 필요</td><td>etcd, Spanner</td></tr>
+            <tr><td><strong>Sequential</strong></td><td>모든 클라이언트가 같은 순서를 봄</td><td>단일 리더 병목</td><td>ZooKeeper</td></tr>
+            <tr><td><strong>Causal</strong></td><td>인과관계가 있는 연산만 순서 보장</td><td>구현 복잡도</td><td>MongoDB (causal sessions)</td></tr>
+            <tr><td><strong>Eventual</strong></td><td>충분한 시간 후 모든 노드가 같은 값</td><td>일시적 불일치. conflict 가능</td><td>Cassandra, DynamoDB, DNS</td></tr>
+            <tr><td><strong>Read-your-writes</strong></td><td>자신이 쓴 값을 즉시 읽을 수 있음</td><td>session affinity 필요</td><td>대부분의 웹 앱에서 최소 요구</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 실무 선택 기준</strong><br>"이 데이터가 1초 동안 stale여도 괜찮은가?" → Eventual. "이 거래가 정확히 한 번만 처리되어야 하는가?" → Linearizable. 대부분의 서비스는 <strong>Read-your-writes + Eventual</strong>이면 충분하다.</div>
+    </div>
+  </div>
+
+  <!-- ===== FAILURE ===== -->
+  <div class="P" id="p-failure">
+    <div class="PH"><div class="bg bg-r">● Failure Patterns</div><h2>분산 시스템 장애 패턴</h2><p>Cascading Failure, Retry Storm, Thundering Herd — 단일 장애가 시스템 전체를 무너뜨리는 메커니즘.</p></div>
+
+    <div class="sec" id="cascade">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Critical</div>
+        <h3>Cascading Failure (연쇄 장애)</h3>
+        <div class="cs">하나의 컴포넌트 장애가 도미노처럼 전체 시스템으로 전파되는 현상</div>
+        <div class="cp">마이크로서비스에서 <strong>서비스 A가 죽으면 A를 호출하는 B가 timeout으로 느려지고, B를 호출하는 C도 느려지고, 결국 전체 시스템이 마비</strong>된다. 각 서비스가 독립적으로 보이지만, 의존성 체인을 통해 장애가 증폭된다.<br><br>핵심 메커니즘: <strong>자원 고갈(resource exhaustion)</strong>. 느려진 하위 서비스의 응답을 기다리면서 스레드/커넥션 풀이 소진되고, 새 요청도 처리 불가.</div>
+        <div class="dt">
+          <div class="db"><div class="l">전파 경로</div><div class="v"><strong>1)</strong> 서비스 C의 DB 느려짐<br><strong>2)</strong> C의 응답 지연 → B가 C를 기다리며 커넥션 풀 소진<br><strong>3)</strong> B도 느려짐 → A가 B를 기다리며 스레드 풀 소진<br><strong>4)</strong> A가 요청 처리 불가 → 사용자에게 에러/타임아웃<br><strong>5)</strong> 사용자가 새로고침 반복 → 트래픽 증가 → 악순환</div></div>
+          <div class="db"><div class="l">방어 전략</div><div class="v"><strong>Circuit Breaker:</strong> 실패율 임계값 초과 시 호출 차단<br><strong>Timeout:</strong> 모든 외부 호출에 적절한 timeout 설정<br><strong>Bulkhead:</strong> 의존성별 리소스 격리<br><strong>Load Shedding:</strong> 과부하 시 의도적 요청 거부<br><strong>Graceful Degradation:</strong> 핵심 기능만 유지, 부가 기능 OFF</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="retry-storm">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Amplification</div>
+        <h3>Retry Storm (재시도 폭풍)</h3>
+        <div class="cs">장애 시 모든 클라이언트가 동시에 재시도하여 트래픽이 기하급수적으로 증폭</div>
+        <div class="cp">서비스가 일시적으로 에러를 반환하면, 모든 클라이언트가 <strong>동시에 재시도</strong>한다. 원래 1000 RPS → 에러 → 각 클라이언트 3회 재시도 → <strong>3000 RPS</strong>. 회복 중인 서비스에 3배 부하가 가해져 <strong>영원히 복구 못 하는 상태</strong>에 빠진다.<br><br>다단계 아키텍처에서 각 레이어가 재시도하면 <strong>곱셈 효과</strong>: A→B→C, 각 3회 → 최대 27배 증폭.</div>
+        <div class="dt">
+          <div class="db"><div class="l">방어 패턴</div><div class="v"><strong>Exponential Backoff:</strong> 1초 → 2초 → 4초 → 8초... 간격 증가<br><strong>Jitter 추가:</strong> 랜덤 지연을 더해 재시도 시점을 분산<br><code>delay = base × 2^attempt + random(0, base)</code><br><strong>Max Retries:</strong> 최대 재시도 횟수 제한 (보통 3~5회)<br><strong>Retry Budget:</strong> 전체 요청 중 재시도 비율을 10% 이하로 제한</div></div>
+          <div class="db"><div class="l">K8s 환경에서의 retry</div><div class="v"><strong>Envoy/Istio:</strong> Service Mesh에서 retry 정책을 중앙 관리<br><code>retryOn: 5xx,reset,connect-failure</code><br><code>numRetries: 3</code><br><code>retryBackOff: baseInterval: 100ms</code><br><strong>핵심:</strong> 앱 레벨 retry + Mesh retry가 겹치면 증폭. <strong>한 곳에서만</strong> retry 하도록 조율</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="thundering">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Burst</div>
+        <h3>Thundering Herd (우르르 몰려가기)</h3>
+        <div class="cs">동시에 많은 요청이 같은 리소스에 몰려 과부하를 일으키는 패턴</div>
+        <div class="cp">대표적 시나리오: <strong>캐시 만료.</strong> 인기 키의 캐시가 동시에 만료되면, 수천 요청이 동시에 DB로 직행한다. DB가 부하를 감당 못 하면 전체 장애로 이어진다.<br><br>다른 시나리오: 서비스 재시작 후 콜드 스타트, 예약된 cron job 동시 실행, 대규모 이벤트(세일, 티켓팅) 시작 시점.</div>
+        <div class="dt">
+          <div class="db"><div class="l">방어 패턴</div><div class="v"><strong>Cache Stampede 방어:</strong><br>• <strong>Lock (Singleflight):</strong> 캐시 미스 시 첫 요청만 DB 조회, 나머지는 결과 대기. Go의 <code>singleflight</code> 패키지<br>• <strong>Stale-while-revalidate:</strong> 만료된 캐시를 우선 반환하고 백그라운드에서 갱신<br>• <strong>Jittered Expiry:</strong> TTL에 랜덤 오프셋 추가. 동시 만료 방지<br>• <strong>Early Recomputation:</strong> 만료 N초 전에 미리 갱신</div></div>
+          <div class="db"><div class="l">실무 적용</div><div class="v"><strong>Redis TTL jitter:</strong> <code>TTL = base + random(0, base×0.1)</code><br>10분 TTL → 10m~11m 사이 랜덤<br><strong>K8s CronJob:</strong> 같은 시각에 여러 Job이 실행되면 노드 리소스 spike. <code>startingDeadlineSeconds</code>로 분산<br><strong>Rolling restart:</strong> 모든 Pod이 동시에 재시작하지 않도록 maxUnavailable/maxSurge 조절</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="partial">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Ambiguity</div>
+        <h3>Partial Failure (부분 장애)</h3>
+        <div class="cs">요청이 성공했는지 실패했는지 알 수 없는 상태 — 분산 시스템의 가장 어려운 문제</div>
+        <div class="cp">단일 머신에서 함수 호출은 <strong>성공 또는 실패</strong>가 명확하다. 분산 시스템에서는 <strong>세 번째 상태</strong>가 존재한다: <strong>"모른다."</strong> 요청을 보냈는데 응답이 안 왔다. 서버가 처리 후 응답 전에 죽었을 수도, 네트워크가 응답을 삼켰을 수도 있다.<br><br>이 모호성을 해결하기 위해 <strong>Idempotency(멱등성)</strong>가 필수다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">시나리오</div><div class="v"><strong>결제 API 호출 → timeout:</strong><br>• 서버가 처리 안 했으면 → 재시도해야 함<br>• 서버가 처리했는데 응답만 실패 → 재시도하면 이중 결제<br><strong>DB 쓰기 → 네트워크 끊김:</strong><br>• commit 됐는지 안 됐는지 알 수 없음<br>• 재시도하면 중복 데이터 가능</div></div>
+          <div class="db"><div class="l">해결 패턴</div><div class="v"><strong>Idempotency Key:</strong> 클라이언트가 요청마다 고유 ID를 부여. 서버가 중복 처리 방지<br><strong>At-least-once + Deduplication:</strong> 최소 1번 전달 보장 + 수신 측에서 중복 제거<br><strong>Exactly-once (이론적):</strong> 실질적으로 at-least-once + idempotent 연산으로 구현<br><strong>Saga 패턴:</strong> 분산 트랜잭션을 보상 트랜잭션 체인으로 대체</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RESILIENCE ===== -->
+  <div class="P" id="p-resil">
+    <div class="PH"><div class="bg bg-b">● Resilience Patterns</div><h2>분산 시스템 방어 패턴</h2><p>Circuit Breaker, Bulkhead, Backpressure, Load Shedding — 장애 전파를 막고 시스템을 보호하는 설계 패턴.</p></div>
+
+    <div class="sec" id="circuit">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Protection</div>
+        <h3>Circuit Breaker (회로 차단기)</h3>
+        <div class="cs">하위 서비스의 실패율이 임계값을 넘으면 호출을 차단하여 연쇄 장애를 방지</div>
+        <div class="cp">전기 회로의 차단기처럼, <strong>실패가 반복되면 회로를 열어 더 이상 요청을 보내지 않는다.</strong> 주기적으로 소량의 요청만 보내(half-open) 상태를 확인하고, 정상이면 다시 닫는다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">3가지 상태</div><div class="v"><strong style="color:var(--green)">Closed (정상):</strong> 요청을 정상 전달. 실패율 모니터링<br><strong style="color:var(--orange)">Open (차단):</strong> 모든 요청 즉시 실패 반환 (fast fail). 하위 서비스 보호<br><strong style="color:var(--blue)">Half-Open (시험):</strong> 소량 요청만 통과. 성공하면 Closed, 실패하면 Open 유지<br><br><strong>트리거 조건 예:</strong> 최근 10초 내 50% 이상 실패, 최소 20건 이상 요청</div></div>
+          <div class="db"><div class="l">구현 예시</div><div class="v"><strong>Go:</strong> <code>sony/gobreaker</code>, <code>afex/hystrix-go</code><br><strong>Istio:</strong> DestinationRule의 <code>outlierDetection</code><br><code>consecutiveErrors: 5</code><br><code>interval: 10s</code><br><code>baseEjectionTime: 30s</code><br><code>maxEjectionPercent: 50</code><br><strong>Traefik:</strong> Circuit Breaker middleware<br><code>expression: "LatencyAtQuantileMS(50.0) > 100"</code></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="bulkhead">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Isolation</div>
+        <h3>Bulkhead (격벽) 패턴</h3>
+        <div class="cs">의존성별로 리소스 풀을 격리하여 한 의존성의 장애가 전체에 영향을 주지 않도록</div>
+        <div class="cp">선박의 격벽처럼, <strong>한 구획에 물이 들어와도 다른 구획은 안전</strong>한 구조. 서비스 A가 DB, Redis, 외부 API를 호출할 때, 각각의 커넥션 풀과 스레드 풀을 분리하면 하나가 느려져도 나머지는 정상 동작.</div>
+        <div class="dt">
+          <div class="db"><div class="l">구현 방식</div><div class="v"><strong>Thread Pool 격리:</strong> 의존성별 별도 스레드 풀. 한 풀이 소진되어도 다른 풀은 무사<br><strong>Connection Pool 격리:</strong> DB pool, Redis pool, HTTP client pool 각각 독립<br><strong>Semaphore 격리:</strong> 동시 호출 수 제한. 스레드보다 경량<br><strong>K8s:</strong> 서비스별 별도 Deployment + 리소스 제한 (cgroup 격리)</div></div>
+          <div class="db"><div class="l">설계 포인트</div><div class="v"><strong>풀 크기 결정:</strong> Little's Law 기반<br><code>pool_size = throughput × avg_latency</code><br>100 RPS, 평균 50ms → 풀 크기 = 5 (최소). 여유분 2~3배 = 10~15<br><strong>풀 소진 시:</strong> 즉시 에러를 반환하고 대기열을 길게 늘리지 않는다 → fast fail + circuit breaker 트리거</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="backpressure">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Flow Control</div>
+        <h3>Backpressure (배압)</h3>
+        <div class="cs">하류가 처리할 수 없는 속도로 상류가 데이터를 보내는 것을 제어하는 메커니즘</div>
+        <div class="cp">Backpressure는 <strong>"소비자가 생산자에게 속도를 줄여달라고 신호를 보내는 것"</strong>이다. 버퍼가 가득 차면 더 이상 받지 않고, 생산자가 속도를 조절하도록 한다.<br><br>Backpressure 없이 무한 버퍼링을 하면 <strong>메모리 고갈 → OOM</strong>으로 이어질 수 있다. 버퍼 없이 바로 드롭하면 <strong>데이터 손실</strong>이 생긴다. Backpressure는 이 둘 사이에서 시스템을 안정적으로 유지하는 장치다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">구현 전략</div><div class="v"><strong>Bounded Queue:</strong> 큐 크기 제한. 가득 차면 생산자 block 또는 거부<br><strong>Rate Limiting:</strong> 생산자의 요청 속도를 토큰 버킷/리키 버킷으로 제한<br><strong>TCP Flow Control:</strong> TCP 수신 윈도우가 0이면 송신 중지 (프로토콜 레벨 backpressure)<br><strong>Reactive Streams:</strong> request(n) 기반 pull model. 소비자가 처리 가능한 양만 요청</div></div>
+          <div class="db"><div class="l">K8s/인프라에서의 backpressure</div><div class="v"><strong>K8s HPA:</strong> 부하 증가 → replica 증가 (간접적 backpressure)<br><strong>Kafka:</strong> consumer lag이 backpressure 신호. lag 증가 시 consumer 스케일 아웃<br><strong>Ingress Rate Limiting:</strong> Traefik <code>rateLimit</code> middleware<br><strong>gRPC:</strong> flow control window 기반 내장 backpressure</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="shed">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Overload</div>
+        <h3>Load Shedding (부하 제거)</h3>
+        <div class="cs">과부하 시 일부 요청을 의도적으로 거부하여 나머지 요청의 품질을 유지</div>
+        <div class="cp">모든 요청을 느리게 처리하는 것보다, <strong>일부를 빠르게 거부하고 나머지를 정상 처리하는 것이 낫다.</strong> 100% 느린 것보다 80% 정상 + 20% 거부가 사용자 경험이 좋다.<br><br>Load Shedding은 <strong>의도적 품질 저하(Graceful Degradation)</strong>의 일종이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">전략</div><div class="v"><strong>Priority-based:</strong> 중요 요청 우선 처리, 덜 중요한 것 먼저 거부<br><strong>LIFO (Latest-In First-Out):</strong> 최신 요청 우선. 오래된 요청은 클라이언트가 이미 타임아웃했을 가능성이 높음<br><strong>Admission Control:</strong> 서버가 자신의 현재 부하를 측정, 처리 가능 수준 초과 시 503 반환<br><strong>Deadline Propagation:</strong> 요청에 데드라인(클라이언트 타임아웃)을 포함. 데드라인이 지난 요청은 처리하지 않음</div></div>
+          <div class="db"><div class="l">HTTP 응답 코드</div><div class="v"><strong>429 Too Many Requests:</strong> Rate limit 초과. <code>Retry-After</code> 헤더 포함 권장<br><strong>503 Service Unavailable:</strong> 서버 과부하. 일시적. <code>Retry-After</code> 포함<br>클라이언트는 이 코드를 받으면 <strong>exponential backoff + jitter</strong>로 재시도해야 함</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="timeout">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Essential</div>
+        <h3>Timeout 전략</h3>
+        <div class="cs">모든 외부 호출에 timeout을 설정하는 것은 분산 시스템의 첫 번째 규칙</div>
+        <div class="cp"><strong>Timeout이 없는 외부 호출은 시한폭탄이다.</strong> 하위 서비스가 무한히 느려지면 호출자의 리소스(스레드, 커넥션)가 영원히 점유된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Timeout 유형</div><div class="v"><strong>Connection Timeout:</strong> TCP 연결 수립까지 대기 (보통 1~5초)<br><strong>Request/Read Timeout:</strong> 요청 전송 후 응답까지 대기 (서비스 SLO의 P99 기반)<br><strong>Idle Timeout:</strong> 유휴 연결 유지 시간 (keepalive와 연관)<br><strong>Total/Overall Timeout:</strong> retry 포함 전체 소요 시간 상한</div></div>
+          <div class="db"><div class="l">Timeout Chain (핵심!)</div><div class="v"><strong>상위 서비스의 timeout > 하위 서비스의 timeout</strong> 이어야 함<br><div class="fm" style="text-align:left;font-size:10px">Client → API Gateway → Service A → Service B
+  10s        8s            5s           3s</div>B의 timeout이 A보다 길면, A가 먼저 timeout하고 B는 불필요한 작업을 계속함<br><strong>WAF → LB → Traefik → Pod</strong> 경로에서도 동일 원칙 적용</div></div>
+        </div>
+      </div>
+      <div class="nt o"><strong>⚠ 실무 사례</strong><br>NHN Cloud 환경에서 WAF → LB → Traefik → Pod 경로의 timeout/keepalive 체인을 정렬하는 작업을 한 경험이 있을 것. 이것이 바로 Timeout Chain 원칙의 실무 적용이다. 각 계층의 idle timeout이 외부에서 내부로 갈수록 짧아져야 silent connection drop을 방지한다.</div>
+    </div>
+
+    <div class="sec" id="idempotency">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Safety</div>
+        <h3>Idempotency (멱등성)</h3>
+        <div class="cs">같은 요청을 여러 번 보내도 결과가 동일한 성질. 안전한 재시도의 전제 조건</div>
+        <div class="cp">Partial Failure 환경에서 재시도는 필수다. 하지만 <strong>재시도가 안전하려면 연산이 멱등</strong>해야 한다. "잔액에 1000원 추가"는 재시도하면 이중 적립이지만, "잔액을 5000원으로 설정"은 몇 번을 해도 같은 결과.</div>
+        <div class="dt">
+          <div class="db"><div class="l">HTTP 메서드 멱등성</div><div class="v"><strong>GET:</strong> 멱등 ✅ (읽기만)<br><strong>PUT:</strong> 멱등 ✅ (전체 교체)<br><strong>DELETE:</strong> 멱등 ✅ (없으면 404)<br><strong>POST:</strong> 멱등 ❌ (생성). <strong>Idempotency Key로 보완</strong><br><strong>PATCH:</strong> 설계에 따라 다름</div></div>
+          <div class="db"><div class="l">Idempotency Key 구현</div><div class="v">클라이언트가 요청마다 UUID를 <code>Idempotency-Key</code> 헤더로 전달<br>서버가 이 키를 저장(Redis 등)하고, 동일 키의 재요청에 <strong>저장된 응답을 반환</strong><br>키의 TTL: 클라이언트 재시도 윈도우보다 길게 (보통 24~48시간)<br><strong>Stripe API</strong>가 대표적 구현 예시</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OBSERVE ===== -->
+  <div class="P" id="p-observe">
+    <div class="PH"><div class="bg bg-g">● Distributed Observability</div><h2>분산 추적과 관측</h2><p>Distributed Tracing, Context Propagation, Sampling — 마이크로서비스에서 "요청이 어디서 느려졌는가"에 답하기.</p></div>
+
+    <div class="sec" id="dtrace">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Core</div>
+        <h3>Distributed Tracing 내부 동작</h3>
+        <div class="cs">요청이 여러 서비스를 거치는 전체 경로를 추적하고 시각화하는 기술</div>
+        <div class="cp">마이크로서비스에서 하나의 사용자 요청은 <strong>수십 개의 서비스를 거친다.</strong> 로그만으로는 "이 요청이 어디서 느려졌는지"를 추적할 수 없다. Distributed Tracing은 요청의 <strong>전체 여정을 하나의 Trace로 연결</strong>하여 병목을 시각화한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 개념</div><div class="v"><strong>Trace:</strong> 하나의 요청에 대한 전체 기록. 고유한 Trace ID로 식별<br><strong>Span:</strong> Trace 내의 개별 작업 단위. 시작/종료 시간, 서비스명, 상태 코드 포함<br><strong>Parent-Child:</strong> Span 간 호출 관계. A→B 호출 시 A가 parent, B가 child<br><strong>Span Context:</strong> Trace ID + Span ID + 샘플링 플래그. 서비스 간 전파되는 메타데이터</div></div>
+          <div class="db"><div class="l">LGTM 스택에서의 구현</div><div class="v"><strong>수집:</strong> OTel SDK가 앱에서 Span 생성 → Alloy로 전송<br><strong>저장:</strong> Grafana Tempo (object storage 백엔드)<br><strong>시각화:</strong> Grafana에서 Trace 뷰<br><strong>연결:</strong> Metric → Exemplar → Trace ID → Trace 뷰 drill-down<br>Loki 로그에도 Trace ID를 삽입하면 Log↔Trace 연결 가능</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="propagation">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Mechanism</div>
+        <h3>Context Propagation</h3>
+        <div class="cs">Trace 컨텍스트를 서비스 간 전달하는 메커니즘 — 추적이 끊기지 않게</div>
+        <div class="cp">서비스 A가 B를 호출할 때, <strong>Trace ID와 Span ID를 HTTP 헤더(또는 gRPC metadata)에 실어 전달</strong>해야 한다. 이것이 없으면 각 서비스의 Span이 독립적으로 존재하여 하나의 Trace로 연결되지 않는다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">전파 형식</div><div class="v"><strong>W3C Trace Context (표준):</strong><br><code>traceparent: 00-{trace-id}-{span-id}-{flags}</code><br><code>tracestate: vendor=value</code><br><br><strong>B3 (Zipkin 호환):</strong><br><code>X-B3-TraceId</code>, <code>X-B3-SpanId</code>, <code>X-B3-ParentSpanId</code><br><br><strong>Jaeger:</strong> <code>uber-trace-id</code></div></div>
+          <div class="db"><div class="l">전파 누락 원인</div><div class="v"><strong>1)</strong> HTTP 클라이언트가 헤더를 전달하지 않음 → OTel SDK 미설정<br><strong>2)</strong> 프록시/LB가 헤더를 제거 → Traefik forwaredHeaders 설정<br><strong>3)</strong> 비동기 처리(큐, 이벤트)에서 컨텍스트 분실 → 메시지에 trace context 포함 필수<br><strong>4)</strong> 서비스 A는 W3C, B는 B3 → 형식 불일치. OTel Collector에서 변환</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="sampling">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Strategy</div>
+        <h3>Sampling 전략</h3>
+        <div class="cs">모든 요청을 추적하면 비용이 폭발한다. 무엇을, 얼마나 샘플링할 것인가</div>
+        <div class="cp">1000 RPS 서비스의 모든 요청을 100% 추적하면 <strong>저장 비용과 네트워크 오버헤드가 어마어마</strong>하다. 대부분의 프로덕션 환경에서는 <strong>1~10% 샘플링</strong>을 적용하되, 중요한 trace는 놓치지 않는 전략이 필요.</div>
+        <div class="dt">
+          <div class="db"><div class="l">샘플링 유형</div><div class="v"><strong>Head-based (확률):</strong> 요청 시작 시점에 랜덤으로 추적 여부 결정. 단순하지만 에러/slow trace를 놓칠 수 있음<br><strong>Tail-based (결과):</strong> 요청 완료 후에 결정. 에러/slow 요청만 저장. Collector에서 전체 trace를 버퍼링해야 하므로 리소스 부담<br><strong>Rate-limiting:</strong> 초당 최대 N개 trace만 수집<br><strong>Priority-based:</strong> 결제=100%, 목록 조회=1% 등 경로별 차등</div></div>
+          <div class="db"><div class="l">실무 권장</div><div class="v"><strong>기본:</strong> Head-based 10% + error/slow trace는 100%<br>OTel SDK의 <code>ParentBased(TraceIDRatioBased(0.1))</code><br><strong>Tail-based 구성:</strong> Alloy 또는 OTel Collector에서 <code>tail_sampling</code> processor<br>정책: <code>latency > 1s</code> 또는 <code>status = ERROR</code> → always sample<br><br><strong>비용 최적화:</strong> Tempo의 search API는 Parquet 기반으로 저비용 장기 저장 가능. sampling rate를 낮추되 저장 기간은 길게</div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 Exemplar로 Metrics↔Traces 연결</strong><br>Prometheus Exemplar에 Trace ID를 첨부하면 <strong>metric graph에서 특정 spike 지점을 클릭 → 해당 시점의 slow trace로 바로 이동</strong>할 수 있다. LGTM 스택의 핵심 연결 고리.</div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

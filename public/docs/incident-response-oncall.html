@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Incident Response & On-Call — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--red);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--red)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="oncall"].on{color:var(--teal)}.T[data-t="oncall"].on::after{background:var(--teal);left:8%;right:8%}
+.T[data-t="incident"].on{color:var(--red)}.T[data-t="incident"].on::after{background:var(--red);left:8%;right:8%}
+.T[data-t="postmortem"].on{color:var(--blue)}.T[data-t="postmortem"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="runbook"].on{color:var(--green)}.T[data-t="runbook"].on::after{background:var(--green);left:8%;right:8%}
+.T[data-t="metrics"].on{color:var(--purple)}.T[data-t="metrics"].on::after{background:var(--purple);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:7px}.cd h4 .d{width:7px;height:7px;border-radius:50%}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt.b{background:var(--bbg);border-left-color:var(--blue)}.nt.b strong{color:var(--blue)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.fl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin:12px 0}.fn{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;text-align:center;min-width:90px;box-shadow:var(--sh)}.fn h4{font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:1px;font-weight:700}.fn p{font-size:9px;color:var(--td)}.fa{font-family:'JetBrains Mono',monospace;color:var(--tm);font-size:16px}
+.pipe{display:flex;align-items:center;gap:0;margin:14px 0;flex-wrap:wrap}.pipe-s{padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;text-align:center;min-width:95px;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%,12px 50%);margin-left:-6px}.pipe-s:first-child{clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%);margin-left:0}.pipe-s small{display:block;font-weight:500;font-size:8px;opacity:.8;margin-top:1px}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Practice</div><h1><em>Incident</em><br>Response</h1></div>
+  <div class="sl">On-Call</div>
+  <ul class="sn">
+    <li><a data-t="oncall" data-s="oncall-design" class="on"><span class="d" style="background:var(--teal)"></span>온콜 체계 설계</a></li>
+    <li><a data-t="oncall" data-s="rotation"><span class="d" style="background:var(--teal)"></span>로테이션 & 핸드오프</a></li>
+    <li><a data-t="oncall" data-s="oncall-health"><span class="d" style="background:var(--teal)"></span>온콜 건강 관리</a></li>
+  </ul>
+  <div class="sl">Incident Lifecycle</div>
+  <ul class="sn">
+    <li><a data-t="incident" data-s="severity"><span class="d" style="background:var(--red)"></span>심각도 분류</a></li>
+    <li><a data-t="incident" data-s="roles"><span class="d" style="background:var(--red)"></span>역할 분리</a></li>
+    <li><a data-t="incident" data-s="response-flow"><span class="d" style="background:var(--red)"></span>대응 흐름</a></li>
+    <li><a data-t="incident" data-s="comms"><span class="d" style="background:var(--red)"></span>커뮤니케이션</a></li>
+  </ul>
+  <div class="sl">Postmortem</div>
+  <ul class="sn">
+    <li><a data-t="postmortem" data-s="pm-principles"><span class="d" style="background:var(--blue)"></span>Blameless 원칙</a></li>
+    <li><a data-t="postmortem" data-s="pm-template"><span class="d" style="background:var(--blue)"></span>작성 템플릿</a></li>
+    <li><a data-t="postmortem" data-s="pm-review"><span class="d" style="background:var(--blue)"></span>리뷰 프로세스</a></li>
+    <li><a data-t="postmortem" data-s="five-whys"><span class="d" style="background:var(--blue)"></span>5 Whys & RCA</a></li>
+  </ul>
+  <div class="sl">Runbook</div>
+  <ul class="sn">
+    <li><a data-t="runbook" data-s="rb-design"><span class="d" style="background:var(--green)"></span>Runbook 설계</a></li>
+    <li><a data-t="runbook" data-s="rb-template"><span class="d" style="background:var(--green)"></span>작성 템플릿</a></li>
+    <li><a data-t="runbook" data-s="rb-auto"><span class="d" style="background:var(--green)"></span>자동화 단계</a></li>
+  </ul>
+  <div class="sl">Incident Metrics</div>
+  <ul class="sn">
+    <li><a data-t="metrics" data-s="mttx-deep"><span class="d" style="background:var(--purple)"></span>MTTx 분해</a></li>
+    <li><a data-t="metrics" data-s="inc-trends"><span class="d" style="background:var(--purple)"></span>트렌드 분석</a></li>
+    <li><a data-t="metrics" data-s="culture"><span class="d" style="background:var(--purple)"></span>장애 문화</a></li>
+  </ul>
+  <div class="S-f"><p>Incidents are inevitable.<br>Learning from them<br>is a choice.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="oncall" onclick="sw('oncall')">● On-Call</button>
+    <button class="T" data-t="incident" onclick="sw('incident')">● Incident</button>
+    <button class="T" data-t="postmortem" onclick="sw('postmortem')">● Postmortem</button>
+    <button class="T" data-t="runbook" onclick="sw('runbook')">● Runbook</button>
+    <button class="T" data-t="metrics" onclick="sw('metrics')">● Metrics</button>
+  </div>
+
+  <!-- ===== ON-CALL ===== -->
+  <div class="P on" id="p-oncall">
+    <div class="PH"><div class="bg bg-t">● On-Call System</div><h2>온콜 체계 설계</h2><p>로테이션, 에스컬레이션, 핸드오프, 건강 관리 — 지속 가능한 온콜 문화를 만드는 실무 가이드.</p></div>
+
+    <div class="sec" id="oncall-design">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Architecture</div>
+        <h3>온콜 체계 설계 원칙</h3>
+        <div class="cs">누가, 언제, 어떤 순서로 장애에 대응하는가를 구조화하는 체계</div>
+        <div class="cp">온콜은 <strong>"알림이 울리면 정해진 사람이 대응한다"</strong>는 단순한 구조이지만, 잘못 설계하면 <strong>번아웃, 대응 지연, 지식 편중</strong>을 유발한다. Google SRE는 온콜을 <strong>엔지니어링 업무의 일부</strong>로 취급하며, 전체 업무의 25% 이하로 제한할 것을 권장한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 설계 요소</div><div class="v"><strong>Primary On-Call:</strong> 첫 번째 대응자. 알림 수신 후 5~15분 내 acknowledge<br><strong>Secondary On-Call:</strong> Primary가 응답 못 할 경우 자동 에스컬레이션<br><strong>Escalation Path:</strong> Primary → Secondary → Team Lead → Manager<br><strong>에스컬레이션 타임아웃:</strong> P1: 15분, P2: 30분, P3: 2시간</div></div>
+          <div class="db"><div class="l">Solo Engineer 환경</div><div class="v"><strong>혼자 온콜을 감당할 때 (1인 DevOps):</strong><br>• 자동 복구 최대화: 자동 롤백, 자동 재시작, self-healing<br>• Runbook 철저히 정비: 새벽에 반만 깨어서도 따라할 수 있게<br>• 알림 품질에 투자: false positive = 수면 방해 = 번아웃<br>• 비상 연락망: 최소 1명의 백업 (팀장 등)<br>• HolmesGPT 같은 AI 지원 인시던트 트리아지 도입 고려</div></div>
+          <div class="db df"><div class="l">알림 채널 설계</div><div class="v"><strong style="color:var(--red)">Page (즉시):</strong> PagerDuty/Opsgenie 전화+SMS. SLO Burn Rate Critical, 서비스 전체 장애<br><strong style="color:var(--orange)">Urgent:</strong> Slack DM + 모바일 푸시. SLO Burn Rate High, 주요 기능 장애<br><strong style="color:var(--blue)">Ticket:</strong> Slack 채널 + 이슈 자동 생성. Burn Rate Warning, 성능 저하<br><strong>Log:</strong> Grafana Alerting → Slack 채널. 참고용. 사람을 깨우지 않음<br><br><strong>핵심 원칙:</strong> Page로 올라오는 알림은 <strong>반드시 즉각 행동이 필요한 것만</strong>. 그렇지 않으면 Ticket으로 낮춰야 한다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="rotation">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Schedule</div>
+        <h3>로테이션 & 핸드오프</h3>
+        <div class="cs">온콜 교대 주기, 인수인계 절차, 공정한 분배</div>
+        <div class="dt">
+          <div class="db"><div class="l">로테이션 설계</div><div class="v"><strong>주기:</strong> 1주 교대가 일반적. 2주는 부담, 3일은 컨텍스트 전환 비용<br><strong>시작:</strong> 월요일~화요일 시작이 이상적 (주말에 교대하지 않도록)<br><strong>시간대:</strong> Follow-the-Sun (글로벌 팀이면 시간대별 교대)<br><strong>공정성:</strong> 주말/공휴일 온콜은 추가 보상 (대체 휴무, 수당)<br><strong>최소 인원:</strong> 6~8명이 있어야 지속 가능한 로테이션 (1인 환경은 자동화로 보완)</div></div>
+          <div class="db"><div class="l">핸드오프 체크리스트</div><div class="v"><strong>교대 시 인수인계 사항:</strong><br>□ 현재 진행 중인 인시던트 상태<br>□ 이번 주기 동안 발생한 주요 이벤트 요약<br>□ 주의해야 할 예정된 변경사항 (배포, 마이그레이션)<br>□ 알려진 이슈 (intermittent 장애 등)<br>□ 다음 온콜 담당자에게 특별 전달사항<br><br><strong>형식:</strong> Slack 채널에 구조화된 핸드오프 메시지 작성<br>또는 Confluence/Notion에 온콜 일지 유지</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="oncall-health">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Wellbeing</div>
+        <h3>온콜 건강 관리</h3>
+        <div class="cs">지속 가능한 온콜은 엔지니어의 번아웃을 방지하는 설계에서 시작</div>
+        <div class="cp">온콜이 고통스러우면 <strong>시스템에 문제가 있는 것</strong>이다. 알림이 너무 많거나, 자동화가 부족하거나, Runbook이 없는 것이 원인이다. Google SRE는 <strong>"온콜이 고통스럽다면, 그것은 개선할 시스템 문제의 목록"</strong>이라고 본다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">건강 지표</div><div class="v"><strong>주당 page 수:</strong> 2건 이하가 이상적. 5건 이상이면 시스템 개선 필요<br><strong>새벽 page 비율:</strong> 20% 이하. 높으면 알림 시간대 재설계 또는 자동 완화<br><strong>Page당 대응 시간:</strong> 대부분 30분 이내 해결되어야. 1시간+ 이면 Runbook 개선<br><strong>False positive 비율:</strong> 10% 이하. 높으면 알림 규칙 재검토 (Alert Fatigue)<br><strong>온콜 후 번아웃 설문:</strong> 교대 후 간단한 피드백 수집</div></div>
+          <div class="db"><div class="l">개선 전략</div><div class="v"><strong>Toil 자동화:</strong> 같은 Runbook을 3번 이상 실행하면 자동화 대상<br><strong>알림 품질 개선:</strong> Symptom-based + Burn Rate 전환<br><strong>Noise 제거:</strong> Actionable하지 않은 알림은 Ticket/Log로 강등<br><strong>온콜 레트로:</strong> 교대 후 "이번 주기에 가장 고통스러웠던 것"을 공유하고 개선 백로그에 추가<br><strong>보상:</strong> 대체 휴무, 온콜 수당, 경험 공유 세션</div></div>
+        </div>
+      </div>
+      <div class="nt o"><strong>⚠ 1인 DevOps 환경의 현실</strong><br>현실적으로 Solo DevOps 환경에서 24/7 온콜은 지속 불가능하다. <strong>자동 복구 + 알림 품질 + Runbook 자동화</strong>에 최대한 투자하고, 비즈니스 시간 외에는 <strong>Critical만 Page</strong>되도록 설계해야 한다. HolmesGPT 같은 AI 도구로 초기 트리아지를 자동화하면 새벽 대응 부담을 크게 줄일 수 있다.</div>
+    </div>
+  </div>
+
+  <!-- ===== INCIDENT ===== -->
+  <div class="P" id="p-incident">
+    <div class="PH"><div class="bg bg-r">● Incident Lifecycle</div><h2>인시던트 대응 체계</h2><p>심각도 분류, 역할 분리, 대응 흐름, 커뮤니케이션 — 혼란 속에서 체계적으로 대응하는 프로세스.</p></div>
+
+    <div class="sec" id="severity">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Classification</div>
+        <h3>심각도 분류 체계</h3>
+        <div class="cs">장애의 영향 범위와 긴급도에 따라 대응 수준을 결정하는 표준 분류</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>심각도</th><th>정의</th><th>예시</th><th>대응 시간</th><th>에스컬레이션</th></tr></thead>
+          <tbody>
+            <tr><td><strong style="color:var(--red)">P1 Critical</strong></td><td>서비스 전체 장애 또는 데이터 손실 위험</td><td>전체 API 응답 불가, DB 데이터 손상, 보안 침해</td><td>즉시 (5분 내 ACK)</td><td>자동으로 TL + 매니저</td></tr>
+            <tr><td><strong style="color:var(--orange)">P2 Major</strong></td><td>주요 기능 장애, 많은 사용자 영향</td><td>결제 실패, 검색 불가, 특정 리전 장애</td><td>15분 내 ACK</td><td>30분 내 미해결 시 TL</td></tr>
+            <tr><td><strong style="color:var(--blue)">P3 Minor</strong></td><td>부분 기능 영향, 우회 가능</td><td>특정 API 느림, 일부 UI 깨짐, 비핵심 기능 오류</td><td>비즈니스 시간 내</td><td>다음 비즈니스일</td></tr>
+            <tr><td><strong>P4 Low</strong></td><td>사용자 영향 미미</td><td>로그 오류, 미사용 엔드포인트 장애, 경미한 UI 이슈</td><td>정규 백로그</td><td>스프린트 내</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 심각도 판단 가이드</strong><br><strong>"사용자가 핵심 기능을 사용할 수 있는가?"</strong>가 P1/P2 구분의 핵심.<br><strong>"우회 방법이 있는가?"</strong>가 P2/P3 구분의 핵심.<br>의심스러우면 <strong>높은 쪽으로 분류</strong>하고, 상황 파악 후 하향 조정하는 것이 안전하다.</div>
+    </div>
+
+    <div class="sec" id="roles">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Roles</div>
+        <h3>인시던트 역할 분리</h3>
+        <div class="cs">지휘, 실행, 소통을 분리하여 각자 맡은 일에 집중할 수 있는 구조</div>
+        <div class="cp">장애 상황에서 한 사람이 모든 것을 하면 <strong>병목이 되고 실수가 늘어난다.</strong> 역할을 분리하면 각자의 영역에 집중할 수 있다. 소규모 팀에서는 한 사람이 여러 역할을 겸하되, <strong>어떤 역할을 맡고 있는지 명시적으로 선언</strong>하는 것이 중요하다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 역할</div><div class="v"><strong style="color:var(--red)">Incident Commander (IC):</strong> 전체 지휘. 의사결정, 우선순위 결정, 역할 할당. 직접 디버깅하지 않음<br><strong style="color:var(--orange)">Ops Lead:</strong> 기술적 대응 실행. 진단, 완화, 롤백 등 실제 작업 수행<br><strong style="color:var(--blue)">Communication Lead:</strong> 내부/외부 커뮤니케이션. 상태 업데이트, 이해관계자 알림<br><strong style="color:var(--green)">Scribe:</strong> 타임라인 기록. 모든 행동과 결정을 실시간 기록 (Postmortem의 기초)<br><br><strong>소규모 팀:</strong> IC + Ops를 겸하되, "나는 지금 IC로서 결정한다" / "지금 Ops로서 작업한다"를 구분하여 말하면 의사결정 품질이 올라감</div></div>
+          <div class="db"><div class="l">IC의 핵심 행동</div><div class="v"><strong>선언:</strong> "내가 이 인시던트의 IC입니다"<br><strong>크기 평가:</strong> 심각도 결정, 추가 인력 필요 여부 판단<br><strong>정보 수집:</strong> "현재 상태가 뭔가?", "영향 범위는?", "마지막 변경은?"<br><strong>지시:</strong> "A는 DB 확인, B는 최근 배포 롤백 시도"<br><strong>주기적 업데이트:</strong> 10~15분마다 상태 요약<br><strong>종료 선언:</strong> "서비스 복구 확인됨. 인시던트 종료. Postmortem은 48시간 내 작성"</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="response-flow">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Flow</div>
+        <h3>인시던트 대응 흐름</h3>
+        <div class="cs">알림 수신부터 복구 확인까지의 단계별 프로세스</div>
+      </div>
+      <div class="bx">
+        <div class="bx-t">▼ 인시던트 대응 파이프라인</div>
+        <div class="pipe">
+          <div class="pipe-s" style="background:var(--rbg);color:var(--red);">Detect<small>알림 수신</small></div>
+          <div class="pipe-s" style="background:var(--obg);color:var(--orange);">Acknowledge<small>5~15분</small></div>
+          <div class="pipe-s" style="background:var(--bbg);color:var(--blue);">Triage<small>심각도 분류</small></div>
+          <div class="pipe-s" style="background:var(--pbg);color:var(--purple);">Mobilize<small>역할 할당</small></div>
+          <div class="pipe-s" style="background:var(--obg);color:var(--orange);">Diagnose<small>원인 파악</small></div>
+          <div class="pipe-s" style="background:var(--tbg);color:var(--teal);">Mitigate<small>완화/복구</small></div>
+          <div class="pipe-s" style="background:var(--gbg);color:var(--green);">Resolve<small>복구 확인</small></div>
+        </div>
+      </div>
+
+      <div class="cg" style="margin-top:16px;">
+        <div class="cd" style="border-top:3px solid var(--red);">
+          <h4 style="color:var(--red)">Detect → Acknowledge</h4>
+          <p>알림 수신 → ACK 버튼 → 담당자가 보고 있음을 팀에 알림.<br><strong>"내가 보고 있다"를 선언하는 것만으로도 중복 대응을 방지.</strong></p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--orange);">
+          <h4 style="color:var(--orange)">Triage → Mobilize</h4>
+          <p>영향 범위 파악 → 심각도 결정 → 필요 시 추가 인력 호출.<br><strong>P1이면 즉시 War Room(Slack 채널/화상회의) 개설.</strong></p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--blue);">
+          <h4 style="color:var(--blue)">Diagnose</h4>
+          <p>최근 변경 확인(배포, 설정 변경) → 대시보드 확인 → 로그/트레이스 분석.<br><strong>"마지막으로 무엇이 바뀌었는가?"가 80%의 장애 원인.</strong></p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--green);">
+          <h4 style="color:var(--green)">Mitigate → Resolve</h4>
+          <p><strong>완화 우선, 근본 원인 분석은 나중.</strong> 롤백, 트래픽 분산, 기능 비활성화 등으로 먼저 복구. 근본 원인은 Postmortem에서 분석.<br>복구 후: SLI 정상 확인 → 알림 해제 → 종료 선언.</p>
+        </div>
+      </div>
+      <div class="nt r"><strong>⚠ 핵심 원칙: Mitigate First, RCA Later</strong><br>장애 중에 "왜 이런 일이 일어났나?"를 파고들면 복구가 늦어진다. <strong>먼저 서비스를 복구하고(롤백, 스케일 아웃, 기능 꺼기), 나중에 Postmortem에서 근본 원인을 분석</strong>한다. "지금 고치는 것"과 "다음에 방지하는 것"을 분리.</div>
+    </div>
+
+    <div class="sec" id="comms">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Communication</div>
+        <h3>인시던트 커뮤니케이션</h3>
+        <div class="cs">내부/외부 이해관계자에게 적시에 정확한 정보를 전달하는 체계</div>
+        <div class="dt">
+          <div class="db"><div class="l">내부 커뮤니케이션</div><div class="v"><strong>War Room:</strong> P1/P2 전용 Slack 채널 즉시 생성. <code>#incident-YYYYMMDD-서비스명</code><br><strong>업데이트 주기:</strong> P1은 10분, P2는 30분마다 상태 업데이트<br><br><strong>상태 업데이트 템플릿:</strong><br>• <strong>현재 상태:</strong> 조사 중 / 완화 중 / 복구됨<br>• <strong>영향:</strong> 어떤 서비스, 얼마나 많은 사용자<br>• <strong>현재 조치:</strong> 무엇을 하고 있는가<br>• <strong>다음 업데이트:</strong> 언제 다시 알려줄 것인가</div></div>
+          <div class="db"><div class="l">외부 커뮤니케이션</div><div class="v"><strong>상태 페이지:</strong> 사용자에게 공개하는 서비스 상태<br>• <strong>Investigating:</strong> 문제를 인지하고 조사 중<br>• <strong>Identified:</strong> 원인 파악됨, 해결 중<br>• <strong>Monitoring:</strong> 수정 적용됨, 안정화 관찰 중<br>• <strong>Resolved:</strong> 문제 해결됨<br><br><strong>원칙:</strong> 기술 용어 없이 사용자가 이해할 수 있는 언어로. "etcd leader election이 실패하여..." ❌ → "서비스 접속에 일시적 장애가 발생했습니다" ✅</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== POSTMORTEM ===== -->
+  <div class="P" id="p-postmortem">
+    <div class="PH"><div class="bg bg-b">● Postmortem</div><h2>장애 회고 (Postmortem)</h2><p>Blameless 원칙, 작성 템플릿, 리뷰 프로세스, 5 Whys — 장애에서 배우는 체계적 방법론.</p></div>
+
+    <div class="sec" id="pm-principles">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Culture</div>
+        <h3>Blameless Postmortem 원칙</h3>
+        <div class="cs">"누가 실수했나"가 아니라 "시스템과 프로세스에 어떤 약점이 있었나"를 찾는 문화</div>
+        <div class="cp">Blameless는 <strong>"아무도 잘못하지 않았다"가 아니다.</strong> 사람은 실수한다는 것을 전제로, <strong>그 실수가 장애로 이어진 시스템적 약점</strong>을 찾는 것이다. 비난이 있으면 사람들은 숨기고, 숨기면 같은 장애가 반복된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Blameless 핵심 규칙</div><div class="v"><strong>1)</strong> 사람이 아닌 <strong>시스템/프로세스/도구</strong>를 개선 대상으로<br><strong>2)</strong> "왜 그랬어?"가 아닌 <strong>"어떤 정보가 부족했나?"</strong><br><strong>3)</strong> 관련자가 <strong>솔직하게 말할 수 있는 안전한 환경</strong><br><strong>4)</strong> Postmortem 결과가 <strong>인사 평가와 분리</strong><br><strong>5)</strong> 숨기면 <strong>더 큰 사고로 이어진다</strong>는 공감대<br><br>"잘못"이 아니라 <strong>"기여 요인(contributing factor)"</strong>이라는 단어를 사용</div></div>
+          <div class="db"><div class="l">Postmortem 작성 기준</div><div class="v"><strong>반드시 작성:</strong><br>• 사용자 영향이 있는 모든 P1/P2 인시던트<br>• SLO Error Budget을 1% 이상 소진한 장애<br>• 데이터 손실 또는 보안 사고<br><br><strong>선택적 작성:</strong><br>• P3이지만 학습 가치가 높은 근접 실패(near-miss)<br>• 같은 유형이 반복되는 장애<br><br><strong>작성 기한:</strong> 인시던트 종료 후 48~72시간 내 초안, 1주 내 리뷰 완료</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="pm-template">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Template</div>
+        <h3>Postmortem 작성 템플릿</h3>
+        <div class="cs">장애의 전체 맥락을 구조화하여 기록하는 표준 템플릿</div>
+      </div>
+      <div class="bx">
+        <div class="co" style="background:var(--s2);color:var(--tx);"><span class="c" style="color:var(--tm)">## Postmortem: [서비스명] [날짜] [제목]</span>
+<span class="c" style="color:var(--tm)">## 작성자: [이름] | 리뷰어: [이름들]</span>
+
+<strong>1. Summary (한 줄 요약)</strong>
+   2025-03-20 14:30~15:45 KST, api-server의 DB 커넥션 풀 소진으로
+   전체 API 요청 실패. 약 75분간 서비스 장애. 사용자 약 5,000명 영향.
+
+<strong>2. Impact (영향)</strong>
+   - 기간: 75분 (14:30 ~ 15:45 KST)
+   - 영향 범위: 전체 API 서비스 (100% 에러)
+   - 사용자 영향: 약 5,000명, 결제 불가, 조회 불가
+   - SLO 영향: Error Budget의 12% 소진 (잔여 38%)
+   - 재무 영향: 추정 매출 손실 ₩X만원
+
+<strong>3. Timeline</strong>
+   14:25 - DB slow query 알림 발생 (Grafana Alerting)
+   14:30 - API 5xx 에러 급증, Burn Rate Critical 알림 발생
+   14:32 - 온콜 엔지니어 ACK, 조사 시작
+   14:35 - DB 커넥션 풀 100% 포화 확인
+   14:40 - 최근 배포 없음 확인. DB 측 원인 조사
+   14:50 - 특정 배치 쿼리가 table lock을 잡고 있음 발견
+   14:55 - 해당 쿼리 강제 kill 시도
+   15:00 - kill 실패 (lock 재획득). DB 연결 풀 강제 리셋
+   15:10 - 커넥션 풀 복구 시작, 점진적으로 요청 처리
+   15:30 - 에러율 1% 이하로 안정화
+   15:45 - SLI 정상 확인, 인시던트 종료 선언
+
+<strong>4. Root Cause (근본 원인)</strong>
+   주간 배치 집계 쿼리가 인덱스 없이 full table scan을 실행.
+   대상 테이블에 이번 주 데이터 급증(평소 2배)으로 실행 시간이
+   평소 5분에서 45분으로 증가. 이 동안 table lock이 유지되어
+   다른 쿼리들의 커넥션이 대기 상태로 쌓이면서 풀 소진.
+
+<strong>5. Contributing Factors (기여 요인)</strong>
+   - 배치 쿼리에 인덱스 미적용
+   - 커넥션 풀 크기가 20으로 작았음 (기본값 그대로 사용)
+   - 배치 쿼리가 서비스 DB와 같은 인스턴스에서 실행
+   - 커넥션 풀 사용률 모니터링/알림 없었음
+
+<strong>6. What Went Well</strong>
+   - Burn Rate 알림이 5분 내에 발동
+   - 온콜 엔지니어가 2분 내에 ACK
+   - DB 모니터링 대시보드에서 원인 빠르게 특정
+
+<strong>7. What Went Wrong</strong>
+   - 커넥션 풀 사용률 알림이 없었음 (감지 지연)
+   - 배치 쿼리 kill이 즉시 효과 없었음 (Runbook에 DB force kill 절차 없음)
+   - 배치 쿼리가 서비스에 영향을 줄 수 있다는 인식 부족
+
+<strong>8. Action Items</strong>
+   [P1] 배치 쿼리 인덱스 추가 — 담당: DBA — 기한: 3/22
+   [P1] 배치 쿼리를 Read Replica로 분리 — 담당: Backend — 기한: 3/29
+   [P2] 커넥션 풀 크기를 50으로 증가 — 담당: DevOps — 기한: 3/22
+   [P2] 커넥션 풀 사용률 80% 알림 추가 — 담당: SRE — 기한: 3/25
+   [P3] Runbook에 DB lock 강제 해제 절차 추가 — 담당: SRE — 기한: 3/29</div>
+      </div>
+    </div>
+
+    <div class="sec" id="pm-review">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Process</div>
+        <h3>Postmortem 리뷰 프로세스</h3>
+        <div class="cs">작성 → 리뷰 → Action Item 추적 → 공유 — Postmortem을 살아있는 문서로 만드는 프로세스</div>
+        <div class="dt">
+          <div class="db"><div class="l">리뷰 미팅 구조</div><div class="v"><strong>참석자:</strong> 장애 관련자 + 학습 목적 참관자<br><strong>시간:</strong> 30~60분<br><br><strong>아젠다:</strong><br>1. Timeline 함께 읽기 (5분)<br>2. Root Cause 검증: "이것이 진짜 근본 원인인가?" (10분)<br>3. Action Items 검토: 우선순위, 담당자, 기한 합의 (15분)<br>4. 다른 서비스에도 같은 위험이 있는가? (5분)<br>5. Blameless 환경이 유지되었는가? (5분)<br><br><strong>결과:</strong> 승인된 Postmortem → 공유 채널에 게시 + Action Item을 이슈 트래커에 등록</div></div>
+          <div class="db"><div class="l">Action Item 추적</div><div class="v"><strong>이슈 트래커 연동:</strong> 모든 Action Item은 Jira/Linear 이슈로 생성<br><strong>주간 추적:</strong> SRE 주간 미팅에서 미완료 Action Item 리뷰<br><strong>완료 기준:</strong> "구현됨"이 아니라 "효과 확인됨"이 완료<br><br><strong>P1 Action Item:</strong> 1주 내 완료<br><strong>P2 Action Item:</strong> 스프린트 내 완료<br><strong>P3 Action Item:</strong> 분기 내 완료<br><br><strong>미완료 알림:</strong> 기한 초과 Action Item은 주간 리뷰에서 에스컬레이션</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="five-whys">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">RCA</div>
+        <h3>5 Whys & Root Cause Analysis</h3>
+        <div class="cs">"왜?"를 반복하여 표면적 원인이 아닌 근본 원인을 찾는 기법</div>
+        <div class="cp">5 Whys는 단순하지만 강력하다. 핵심은 <strong>첫 번째 "왜?"에서 멈추지 않는 것.</strong> 대부분의 장애는 기술적 원인(직접 원인)과 프로세스/문화적 원인(근본 원인)이 겹쳐 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">5 Whys 예시</div><div class="v"><strong>1. 왜 서비스가 다운됐나?</strong><br>→ DB 커넥션 풀이 소진됨<br><strong>2. 왜 커넥션 풀이 소진됐나?</strong><br>→ 배치 쿼리가 45분간 커넥션을 점유<br><strong>3. 왜 배치 쿼리가 45분 걸렸나?</strong><br>→ 인덱스 없이 full table scan을 실행<br><strong>4. 왜 인덱스가 없었나?</strong><br>→ 배치 쿼리 추가 시 DB 리뷰 프로세스가 없었음<br><strong>5. 왜 DB 리뷰 프로세스가 없었나?</strong><br>→ 소규모 팀에서 개발과 DB 운영이 분리되지 않았고, 쿼리 성능 체크리스트가 없었음<br><br><strong>근본 원인:</strong> DB 변경에 대한 리뷰 프로세스 부재<br><strong>Action:</strong> 배치 쿼리 추가 시 EXPLAIN 필수 체크리스트 도입</div></div>
+          <div class="db"><div class="l">5 Whys 주의사항</div><div class="v"><strong>1) 하나의 답에 고정되지 않기:</strong> 각 "왜?"에 여러 답이 있을 수 있다. 트리 구조로 분기<br><strong>2) "사람이 실수해서"에서 멈추지 않기:</strong> "왜 그 실수가 장애로 이어졌나?"를 계속 추적<br><strong>3) 정확히 5번이 아님:</strong> 3번이면 충분할 수도, 7번이 필요할 수도. "더 이상 유용한 답이 안 나올 때"까지<br><strong>4) Counterfactual 피하기:</strong> "만약 X가 있었다면 방지됐을 텐데"는 유용하지 않음. "X가 왜 없었나?"를 추적</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RUNBOOK ===== -->
+  <div class="P" id="p-runbook">
+    <div class="PH"><div class="bg bg-g">● Runbook Design</div><h2>Runbook 설계와 자동화</h2><p>새벽 3시에 반만 깨어서도 따라할 수 있는 절차서 — 설계, 템플릿, 자동화 단계.</p></div>
+
+    <div class="sec" id="rb-design">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Design</div>
+        <h3>Runbook 설계 원칙</h3>
+        <div class="cs">모호함 없이, 복사-붙여넣기로 실행 가능한 수준의 운영 절차서</div>
+        <div class="cp">좋은 Runbook은 <strong>해당 시스템을 모르는 엔지니어도 따라할 수 있어야</strong> 한다. 온콜 담당자가 새벽에 깨어났을 때, 평소 다루지 않는 시스템에 대해서도 Runbook만 따라가면 복구할 수 있어야 한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">좋은 Runbook의 조건</div><div class="v"><strong>1) 결정 트리(Decision Tree):</strong> "이 값이 X이면 A를 하고, Y이면 B를 해라"<br><strong>2) 복사 가능한 명령어:</strong> <code>kubectl get pods -n production -l app=api</code> 전체 명령어 제공<br><strong>3) 예상 결과:</strong> 각 단계 후 무엇이 보여야 정상인지 명시<br><strong>4) 롤백 절차:</strong> 각 단계의 역방향 동작이 무엇인지<br><strong>5) 에스컬레이션 기준:</strong> 이 Runbook으로 해결 안 되면 누구를 호출하는지<br><strong>6) 마지막 검증일:</strong> 오래된 Runbook은 위험. 분기마다 리뷰</div></div>
+          <div class="db"><div class="l">Runbook을 작성해야 하는 알림</div><div class="v"><strong>모든 Page/Ticket 알림에는 Runbook 링크가 있어야 한다.</strong><br><br>Grafana Alerting에서 알림 메시지에 <code>runbook_url</code> 삽입:<br><code>annotations.runbook_url: "https://wiki/runbooks/api-high-latency"</code><br><br>알림이 울렸을 때 엔지니어가 <strong>첫 번째로 하는 행동</strong>이 "Runbook 클릭"이어야 한다. Runbook 없는 알림은 "울리기만 하고 어떻게 대응할지 모르는" 나쁜 알림.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="rb-template">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Template</div>
+        <h3>Runbook 작성 템플릿</h3>
+        <div class="cs">실전에서 바로 사용할 수 있는 Runbook 구조</div>
+      </div>
+      <div class="bx">
+        <div class="co" style="background:var(--s2);color:var(--tx);"><span class="c" style="color:var(--tm)">## Runbook: API Server 고 Latency 대응</span>
+<span class="c" style="color:var(--tm)">## 마지막 검증: 2025-03-15 | 작성자: DevOps</span>
+
+<strong>트리거 알림:</strong> SLOBurnRateCritical (api-server)
+<strong>심각도:</strong> P1/P2
+<strong>예상 복구 시간:</strong> 15~30분
+
+<strong>━━━ Step 1: 현재 상태 확인 ━━━</strong>
+
+  $ kubectl get pods -n production -l app=api-server -o wide
+  # 예상: 모든 Pod Running, READY 1/1
+  # 비정상: CrashLoopBackOff, OOMKilled, Pending → Step 1a로
+
+  $ kubectl top pods -n production -l app=api-server
+  # 예상: CPU < 500m, Memory < 512Mi
+  # CPU > 900m → Step 3 (스케일링)
+  # Memory > 450Mi → Step 4 (OOM 확인)
+
+<strong>━━━ Step 2: 최근 변경 확인 ━━━</strong>
+
+  # ArgoCD 최근 Sync 확인
+  $ argocd app history api-server
+  # 30분 이내 배포가 있었다면 → Step 2a (롤백 고려)
+
+  # 2a: 롤백 실행
+  $ argocd app rollback api-server [이전 REVISION]
+  # 롤백 후 3분 대기 → SLI 확인
+  # 정상이면 → 종료. Postmortem 작성
+
+<strong>━━━ Step 3: 스케일 아웃 ━━━</strong>
+
+  $ kubectl scale deployment api-server -n production --replicas=6
+  # 2분 대기 후 latency 확인
+  # 개선되면 → HPA 타겟 재검토
+  # 개선 안 되면 → Step 5 (DB 확인)
+
+<strong>━━━ Step 5: DB 확인 ━━━</strong>
+
+  # 커넥션 풀 사용률
+  $ kubectl exec -it db-client -- psql -c "SELECT count(*) FROM pg_stat_activity;"
+  # 예상: < 80% of max_connections
+  # 80% 초과 → 유휴 커넥션 kill
+
+  # Slow query 확인
+  $ kubectl exec -it db-client -- psql -c "SELECT pid,query,state,query_start
+    FROM pg_stat_activity WHERE state='active' ORDER BY query_start LIMIT 10;"
+
+<strong>━━━ 에스컬레이션 ━━━</strong>
+
+  위 단계로 30분 내 해결 안 되면:
+  → [이름] (Backend Lead) 호출: 010-XXXX-XXXX
+  → Slack: #incident-api-server 채널 생성</div>
+      </div>
+    </div>
+
+    <div class="sec" id="rb-auto">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Evolution</div>
+        <h3>Runbook 자동화 단계</h3>
+        <div class="cs">수동 Runbook → 반자동 → 완전 자동화로 진화시키는 단계별 접근</div>
+        <div class="cp">같은 Runbook을 <strong>3번 이상 실행하면 자동화 대상</strong>이다. 자동화는 한 번에 완전 자동화가 아니라, 단계적으로 진화시키는 것이 안전하다.</div>
+        <div class="dt">
+          <div class="db df"><div class="l">자동화 성숙도 단계</div><div class="v">
+<strong style="color:var(--red)">Level 0 — 수동:</strong> 문서에 절차만 기록. 사람이 직접 실행<br>
+<strong style="color:var(--orange)">Level 1 — 스크립트화:</strong> 각 단계를 셸 스크립트/Go CLI로 만들어 <code>./runbook-api-latency.sh diagnose</code> 실행<br>
+<strong style="color:var(--blue)">Level 2 — 반자동:</strong> 알림 발생 시 자동으로 진단 결과를 Slack에 게시. 사람이 판단 후 복구 명령 실행<br>
+<strong style="color:var(--green)">Level 3 — 자동 완화:</strong> 알림 발생 → 자동으로 스케일 아웃 또는 롤백 실행. 사람에게 결과만 통보<br>
+<strong style="color:var(--teal)">Level 4 — 자가 치유:</strong> 시스템이 스스로 이상을 감지하고 복구. HPA, PDB, liveness probe, ArgoCD auto-rollback이 이 수준<br><br>
+<strong>HolmesGPT:</strong> Level 2를 빠르게 달성하기 위한 도구. 알림 → 자동 컨텍스트 수집 → LLM이 원인 분석 → Slack 게시. 사람은 분석 결과를 보고 행동 결정
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== METRICS ===== -->
+  <div class="P" id="p-metrics">
+    <div class="PH"><div class="bg bg-p">● Incident Metrics & Culture</div><h2>인시던트 메트릭과 장애 문화</h2><p>MTTx 분해, 트렌드 분석, 건강한 장애 문화 — 인시던트에서 지속적으로 학습하는 체계.</p></div>
+
+    <div class="sec" id="mttx-deep">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Measurement</div>
+        <h3>MTTx 분해 — 각 구간을 따로 측정해야 개선할 수 있다</h3>
+        <div class="cs">MTTR을 한 덩어리로 보지 말고, MTTD + MTTE + MTTM + MTTV로 분해</div>
+        <div class="cp">이 문서에서는 MTTR을 <strong>장애 발생부터 복구 확인까지</strong>의 전체 시간으로 본다. MTTR이 2시간이라는 것만으로는 <strong>어디를 개선해야 하는지</strong> 알 수 없다. 감지가 느린 건지, 담당자 호출이 늦는 건지, 수정이 느린 건지, 검증이 느린 건지를 분해해야 실질적 개선이 가능하다. 약어 이름은 조직마다 조금씩 다를 수 있지만, 핵심은 <strong>각 구간을 따로 측정</strong>하는 것이다.</div>
+        <div class="dt">
+          <div class="db df"><div class="l">MTTR 분해 모델</div><div class="v"><div class="fm" style="text-align:left;font-size:10.5px">MTTR = MTTD + MTTE + MTTM + MTTV
+
+MTTD (Detect)    : 장애 발생 → 감지까지. 개선: 모니터링, Burn Rate 알림
+MTTE (Engage)    : 감지 → 담당자 대응 시작까지. 개선: 온콜 체계, 에스컬레이션
+MTTM (Mitigate)  : 대응 시작 → 완화/수정 적용까지. 개선: Runbook, 자동 롤백
+MTTV (Verify)    : 수정 적용 → 복구 확인까지. 개선: SLI 대시보드, 자동 검증</div><br>
+<strong>가장 큰 구간을 먼저 공략.</strong> 대부분의 경우 MTTD가 가장 긴데, 이는 "문제가 있는데 아무도 모르는 시간"이 가장 위험하기 때문이다. Burn Rate 알림이 MTTD를 줄이는 가장 효과적인 방법.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="inc-trends">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Analysis</div>
+        <h3>인시던트 트렌드 분석</h3>
+        <div class="cs">개별 장애가 아닌 패턴을 보면 구조적 약점이 보인다</div>
+        <div class="dt">
+          <div class="db"><div class="l">추적해야 할 트렌드</div><div class="v"><strong>월별 인시던트 수:</strong> 증가 추세면 시스템 복잡도 대비 안정성 투자 부족<br><strong>심각도 분포:</strong> P1이 줄고 P3이 늘면 건강. P1이 꾸준하면 근본 문제 미해결<br><strong>MTTR 추이:</strong> 개선되고 있는가? 정체 구간이 어디인가?<br><strong>반복 장애 비율:</strong> 같은 원인 재발 비율. Postmortem Action Item이 실행되지 않으면 상승<br><strong>서비스별 장애 빈도:</strong> 특정 서비스에 장애가 집중되면 해당 서비스 안정성 투자</div></div>
+          <div class="db"><div class="l">분석 방법</div><div class="v"><strong>인시던트 DB:</strong> 모든 인시던트를 스프레드시트 또는 전용 도구에 기록<br>최소 필드: 날짜, 심각도, 서비스, MTTD, MTTR, 원인 카테고리, Action Item 수<br><br><strong>분기 리뷰:</strong> 인시던트 트렌드를 경영진에게 보고<br>• 이번 분기 인시던트 수 vs 지난 분기<br>• Top 3 원인 카테고리<br>• MTTR 개선 추이<br>• Error Budget 소진 상황<br>• 완료된 / 미완료 Action Item 비율</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="culture">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Culture</div>
+        <h3>건강한 장애 문화 만들기</h3>
+        <div class="cs">장애를 숨기는 문화 vs 장애에서 배우는 문화 — 선택이 아닌 생존 전략</div>
+        <div class="dt">
+          <div class="db"><div class="l">건강한 문화의 신호</div><div class="v"><strong>✅</strong> 장애가 발생하면 자발적으로 보고<br><strong>✅</strong> Postmortem에서 솔직한 논의가 가능<br><strong>✅</strong> Near-miss(근접 실패)도 공유<br><strong>✅</strong> Action Item이 실제로 완료됨<br><strong>✅</strong> 온콜이 "당연한 업무"로 인정받고 보상됨<br><strong>✅</strong> 장애 후 개인을 비난하지 않음<br><strong>✅</strong> "이 알림은 왜 울렸나?"를 주기적으로 리뷰</div></div>
+          <div class="db"><div class="l">건강하지 않은 문화의 신호</div><div class="v"><strong>❌</strong> 장애를 숨기거나 축소 보고<br><strong>❌</strong> "누구 때문이냐"를 찾는 분위기<br><strong>❌</strong> Postmortem이 형식적이거나 아예 안 씀<br><strong>❌</strong> Action Item이 영원히 미완료<br><strong>❌</strong> 같은 장애가 반복되는데 아무도 놀라지 않음<br><strong>❌</strong> 온콜이 벌칙처럼 취급됨<br><strong>❌</strong> 알림이 수백 개인데 "원래 그래"</div></div>
+          <div class="db cf"><div class="l">문화를 만드는 실천법</div><div class="v"><strong>1) Postmortem 공유 세션:</strong> 월 1회 전체 팀이 모여 주요 Postmortem 공유. 학습의 기회<br><strong>2) Failure Friday:</strong> 금요일에 의도적으로 작은 장애를 일으키고 대응 연습 (Game Day 축소판)<br><strong>3) Hero 방지:</strong> 한 사람이 모든 장애를 해결하는 구조 → 팀 전체의 역량 약화. 지식 공유 필수<br><strong>4) 온콜 리뷰:</strong> 매주 "이번 주 온콜에서 가장 고통스러웠던 것"을 공유 → 시스템 개선 백로그화<br><strong>5) Reliability Week:</strong> 분기 1회, 1주일간 feature 개발 멈추고 reliability 개선에만 집중하는 스프린트</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

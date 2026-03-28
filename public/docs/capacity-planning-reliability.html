@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capacity Planning & Reliability — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--purple);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--indigo)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="queue"].on{color:var(--teal)}.T[data-t="queue"].on::after{background:var(--teal);left:8%;right:8%}
+.T[data-t="load"].on{color:var(--blue)}.T[data-t="load"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="scale"].on{color:var(--orange)}.T[data-t="scale"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="deploy"].on{color:var(--purple)}.T[data-t="deploy"].on::after{background:var(--purple);left:8%;right:8%}
+.T[data-t="ready"].on{color:var(--green)}.T[data-t="ready"].on::after{background:var(--green);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:7px}.cd h4 .d{width:7px;height:7px;border-radius:50%}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt.b{background:var(--bbg);border-left-color:var(--blue)}.nt.b strong{color:var(--blue)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Deep Dive</div><h1><em>Capacity</em> &<br>Reliability</h1></div>
+  <div class="sl">Queueing Theory</div>
+  <ul class="sn">
+    <li><a data-t="queue" data-s="little" class="on"><span class="d" style="background:var(--teal)"></span>Little's Law</a></li>
+    <li><a data-t="queue" data-s="util-lat"><span class="d" style="background:var(--teal)"></span>사용률 vs Latency</a></li>
+    <li><a data-t="queue" data-s="amdahl"><span class="d" style="background:var(--teal)"></span>Amdahl's Law</a></li>
+  </ul>
+  <div class="sl">Load Testing</div>
+  <ul class="sn">
+    <li><a data-t="load" data-s="test-types"><span class="d" style="background:var(--blue)"></span>테스트 유형</a></li>
+    <li><a data-t="load" data-s="k6-design"><span class="d" style="background:var(--blue)"></span>k6 시나리오 설계</a></li>
+    <li><a data-t="load" data-s="interpret"><span class="d" style="background:var(--blue)"></span>결과 해석</a></li>
+  </ul>
+  <div class="sl">Auto-Scaling</div>
+  <ul class="sn">
+    <li><a data-t="scale" data-s="hpa"><span class="d" style="background:var(--orange)"></span>HPA 심화</a></li>
+    <li><a data-t="scale" data-s="vpa"><span class="d" style="background:var(--orange)"></span>VPA</a></li>
+    <li><a data-t="scale" data-s="karpenter"><span class="d" style="background:var(--orange)"></span>Karpenter</a></li>
+    <li><a data-t="scale" data-s="scale-anti"><span class="d" style="background:var(--orange)"></span>스케일링 안티패턴</a></li>
+  </ul>
+  <div class="sl">Deployment</div>
+  <ul class="sn">
+    <li><a data-t="deploy" data-s="strategies"><span class="d" style="background:var(--purple)"></span>배포 전략 비교</a></li>
+    <li><a data-t="deploy" data-s="canary-deep"><span class="d" style="background:var(--purple)"></span>Canary 심화</a></li>
+    <li><a data-t="deploy" data-s="progressive"><span class="d" style="background:var(--purple)"></span>Progressive Delivery</a></li>
+  </ul>
+  <div class="sl">Readiness</div>
+  <ul class="sn">
+    <li><a data-t="ready" data-s="prr"><span class="d" style="background:var(--green)"></span>Production Readiness</a></li>
+    <li><a data-t="ready" data-s="fmea"><span class="d" style="background:var(--green)"></span>FMEA</a></li>
+    <li><a data-t="ready" data-s="gameday"><span class="d" style="background:var(--green)"></span>Game Day</a></li>
+  </ul>
+  <div class="S-f"><p>Scale what matters.<br>Shed what doesn't.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="queue" onclick="sw('queue')">● Queueing</button>
+    <button class="T" data-t="load" onclick="sw('load')">● Load Test</button>
+    <button class="T" data-t="scale" onclick="sw('scale')">● Scaling</button>
+    <button class="T" data-t="deploy" onclick="sw('deploy')">● Deploy</button>
+    <button class="T" data-t="ready" onclick="sw('ready')">● Readiness</button>
+  </div>
+
+  <!-- ===== QUEUEING ===== -->
+  <div class="P on" id="p-queue">
+    <div class="PH"><div class="bg bg-t">● Queueing Theory</div><h2>큐잉 이론과 Capacity 수학</h2><p>Little's Law, Utilization-Latency 관계, Amdahl's Law — 시스템 용량을 수학적으로 이해하는 기반.</p></div>
+
+    <div class="sec" id="little">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Fundamental</div>
+        <h3>Little's Law</h3>
+        <div class="cs">L = λ × W — 시스템의 동시 작업 수, 처리율, 체류 시간의 관계</div>
+        <div class="cp">큐잉 이론의 가장 기본 법칙이다. <strong>어떤 안정 시스템에서든</strong> 성립하며, 분포 가정이 필요 없어 범용적으로 적용할 수 있다. Capacity Planning의 출발점이다.</div>
+        <div class="fm" style="font-size:14px;text-align:center;">L = λ × W</div>
+        <div class="dt">
+          <div class="db"><div class="l">변수 정의</div><div class="v"><strong>L (동시 작업 수):</strong> 시스템 안에 있는 요청/작업 수. = 필요한 리소스(스레드, 커넥션)<br><strong>λ (처리율):</strong> 단위 시간당 완료되는 요청 수 (RPS, TPS)<br><strong>W (체류 시간):</strong> 요청이 시스템에 머무는 시간 (지연 시간, response time)</div></div>
+          <div class="db"><div class="l">실무 적용 예시</div><div class="v"><strong>커넥션 풀 사이징:</strong><br>λ=100 RPS, W=50ms(0.05s)<br>L = 100 × 0.05 = <strong>5 (최소 커넥션)</strong><br>여유분 2~3배 = 10~15 커넥션<br><br><strong>Pod replica 수:</strong><br>목표 1000 RPS, Pod당 200 RPS 처리 가능<br>최소 5 Pod. N+1 여유 = 6 Pod</div></div>
+          <div class="db df"><div class="l">역방향 활용</div><div class="v"><strong>L과 λ를 알면 W를 예측:</strong> 현재 동시 커넥션 50, RPS 1000 → 평균 지연 시간 = 50/1000 = 50ms<br><strong>L과 W를 알면 λ를 예측:</strong> 스레드 풀 20, 평균 지연 시간 100ms → 최대 처리율 = 20/0.1 = 200 RPS<br><strong>핵심:</strong> 스레드 풀/커넥션 풀이 가득 찬 상태에서 지연 시간이 올라가면 처리율이 <strong>반드시 떨어진다.</strong> 이것이 과부하에서 시스템이 더 느려지는 수학적 이유.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="util-lat">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Critical</div>
+        <h3>Utilization vs Latency — 비선형 관계</h3>
+        <div class="cs">사용률이 선형으로 올라가면 지연 시간은 기하급수적으로 올라간다</div>
+        <div class="cp">M/M/1 큐 모델에서 <strong>평균 응답 시간은 1/(1-ρ)에 비례</strong>한다(ρ = 사용률). 사용률 50%까지는 완만하지만, <strong>80%를 넘으면 지연 시간이 급격히 치솟는다.</strong><br><br>이것이 <strong>"CPU를 80% 이상 쓰면 안 된다"는 경험칙의 수학적 근거</strong>다. 또한 HPA가 CPU 80%가 아닌 <strong>60~70%</strong>를 타겟으로 해야 하는 이유다.</div>
+        <div class="fm" style="text-align:center;">Response Time = Service Time × 1/(1 − ρ)<br><br>ρ=50% → 2× | ρ=80% → 5× | ρ=90% → 10× | ρ=99% → 100×</div>
+        <div class="dt">
+          <div class="db df"><div class="l">SRE 실무 임계값</div><div class="v"><strong>Target utilization 60~70%:</strong> 일상적 부하에서 응답 시간이 안정적<br><strong>경고 at 80%:</strong> 지연 시간 증가 시작. scale-out 준비<br><strong>위험 at 90%+:</strong> 지연 시간이 비선형 증가. 이 시점에 스케일링이 완료되지 않으면 장애<br><br><strong>K8s HPA targetCPUUtilizationPercentage를 70으로 설정하는 이유:</strong> 스케일링에 시간이 걸리므로(Pod 시작, readiness 통과) 80%에 도달하기 전에 트리거해야 한다. 70%에서 시작 → Pod 준비되면 50~60%로 안정화.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="amdahl">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Scaling Limit</div>
+        <h3>Amdahl's Law — 병렬화의 한계</h3>
+        <div class="cs">시스템의 병렬화 불가능한 부분이 전체 성능 개선의 상한을 결정</div>
+        <div class="cp">아무리 코어/Pod를 늘려도, <strong>직렬로 실행되는 부분(lock, 순차 처리, 공유 자원 접근)</strong>이 있으면 성능 향상에 한계가 있다. 코드의 5%가 직렬이면 아무리 코어를 늘려도 최대 <strong>20배</strong> 향상이 한계.</div>
+        <div class="fm" style="text-align:center;">Speedup = 1 / (S + (1−S)/N)<br><br>S = 직렬 비율, N = 병렬 자원 수<br>S=5%, N=∞ → 최대 20배 | S=10%, N=∞ → 최대 10배</div>
+        <div class="dt">
+          <div class="db"><div class="l">SRE 관점</div><div class="v"><strong>Pod를 무한히 늘려도:</strong> 공유 DB가 직렬 병목이면 성능 향상 한계<br><strong>DB 커넥션 풀:</strong> 모든 Pod이 같은 DB pool을 경쟁 → 직렬 지점<br><strong>분산 Lock:</strong> Redis lock, DB row lock → 병렬화 한계<br><strong>Ingress:</strong> 단일 LB가 병목이면 뒤에 Pod를 아무리 늘려도 의미 없음</div></div>
+          <div class="db"><div class="l">대응 전략</div><div class="v"><strong>직렬 부분을 줄이기:</strong> lock-free 자료구조, 비동기 처리, CQRS<br><strong>sharding:</strong> DB를 분할하여 병렬화 가능 범위 확대<br><strong>캐싱:</strong> 공유 자원 접근 빈도를 줄임<br><strong>비동기 메시징:</strong> 동기 호출을 이벤트로 전환</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== LOAD TEST ===== -->
+  <div class="P" id="p-load">
+    <div class="PH"><div class="bg bg-b">● Load Testing</div><h2>부하 테스트 방법론</h2><p>테스트 유형, k6 시나리오 설계, 결과 해석 — "시스템이 얼마나 버티는가"에 대한 과학적 답.</p></div>
+
+    <div class="sec" id="test-types">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Types</div>
+        <h3>부하 테스트 유형</h3>
+        <div class="cs">목적에 따라 다른 테스트 유형을 선택해야 한다</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>유형</th><th>목적</th><th>부하 패턴</th><th>관측 지표</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Baseline</strong></td><td>정상 상태 성능 기준선</td><td>예상 평균 트래픽 유지</td><td>P50/P99 latency, error rate, 리소스 사용률</td></tr>
+            <tr><td><strong>Stress</strong></td><td>한계점 발견</td><td>점진적 증가 → 시스템 한계까지</td><td>어느 부하에서 SLO 위반이 시작되는가</td></tr>
+            <tr><td><strong>Spike</strong></td><td>급격한 부하 대응 능력</td><td>짧은 시간에 급증 → 정상 복귀</td><td>복구 시간, HPA 반응 속도, error spike</td></tr>
+            <tr><td><strong>Soak</strong></td><td>장시간 안정성 (메모리 누수 등)</td><td>일정 부하를 수 시간~수 일 유지</td><td>메모리 증가 추이, GC 패턴, 커넥션 누수</td></tr>
+            <tr><td><strong>Breakpoint</strong></td><td>절대 최대 용량</td><td>시스템 완전히 무너질 때까지 증가</td><td>최대 RPS, 장애 발생 패턴</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sec" id="k6-design">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Tool</div>
+        <h3>k6 시나리오 설계</h3>
+        <div class="cs">Grafana k6로 실전 부하 테스트 시나리오를 구성하는 패턴</div>
+      </div>
+      <div class="co"><span class="c">// k6 종합 시나리오: baseline → stress → spike → recovery</span>
+<span class="k">import</span> http <span class="k">from</span> <span class="s">'k6/http'</span>;
+<span class="k">import</span> { check, sleep } <span class="k">from</span> <span class="s">'k6'</span>;
+
+<span class="k">export const</span> options = {
+  <span class="f">scenarios</span>: {
+    <span class="c">// ① Baseline: 평균 부하 5분 유지</span>
+    <span class="s">baseline</span>: {
+      executor: <span class="s">'constant-arrival-rate'</span>,
+      rate: <span class="n">100</span>,          <span class="c">// 100 RPS</span>
+      timeUnit: <span class="s">'1s'</span>,
+      duration: <span class="s">'5m'</span>,
+      preAllocatedVUs: <span class="n">50</span>,
+    },
+    <span class="c">// ② Stress: 점진적 증가</span>
+    <span class="s">stress</span>: {
+      executor: <span class="s">'ramping-arrival-rate'</span>,
+      startRate: <span class="n">100</span>,
+      stages: [
+        { duration: <span class="s">'2m'</span>, target: <span class="n">300</span> },
+        { duration: <span class="s">'5m'</span>, target: <span class="n">300</span> },  <span class="c">// 300 RPS 유지</span>
+        { duration: <span class="s">'2m'</span>, target: <span class="n">500</span> },
+        { duration: <span class="s">'5m'</span>, target: <span class="n">500</span> },  <span class="c">// 500 RPS 유지</span>
+        { duration: <span class="s">'2m'</span>, target: <span class="n">0</span> },    <span class="c">// ramp-down</span>
+      ],
+      preAllocatedVUs: <span class="n">200</span>,
+    },
+    <span class="c">// ③ Spike: 급증 후 즉시 복귀</span>
+    <span class="s">spike</span>: {
+      executor: <span class="s">'ramping-arrival-rate'</span>,
+      startRate: <span class="n">100</span>,
+      stages: [
+        { duration: <span class="s">'10s'</span>, target: <span class="n">1000</span> }, <span class="c">// 10초만에 10배</span>
+        { duration: <span class="s">'1m'</span>, target: <span class="n">1000</span> },
+        { duration: <span class="s">'10s'</span>, target: <span class="n">100</span> },  <span class="c">// 급감</span>
+      ],
+      startTime: <span class="s">'20m'</span>,  <span class="c">// stress 후 시작</span>
+      preAllocatedVUs: <span class="n">500</span>,
+    },
+  },
+  <span class="f">thresholds</span>: {
+    <span class="s">'http_req_duration'</span>: [<span class="s">'p(99)<500'</span>],  <span class="c">// SLO: P99 < 500ms</span>
+    <span class="s">'http_req_failed'</span>: [<span class="s">'rate<0.01'</span>],    <span class="c">// 에러율 < 1%</span>
+  },
+};
+
+<span class="k">export default function</span> () {
+  <span class="k">const</span> res = http.get(<span class="s">'https://api.example.com/v1/items'</span>);
+  check(res, {
+    <span class="s">'status 200'</span>: (r) => r.status === <span class="n">200</span>,
+    <span class="s">'latency < 500ms'</span>: (r) => r.timings.duration < <span class="n">500</span>,
+  });
+}</div>
+      <div class="nt g"><strong>💡 constant-arrival-rate vs constant-vus</strong><br><code>constant-vus</code>는 "N명의 사용자가 계속 요청"하는 모델. 서버가 느려지면 RPS가 떨어진다.<br><code>constant-arrival-rate</code>는 "초당 N개의 요청을 보장"하는 모델. 서버가 느려져도 RPS를 유지 → <strong>실제 과부하 시뮬레이션에 적합</strong>.</div>
+    </div>
+
+    <div class="sec" id="interpret">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Analysis</div>
+        <h3>결과 해석 가이드</h3>
+        <div class="cs">부하 테스트 결과에서 무엇을 어떻게 읽어야 하는가</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 지표 해석</div><div class="v"><strong>P50 vs P99 격차:</strong> 격차가 크면 tail latency 문제. GC, lock contention, slow query 의심<br><strong>P99가 급등하는 RPS:</strong> 그것이 현재 용량의 한계. SLO와 대조<br><strong>Error rate 증가 시점:</strong> error가 시작되는 RPS가 진짜 용량. latency 증가보다 뒤에 오면 graceful<br><strong>Recovery 시간:</strong> spike 후 P99가 정상으로 돌아오는 데 걸리는 시간 = 시스템 탄력성</div></div>
+          <div class="db"><div class="l">함께 관측할 것</div><div class="v"><strong>K8s 메트릭:</strong> HPA 이벤트, Pod 수 변화, CPU/Memory 사용률<br><strong>시스템 메트릭:</strong> CPU throttling (nr_throttled), 커넥션 풀 사용률, GC pause<br><strong>인프라 메트릭:</strong> 노드 CPU, 네트워크 throughput, 디스크 IOPS<br><strong>Grafana에서 k6 결과와 시스템 메트릭을 같은 시간축에 겹쳐 보는 것이 핵심</strong></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCALING ===== -->
+  <div class="P" id="p-scale">
+    <div class="PH"><div class="bg bg-o">● Auto-Scaling</div><h2>K8s 오토스케일링 심화</h2><p>HPA, VPA, Karpenter — 워크로드와 인프라를 자동으로 확장하는 메커니즘과 의사결정 로직.</p></div>
+
+    <div class="sec" id="hpa">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Workload</div>
+        <h3>HPA (Horizontal Pod Autoscaler) 심화</h3>
+        <div class="cs">replica 수를 자동 조정하는 HPA의 내부 알고리즘과 튜닝 포인트</div>
+        <div class="cp">HPA는 <strong>현재 메트릭 값과 목표 값의 비율</strong>로 desired replica 수를 계산한다. 단순해 보이지만 안정화 윈도우, 스케일링 정책, 메트릭 선택 등 튜닝 포인트가 많다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">스케일링 공식</div><div class="v"><div class="fm" style="text-align:left;font-size:10.5px">desired = ceil(current_replicas × (current_metric / target_metric))
+
+예: 현재 3 Pod, CPU 사용률 90%, 타겟 70%
+desired = ceil(3 × (90/70)) = ceil(3.86) = 4</div></div></div>
+          <div class="db"><div class="l">v2 핵심 설정</div><div class="v"><code>behavior.scaleUp.stabilizationWindowSeconds</code>: 0 (즉시)<br><code>behavior.scaleDown.stabilizationWindowSeconds</code>: 300 (5분 대기 → flapping 방지)<br><code>behavior.scaleUp.policies</code>: maxPods, percent 기반 증가량 제한<br><code>behavior.scaleDown.policies</code>: 한 번에 줄이는 최대량</div></div>
+          <div class="db df"><div class="l">Custom Metrics 스케일링</div><div class="v">CPU만으로 스케일링하면 I/O-bound나 외부 의존성이 큰 워크로드를 잘못 판단할 수 있다. <strong>비즈니스 메트릭 기반 스케일링</strong>이 더 정확하다:<br><br><strong>RPS 기반:</strong> <code>prometheus-adapter</code>로 <code>http_requests_per_second</code> 메트릭을 HPA에 노출<br><strong>Queue 길이:</strong> Kafka consumer lag, SQS message count → 처리해야 할 양 기반<br><strong>응답 시간:</strong> P99 지연 시간이 임계값을 넘으면 스케일 아웃<br><br>여러 메트릭을 동시에 사용하면 HPA는 <strong>가장 많은 replica를 요구하는 메트릭</strong>을 채택한다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="vpa">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Vertical</div>
+        <h3>VPA (Vertical Pod Autoscaler)</h3>
+        <div class="cs">Pod의 CPU/Memory request/limit을 자동 조정하는 수직 스케일러</div>
+        <div class="cp">VPA는 과거 사용 패턴을 분석하여 <strong>적절한 resource request 값을 추천</strong>한다. 너무 높은 request는 리소스 낭비, 너무 낮으면 throttling/OOM. VPA가 최적값을 찾아준다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">동작 모드</div><div class="v"><strong>Off:</strong> 추천값만 제시, 적용 안 함 (가장 안전)<br><strong>Initial:</strong> Pod 생성 시에만 적용<br><strong>Auto:</strong> 실행 중인 Pod도 재시작하여 적용 (주의!)<br><strong>권장:</strong> 처음에는 <code>Off</code> → 추천값 검토 → 수동 적용. 안정화 후 <code>Auto</code> 고려</div></div>
+          <div class="db"><div class="l">HPA와의 공존</div><div class="v"><strong>같은 메트릭으로 HPA+VPA 동시 사용 금지</strong> (충돌)<br><strong>안전한 조합:</strong><br>• HPA: CPU 기반 스케일링<br>• VPA: Memory request 자동 조정 (Off/Initial 모드)<br>• 또는 HPA는 custom metric, VPA는 CPU/Memory</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="karpenter">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Infrastructure</div>
+        <h3>Karpenter — 노드 레벨 오토스케일링</h3>
+        <div class="cs">Pending Pod을 감지하여 최적의 노드를 즉시 프로비저닝하는 K8s 노드 스케일러</div>
+        <div class="cp">HPA가 Pod 수를 조정한다면, Karpenter는 <strong>그 Pod이 실행될 노드</strong>를 조정한다. Cluster Autoscaler와 달리 <strong>노드 그룹에 의존하지 않고</strong>, Pending Pod의 요구사항(CPU, Memory, GPU, topology)을 분석하여 최적의 인스턴스 타입을 직접 선택·프로비저닝한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 동작</div><div class="v"><strong>1)</strong> Pod 스케줄링 실패 (Pending) 감지<br><strong>2)</strong> Pod의 resource request, nodeSelector, affinity, topology 분석<br><strong>3)</strong> 가장 비용 효율적인 인스턴스 타입 선택<br><strong>4)</strong> 노드 프로비저닝 (~60초 내)<br><strong>5)</strong> 유휴 노드 감지 → 통합(consolidation) → 비용 절감</div></div>
+          <div class="db"><div class="l">EKS 환경 설정 포인트</div><div class="v"><strong>NodePool:</strong> 허용할 인스턴스 패밀리, 크기, AZ 정의<br><strong>EC2NodeClass:</strong> AMI, 서브넷, 보안그룹, userData<br><strong>consolidationPolicy:</strong> <code>WhenEmptyOrUnderutilized</code> (비용 최적화)<br><strong>ttlSecondsAfterEmpty:</strong> 빈 노드 유지 시간 (기본 30초)<br><strong>limits:</strong> 최대 CPU/Memory 총량으로 비용 상한 설정<br>Karpenter v1.0+ 에서 NodePool/EC2NodeClass CRD 사용</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="scale-anti">
+      <h3>스케일링 안티패턴</h3>
+      <div class="cg">
+        <div class="cd" style="border-top:3px solid var(--red);">
+          <h4 style="color:var(--red)">❌ DB를 scale-out</h4>
+          <p>DB 커넥션은 유한하다. Pod를 10배로 늘리면 DB 커넥션 풀이 폭발. <strong>스케일링 전 DB 용량 확인 필수.</strong> PgBouncer 같은 connection pooler 도입 고려.</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--red);">
+          <h4 style="color:var(--red)">❌ CPU 100% 타겟</h4>
+          <p>Utilization-Latency 비선형 관계로 80% 넘으면 latency 급등. <strong>HPA 타겟은 60~70%</strong>가 적정. 스케일링 지연(Pod 시작 시간)까지 고려.</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--red);">
+          <h4 style="color:var(--red)">❌ Flapping 무시</h4>
+          <p>스케일업/다운이 반복(flapping)되면 Pod 재시작으로 오히려 불안정. <code>scaleDown.stabilizationWindowSeconds</code>를 충분히 (5~10분) 설정.</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--red);">
+          <h4 style="color:var(--red)">❌ Readiness 무시</h4>
+          <p>새 Pod이 readiness probe를 통과하기 전에 트래픽을 받으면 에러 spike. <strong>readinessProbe + startupProbe</strong>를 반드시 설정.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DEPLOY ===== -->
+  <div class="P" id="p-deploy">
+    <div class="PH"><div class="bg bg-p">● Deployment Strategies</div><h2>배포 전략 심화</h2><p>Rolling, Blue-Green, Canary, Progressive Delivery — 안전하게 프로덕션에 변경을 전달하는 전략.</p></div>
+
+    <div class="sec" id="strategies">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Comparison</div>
+        <h3>배포 전략 비교</h3>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>전략</th><th>원리</th><th>장점</th><th>단점</th><th>롤백 속도</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Rolling</strong></td><td>점진적으로 새 Pod 교체</td><td>추가 리소스 최소. K8s 기본</td><td>신/구 버전 혼재 기간 존재</td><td>분 단위</td></tr>
+            <tr><td><strong>Blue-Green</strong></td><td>새 환경 전체 준비 → 트래픽 전환</td><td>즉시 롤백 (트래픽만 되돌리기)</td><td>2배 리소스 필요</td><td>초 단위</td></tr>
+            <tr><td><strong>Canary</strong></td><td>소량 트래픽만 새 버전 → 검증 → 확대</td><td>위험 최소화. 실 트래픽 검증</td><td>트래픽 분할 인프라 필요</td><td>초~분</td></tr>
+            <tr><td><strong>Recreate</strong></td><td>기존 전부 제거 → 새로 생성</td><td>단순. 버전 혼재 없음</td><td>다운타임 발생</td><td>분 단위</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sec" id="canary-deep">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Advanced</div>
+        <h3>Canary 배포 심화 — 메트릭 기반 자동 판단</h3>
+        <div class="cs">Canary 트래픽의 SLI를 기존 버전과 비교하여 자동으로 승격/롤백 결정</div>
+        <div class="cp">단순 Canary는 "10% 트래픽으로 보내고 수동으로 확인"이다. <strong>메트릭 기반 Canary</strong>는 Canary와 Stable의 <strong>error rate, latency를 자동 비교</strong>하여 승격(promote) 또는 롤백(rollback)을 결정한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">자동 판단 기준 예시</div><div class="v"><strong>Success Rate:</strong> canary ≥ stable × 0.99 (1% 이내 차이)<br><strong>P99 Latency:</strong> canary ≤ stable × 1.1 (10% 이내 증가)<br><strong>Error Rate:</strong> canary - stable < 0.5%<br><br>모든 조건 충족 → 트래픽 비율 확대 (10→25→50→100%)<br>하나라도 실패 → 즉시 롤백 (0%)</div></div>
+          <div class="db"><div class="l">구현 도구</div><div class="v"><strong>Argo Rollouts:</strong> AnalysisTemplate + Prometheus 연동<br><code>successCondition: result[0] >= 0.99</code><br><code>failureLimit: 3</code><br><strong>Flagger:</strong> Istio/Traefik/Nginx와 통합<br><strong>ArgoCD + Argo Rollouts:</strong> GitOps + Progressive Delivery 조합</div></div>
+          <div class="db df"><div class="l">Argo Rollouts AnalysisTemplate 예시</div><div class="v"><div class="co" style="margin:4px 0;"><span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: AnalysisTemplate
+<span class="k">metadata</span>:
+  <span class="k">name</span>: <span class="s">canary-success-rate</span>
+<span class="k">spec</span>:
+  <span class="k">metrics</span>:
+  - <span class="k">name</span>: <span class="s">success-rate</span>
+    <span class="k">interval</span>: <span class="s">60s</span>
+    <span class="k">successCondition</span>: <span class="s">"result[0] >= 0.99"</span>
+    <span class="k">failureLimit</span>: <span class="n">3</span>
+    <span class="k">provider</span>:
+      <span class="k">prometheus</span>:
+        <span class="k">address</span>: <span class="s">http://prometheus:9090</span>
+        <span class="k">query</span>: |
+          <span class="f">sum</span>(<span class="f">rate</span>(<span class="k">http_requests_total</span>{
+            <span class="s">status</span>!~<span class="s">"5.."</span>,
+            <span class="s">rollouts_pod_template_hash</span>=<span class="s">"{{args.canary-hash}}"</span>
+          }[<span class="n">5m</span>])) /
+          <span class="f">sum</span>(<span class="f">rate</span>(<span class="k">http_requests_total</span>{
+            <span class="s">rollouts_pod_template_hash</span>=<span class="s">"{{args.canary-hash}}"</span>
+          }[<span class="n">5m</span>]))</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="progressive">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Strategy</div>
+        <h3>Progressive Delivery</h3>
+        <div class="cs">배포를 점진적으로 진행하면서 각 단계에서 메트릭을 검증하는 전체 프레임워크</div>
+        <div class="cp">Progressive Delivery = <strong>Canary + Feature Flag + 자동 분석</strong>의 조합이다. 코드 배포와 기능 릴리스를 분리하고, 각 단계에서 자동 검증을 통해 위험을 최소화한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">단계</div><div class="v"><strong>1) Deploy (코드 배포):</strong> 새 버전의 Pod을 배포하되 트래픽은 보내지 않음<br><strong>2) Feature Flag:</strong> 기능을 활성화하되 내부 사용자 또는 특정 % 에게만<br><strong>3) Canary:</strong> 트래픽의 5~10%를 새 버전으로. 메트릭 자동 분석<br><strong>4) 점진적 확대:</strong> 분석 통과 시 25→50→100%<br><strong>5) Full Rollout:</strong> 모든 트래픽이 새 버전으로</div></div>
+          <div class="db"><div class="l">GitOps + Progressive Delivery</div><div class="v"><strong>ArgoCD:</strong> Git에서 Rollout 리소스를 관리<br><strong>Argo Rollouts:</strong> Canary/BlueGreen 전략 + AnalysisRun<br><strong>Grafana Alerting:</strong> 배포 중 SLO 위반 시 자동 롤백 트리거<br><br><strong>파이프라인:</strong> Git push → ArgoCD Sync → Rollout Canary → AnalysisRun (Prometheus 쿼리) → 자동 승격 또는 자동 롤백</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== READINESS ===== -->
+  <div class="P" id="p-ready">
+    <div class="PH"><div class="bg bg-g">● Production Readiness</div><h2>프로덕션 준비 검증</h2><p>Production Readiness Review, FMEA, Game Day — 서비스를 안전하게 프로덕션에 올리기 위한 체크 프로세스.</p></div>
+
+    <div class="sec" id="prr">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Checklist</div>
+        <h3>Production Readiness Review (PRR)</h3>
+        <div class="cs">새 서비스를 프로덕션에 배포하기 전, SRE 관점에서 검증하는 체계적 체크리스트</div>
+        <div class="cp">Google SRE에서 시작된 관행이다. 서비스가 프로덕션 환경에서 <strong>안정적으로 운영될 수 있는 최소 조건</strong>을 검증한다. PRR을 통과하지 못하면 프로덕션 배포를 보류한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">관측 가능성</div><div class="v"><strong>□</strong> SLI/SLO가 정의되어 있는가<br><strong>□</strong> Metrics, Logs, Traces가 수집되는가<br><strong>□</strong> Grafana 대시보드가 준비되어 있는가<br><strong>□</strong> SLO 기반 알림(Burn Rate)이 설정되어 있는가<br><strong>□</strong> 알림 수신자(온콜)가 지정되어 있는가</div></div>
+          <div class="db"><div class="l">안정성</div><div class="v"><strong>□</strong> Health check (liveness/readiness/startup probe) 구성<br><strong>□</strong> Graceful shutdown 구현 (SIGTERM 처리)<br><strong>□</strong> Resource request/limit 설정<br><strong>□</strong> PodDisruptionBudget 설정<br><strong>□</strong> HPA 설정 및 부하 테스트 통과</div></div>
+          <div class="db"><div class="l">운영</div><div class="v"><strong>□</strong> 롤백 절차가 문서화되어 있는가<br><strong>□</strong> Runbook이 작성되어 있는가<br><strong>□</strong> 의존성 장애 시 행동(Circuit Breaker, fallback)이 정의되어 있는가<br><strong>□</strong> 데이터 백업/복구 절차가 있는가<br><strong>□</strong> 비밀 정보가 Secret/Vault로 관리되는가</div></div>
+          <div class="db"><div class="l">보안</div><div class="v"><strong>□</strong> 컨테이너 이미지 취약점 스캔 통과<br><strong>□</strong> 최소 권한 원칙 (capabilities drop ALL)<br><strong>□</strong> NetworkPolicy 적용<br><strong>□</strong> seccomp 프로파일 적용<br><strong>□</strong> non-root 실행</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="fmea">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Risk Analysis</div>
+        <h3>FMEA — Failure Mode and Effects Analysis</h3>
+        <div class="cs">"이 시스템에서 무엇이 어떻게 고장날 수 있는가?"를 체계적으로 분석</div>
+        <div class="cp">FMEA는 <strong>장애가 발생하기 전에</strong> 가능한 장애 모드를 식별하고, 각각의 영향과 확률, 감지 가능성을 평가하여 <strong>우선순위를 정하는</strong> 분석 기법이다. 제조업에서 시작되어 소프트웨어/SRE에 도입됨.</div>
+        <div class="dt">
+          <div class="db"><div class="l">FMEA 테이블 컬럼</div><div class="v"><strong>장애 모드:</strong> 무엇이 고장나는가? (DB 연결 실패, 디스크 풀, 인증서 만료...)<br><strong>영향 (Severity 1~10):</strong> 사용자에게 미치는 영향. 10=전체 서비스 중단<br><strong>발생 확률 (Occurrence 1~10):</strong> 얼마나 자주? 10=매주<br><strong>감지 가능성 (Detection 1~10):</strong> 발생 시 얼마나 빨리 감지? 10=감지 불가<br><strong>RPN = S × O × D:</strong> Risk Priority Number. 높을수록 우선 대응</div></div>
+          <div class="db"><div class="l">FMEA 적용 예시</div><div class="v">
+<strong>DB 연결 풀 소진:</strong> S=8, O=4, D=3 → RPN=96<br>
+<strong>인증서 만료:</strong> S=9, O=2, D=8 → RPN=144 ← 우선 대응!<br>
+<strong>디스크 풀:</strong> S=7, O=3, D=2 → RPN=42<br>
+<strong>DNS 장애:</strong> S=9, O=2, D=4 → RPN=72<br><br>
+RPN 높은 순서대로: 인증서 만료 → DB 풀 소진 → DNS → 디스크
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="gameday">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Practice</div>
+        <h3>Game Day — 장애 훈련</h3>
+        <div class="cs">실제 장애를 의도적으로 발생시켜 대응 체계를 검증하고 약점을 발견하는 훈련</div>
+        <div class="cp">FMEA로 장애 모드를 식별했다면, Game Day에서 <strong>실제로 그 장애를 일으켜 본다.</strong> "DB가 죽으면 어떻게 되나?"를 상상하는 것과, 실제로 DB를 죽여보는 것의 차이는 크다.<br><br>Netflix의 Chaos Monkey에서 시작된 <strong>Chaos Engineering</strong>의 실무 적용 형태다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Game Day 프로세스</div><div class="v"><strong>1) 가설 수립:</strong> "DB 레플리카가 죽으면 read 트래픽이 primary로 failover되고, P99 latency가 200ms 이내로 유지될 것이다"<br><strong>2) 범위 정의:</strong> 영향 범위, 롤백 계획, abort 조건<br><strong>3) 실행:</strong> 장애 주입 (Pod kill, 네트워크 지연, 디스크 풀 등)<br><strong>4) 관찰:</strong> SLI 변화, 알림 발생, 대응 시간 기록<br><strong>5) 분석:</strong> 가설 검증, 발견된 약점 정리<br><strong>6) 개선:</strong> Action Item 생성 → 백로그 추가</div></div>
+          <div class="db"><div class="l">장애 주입 도구</div><div class="v"><strong>K8s 네이티브:</strong><br>• <code>kubectl delete pod</code> — 기본적인 Pod kill<br>• <code>kubectl drain node</code> — 노드 장애 시뮬레이션<br><br><strong>전문 도구:</strong><br>• <strong>Chaos Mesh:</strong> K8s 네이티브 Chaos Engineering. Pod, Network, I/O, Time, Kernel fault 주입<br>• <strong>Litmus:</strong> CNCF 프로젝트. 실험 카탈로그 제공<br>• <strong>tc (traffic control):</strong> 네트워크 지연/패킷 손실 주입<br><code>tc qdisc add dev eth0 root netem delay 100ms loss 5%</code></div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 Game Day를 Error Budget과 연결</strong><br>Game Day에서 소비되는 Error Budget도 계산한다. "이 훈련으로 Budget의 2%를 썼다"를 정량화하면, Game Day 빈도와 범위를 Budget 내에서 관리할 수 있다. Budget이 부족하면 축소된 범위로 실행.</div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

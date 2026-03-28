@@ -1,0 +1,21 @@
+{
+  "name": "SRE Handbook",
+  "short_name": "SRE Handbook",
+  "description": "SRE 전환 학습 플랫폼 — 28개 가이드 문서, 검색, 북마크, 메모",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f8f9fb",
+  "theme_color": "#0969b2",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"]
+}

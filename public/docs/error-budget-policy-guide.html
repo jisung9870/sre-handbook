@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Error Budget Policy 운영 가이드</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}
+.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--orange);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:15px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--orange)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="strategy"].on{color:var(--orange)}.T[data-t="strategy"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="policy"].on{color:var(--blue)}.T[data-t="policy"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="operations"].on{color:var(--teal)}.T[data-t="operations"].on::after{background:var(--teal);left:8%;right:8%}
+.T[data-t="governance"].on{color:var(--purple)}.T[data-t="governance"].on::after{background:var(--purple);left:8%;right:8%}
+.T[data-t="templates"].on{color:var(--green)}.T[data-t="templates"].on::after{background:var(--green);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:700px}
+.sec{margin-top:38px;scroll-margin-top:66px}.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:7px}.cd h4 .d{width:7px;height:7px;border-radius:50%}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cf{grid-column:1/-1}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt.b{background:var(--bbg);border-left-color:var(--blue)}.nt.b strong{color:var(--blue)}.nt.p{background:var(--pbg);border-left-color:var(--purple)}.nt.p strong{color:var(--purple)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.pipe{display:flex;align-items:center;gap:0;margin:14px 0;flex-wrap:wrap}.pipe-s{padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;text-align:center;min-width:100px;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%,12px 50%);margin-left:-6px}.pipe-s:first-child{clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%);margin-left:0}.pipe-s small{display:block;font-weight:500;font-size:8px;opacity:.8;margin-top:1px}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Policy</div><h1><em>Error Budget</em><br>Policy</h1></div>
+
+  <div class="sl">전략</div>
+  <ul class="sn">
+    <li><a data-t="strategy" data-s="why-policy" class="on"><span class="d" style="background:var(--orange)"></span>왜 Policy가 필요한가</a></li>
+    <li><a data-t="strategy" data-s="budget-intent"><span class="d" style="background:var(--orange)"></span>Budget의 의미</a></li>
+    <li><a data-t="strategy" data-s="decision-principles"><span class="d" style="background:var(--orange)"></span>의사결정 원칙</a></li>
+  </ul>
+
+  <div class="sl">정책 구조</div>
+  <ul class="sn">
+    <li><a data-t="policy" data-s="guardrail-levels"><span class="d" style="background:var(--blue)"></span>Guardrail 단계</a></li>
+    <li><a data-t="policy" data-s="release-rules"><span class="d" style="background:var(--blue)"></span>배포/변경 규칙</a></li>
+    <li><a data-t="policy" data-s="exception-policy"><span class="d" style="background:var(--blue)"></span>예외 승인 절차</a></li>
+  </ul>
+
+  <div class="sl">운영</div>
+  <ul class="sn">
+    <li><a data-t="operations" data-s="measurement"><span class="d" style="background:var(--teal)"></span>측정과 계산</a></li>
+    <li><a data-t="operations" data-s="burn-alerts"><span class="d" style="background:var(--teal)"></span>Burn Rate 연계</a></li>
+    <li><a data-t="operations" data-s="weekly-review"><span class="d" style="background:var(--teal)"></span>주간 운영 루틴</a></li>
+  </ul>
+
+  <div class="sl">거버넌스</div>
+  <ul class="sn">
+    <li><a data-t="governance" data-s="ownership"><span class="d" style="background:var(--purple)"></span>역할과 책임</a></li>
+    <li><a data-t="governance" data-s="post-incident"><span class="d" style="background:var(--purple)"></span>장애 이후 처리</a></li>
+    <li><a data-t="governance" data-s="anti-patterns"><span class="d" style="background:var(--purple)"></span>자주 하는 실수</a></li>
+  </ul>
+
+  <div class="sl">템플릿</div>
+  <ul class="sn">
+    <li><a data-t="templates" data-s="policy-template"><span class="d" style="background:var(--green)"></span>정책 문서 템플릿</a></li>
+    <li><a data-t="templates" data-s="review-template"><span class="d" style="background:var(--green)"></span>리뷰 체크리스트</a></li>
+    <li><a data-t="templates" data-s="message-template"><span class="d" style="background:var(--green)"></span>커뮤니케이션 문안</a></li>
+  </ul>
+
+  <div class="S-f"><p>Error Budget은 숫자가 아니라 제품 속도와 안정성의 계약이다. 목표는 "배포 금지"가 아니라 "위험을 통제한 진전"이다.</p></div>
+</aside>
+
+<main class="M">
+  <div class="TT">
+    <button class="T on" data-t="strategy">● Strategy</button>
+    <button class="T" data-t="policy">● Policy</button>
+    <button class="T" data-t="operations">● Operations</button>
+    <button class="T" data-t="governance">● Governance</button>
+    <button class="T" data-t="templates">● Templates</button>
+  </div>
+
+  <div class="P on" id="p-strategy">
+    <div class="PH"><div class="bg bg-o">● Strategy</div><h2>Error Budget Policy의 목적</h2><p>SLO를 숫자로만 두지 않고, 실제 배포·릴리즈·우선순위 조정에 연결하기 위한 운영 규칙이다. 핵심은 "장애를 벌주는 것"이 아니라 "리스크를 명시적으로 거래하는 것"이다.</p></div>
+
+    <div class="sec" id="why-policy">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Why</div>
+        <h3>왜 Error Budget Policy가 필요한가</h3>
+        <div class="cs">SLO 위반 여부를 실제 행동으로 연결하지 않으면 SLO는 리포트로만 남는다</div>
+        <div class="cp">많은 팀이 SLO 대시보드는 만들지만, <strong>Budget이 줄어들 때 무엇을 멈추고 무엇을 계속할지</strong>는 정하지 않는다. 그러면 숫자는 보이지만 의사결정은 사람 감에 의존하게 된다. Error Budget Policy는 이 모호성을 제거해 <strong>신규 기능, 리팩터링, 인프라 변경, 긴급 수정</strong>을 어떤 조건에서 허용할지 미리 정하는 장치다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Policy가 없을 때</div><div class="v">장애 직후에도 기능 배포를 강행하거나, 반대로 작은 문제에도 무기한 배포 동결이 발생한다.<br><strong>결과:</strong> 갈등, 책임 공방, 회고 없는 반복.</div></div>
+          <div class="db"><div class="l">Policy가 있을 때</div><div class="v">"Budget 50% 초과 소진 시 고위험 변경 금지"처럼 <strong>사전에 합의된 룰</strong>로 빠르게 판단한다.<br><strong>결과:</strong> 속도와 안정성의 균형이 예측 가능해진다.</div></div>
+          <div class="db df"><div class="l">핵심 목적</div><div class="v"><strong>1.</strong> 배포 결정의 기준 통일<br><strong>2.</strong> SLO 위반을 제품 우선순위에 반영<br><strong>3.</strong> 장애 후 "더 조심하자" 같은 감정적 반응 대신 명시적 행동으로 전환<br><strong>4.</strong> 속도와 안정성의 논쟁을 사람 간 논쟁이 아닌 정책 집행 문제로 바꾸기</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="budget-intent">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Intent</div>
+        <h3>Error Budget의 운영 의미</h3>
+        <div class="cs">Budget은 "써도 되는 실패의 총량"이지 "절대 다 쓰면 안 되는 숫자"가 아니다</div>
+        <div class="cp">Error Budget은 고객에게 약속한 신뢰성 목표 안에서 <strong>변경과 학습을 허용하는 완충재</strong>다. 예산을 일부 소진하는 것은 자연스럽다. 중요한 것은 <strong>소진 속도와 남은 여유를 보고 리스크를 조정</strong>하는 것이다. Budget 0% 소진만을 목표로 하면 팀은 배포를 피하게 되고, 결국 기술 부채가 쌓여 더 큰 장애로 돌아온다.</div>
+        <div class="bx">
+          <div class="bx-t">▼ Error Budget을 해석하는 3가지 질문</div>
+          <table class="tb">
+            <thead><tr><th>질문</th><th>좋은 해석</th><th>나쁜 해석</th></tr></thead>
+            <tbody>
+              <tr><td>지금 Budget을 얼마나 썼는가?</td><td>현재 안정성 여유를 본다</td><td>"누가 얼마나 망쳤나"를 따진다</td></tr>
+              <tr><td>소진 속도가 어떤가?</td><td>최근 변경의 위험도를 판단한다</td><td>한 번의 숫자만 보고 과잉반응한다</td></tr>
+              <tr><td>남은 Budget으로 무엇을 허용할 수 있나?</td><td>릴리즈 전략을 조정한다</td><td>무조건 배포를 멈추거나 무조건 진행한다</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="nt b"><strong>💡 좋은 정책의 기준</strong><br>좋은 Error Budget Policy는 <strong>팀이 멈춰야 할 때를 알려주는 규칙</strong>이면서 동시에 <strong>언제 다시 움직여도 되는지</strong>를 알려주는 규칙이어야 한다. 정지 규칙만 있고 재개 규칙이 없으면 정책은 공포가 된다.</div>
+    </div>
+
+    <div class="sec" id="decision-principles">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Principles</div>
+        <h3>정책 설계 원칙</h3>
+        <div class="cs">실무에서 정책이 살아남기 위한 최소 원칙</div>
+        <div class="cg">
+          <div class="cd" style="border-top:3px solid var(--orange);"><h4 style="color:var(--orange)"><span class="d" style="background:var(--orange)"></span>정책은 단순해야 한다</h4><p>Guardrail 단계는 3~4단계면 충분하다. 복잡한 예외와 수식이 많아질수록 현장에서 사용되지 않는다.</p></div>
+          <div class="cd" style="border-top:3px solid var(--blue);"><h4 style="color:var(--blue)"><span class="d" style="background:var(--blue)"></span>사전 합의가 핵심이다</h4><p>장애 이후에 임시로 만든 규칙은 신뢰를 잃기 쉽다. 제품/개발/운영 리더가 미리 서명한 정책이어야 한다.</p></div>
+          <div class="cd" style="border-top:3px solid var(--teal);"><h4 style="color:var(--teal)"><span class="d" style="background:var(--teal)"></span>행동으로 연결되어야 한다</h4><p>"주의"가 아니라 "고위험 릴리즈 중단", "핫픽스만 허용", "주간 리뷰 강제"처럼 실행 가능한 문장으로 써야 한다.</p></div>
+          <div class="cd" style="border-top:3px solid var(--purple);"><h4 style="color:var(--purple)"><span class="d" style="background:var(--purple)"></span>회복 경로가 있어야 한다</h4><p>Budget을 회복하면 어떤 조건에서 정상 배포 모드로 돌아가는지 반드시 정의해야 한다.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="P" id="p-policy">
+    <div class="PH"><div class="bg bg-b">● Policy</div><h2>정책 규칙과 Guardrail</h2><p>정책은 "Budget을 얼마나 썼는가"와 "얼마나 빨리 태우고 있는가"를 함께 보고 행동을 결정해야 한다. 단순한 잔량만 보지 말고 소진 속도도 같이 판단한다.</p></div>
+
+    <div class="sec" id="guardrail-levels">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Guardrails</div>
+        <h3>권장 Guardrail 단계</h3>
+        <div class="cs">Budget 상태에 따라 릴리즈와 변경 정책을 4단계로 구분</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>단계</th><th>Budget 상태</th><th>허용되는 변경</th><th>추가 조치</th></tr></thead>
+          <tbody>
+            <tr><td><strong style="color:var(--green)">Green</strong></td><td>소진율 &lt; 25%, burn 안정</td><td>정상 릴리즈, 실험, 리팩터링 허용</td><td>주간 리뷰만 수행</td></tr>
+            <tr><td><strong style="color:var(--blue)">Watch</strong></td><td>소진율 25~50% 또는 burn 증가</td><td>고위험 변경 사전 리뷰 후 허용</td><td>다음 배포 전에 rollback plan 검토</td></tr>
+            <tr><td><strong style="color:var(--orange)">Control</strong></td><td>소진율 50~100% 또는 높은 burn</td><td>핫픽스, 안정화 작업, low-risk 변경만 허용</td><td>기능 개발보다 안정화 우선</td></tr>
+            <tr><td><strong style="color:var(--red)">Freeze</strong></td><td>Budget 초과 또는 다중 SLO 위반</td><td>고객 영향 복구와 안전성 개선만 허용</td><td>정책 예외 없이는 기능 배포 중단</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="fm">소진율만 보지 말고 <strong>burn rate</strong>도 함께 사용한다. 예: 30일 Budget 기준 2시간 안에 10% 이상 태우는 패턴은 잔량이 남아 있어도 즉시 Control로 격상할 수 있다.</div>
+    </div>
+
+    <div class="sec" id="release-rules">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Release</div>
+        <h3>배포와 변경에 대한 운영 규칙</h3>
+        <div class="cs">정책이 실제 제품 속도에 미치는 방식을 명시적으로 적는다</div>
+        <div class="cp">릴리즈 정책은 "배포 가능/불가"의 이분법보다 <strong>변경 종류에 따라 다르게 허용</strong>하는 것이 현실적이다. DB schema, 네트워크 정책, 캐시 invalidate, 대규모 리팩터링은 위험도가 다르기 때문이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Green / Watch</div><div class="v"><strong>허용:</strong> 신규 기능, 성능 개선, 리팩터링, 점진 배포<br><strong>조건:</strong> canary/rollback/owner 명시<br><strong>Watch 추가:</strong> 주요 변경은 peer review + 운영자 동의</div></div>
+          <div class="db"><div class="l">Control / Freeze</div><div class="v"><strong>허용:</strong> 핫픽스, 알림 개선, 용량 증설, 되돌리기 쉬운 안전 변경<br><strong>금지:</strong> 대규모 마이그레이션, 실험성 기능, 다중 시스템 동시 변경<br><strong>Freeze:</strong> 제품 기능 릴리즈는 VP/Head 예외 승인 없이는 금지</div></div>
+          <div class="db df"><div class="l">변경 위험도 분류 예시</div><div class="v"><strong>Low-risk:</strong> 문구 수정, feature flag off, read replica 증설, 대시보드 추가<br><strong>Medium-risk:</strong> 애플리케이션 배포, 라이브러리 업그레이드, 인스턴스 타입 조정<br><strong>High-risk:</strong> DB schema 변경, 캐시 키 전략 변경, auth 흐름 변경, traffic routing 변경</div></div>
+        </div>
+      </div>
+      <div class="nt o"><strong>⚠ 흔한 오해</strong><br>Budget이 남아 있다고 해서 모든 고위험 변경이 허용되는 것은 아니다. Error Budget Policy는 <strong>위험 허용량</strong>을 보여주는 도구일 뿐이고, 개별 변경의 blast radius를 대신 판단해주지는 않는다.</div>
+    </div>
+
+    <div class="sec" id="exception-policy">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Exceptions</div>
+        <h3>예외 승인 정책</h3>
+        <div class="cs">Freeze나 Control 상태에서도 꼭 진행해야 하는 변경을 위한 절차</div>
+        <div class="cp">실무에서는 법적 대응, 보안 패치, 대형 고객 계약, 인프라 수명 만료 같은 이유로 <strong>정책 예외</strong>가 필요하다. 중요한 것은 예외를 없애는 것이 아니라, <strong>누가 어떤 위험을 인지한 채 승인했는지</strong>를 남기는 것이다.</div>
+        <div class="pipe">
+          <div class="pipe-s" style="background:var(--bbg);color:var(--blue)">Request<small>변경 제안</small></div>
+          <div class="pipe-s" style="background:var(--obg);color:var(--orange)">Assess<small>영향/대안</small></div>
+          <div class="pipe-s" style="background:var(--pbg);color:var(--purple)">Approve<small>책임자 서명</small></div>
+          <div class="pipe-s" style="background:var(--tbg);color:var(--teal)">Mitigate<small>완화장치 준비</small></div>
+          <div class="pipe-s" style="background:var(--gbg);color:var(--green)">Review<small>결과 회고</small></div>
+        </div>
+        <div class="dt">
+          <div class="db"><div class="l">예외 요청 시 필수 항목</div><div class="v"><strong>목적:</strong> 왜 지금 해야 하는가<br><strong>대안:</strong> 미룰 수 없는 이유는 무엇인가<br><strong>리스크:</strong> 최악의 영향은 무엇인가<br><strong>완화책:</strong> canary, kill switch, rollback, 담당자 대기 여부</div></div>
+          <div class="db"><div class="l">승인 기준</div><div class="v"><strong>보안/법적 필수:</strong> 높은 우선순위로 허용 가능<br><strong>매출/고객 영향:</strong> 리스크와 사업가치를 함께 검토<br><strong>순수 기능 출시:</strong> Freeze 상태에서는 기본적으로 불허<br><strong>승인자:</strong> 서비스 오너 + 운영 책임자 + 필요 시 제품 리더</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="P" id="p-operations">
+    <div class="PH"><div class="bg bg-t">● Operations</div><h2>일상 운영에서의 집행 방식</h2><p>Error Budget Policy는 회의 문서가 아니라 운영 루틴이어야 한다. 측정, 알림, 리뷰, 배포 절차 안에 자연스럽게 들어가야 살아남는다.</p></div>
+
+    <div class="sec" id="measurement">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Measurement</div>
+        <h3>측정과 계산 원칙</h3>
+        <div class="cs">정책 집행의 전제는 숫자에 대한 해석이 팀 내에서 동일해야 한다는 점이다</div>
+        <div class="cp">Error Budget Policy가 깨지는 가장 흔한 이유는 계산 자체보다 <strong>무엇을 bad event로 볼지, 어떤 윈도우를 쓸지, 어떤 서비스 단위로 볼지</strong>가 팀마다 다르기 때문이다. SLI Specification과 Policy는 반드시 같이 움직여야 한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">필수 정의</div><div class="v"><strong>서비스 경계:</strong> 어떤 요청 집합을 서비스로 볼 것인가<br><strong>good / bad event:</strong> 5xx, latency, correctness 기준<br><strong>평가 윈도우:</strong> 일반적으로 28~30일 rolling<br><strong>집계 주기:</strong> 대시보드는 5~15분, 정책 리뷰는 일/주 단위</div></div>
+          <div class="db"><div class="l">대시보드에 꼭 있어야 할 것</div><div class="v"><strong>Budget 잔량</strong><br><strong>최근 1h / 6h / 24h burn rate</strong><br><strong>가장 큰 소진 이벤트</strong><br><strong>현재 Guardrail 단계</strong><br><strong>최근 주요 변경 타임라인</strong></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="burn-alerts">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Burn Rate</div>
+        <h3>Burn Rate Alert와 정책 연계</h3>
+        <div class="cs">알림은 "문제가 생겼다"를 알려주고, 정책은 "그래서 무엇을 할지"를 정한다</div>
+        <div class="cp">Burn rate alert는 단순 장애 탐지를 넘어서 <strong>정책 상태 전환 신호</strong>로 쓰는 것이 좋다. 예를 들어 빠른 burn alert가 울리면 즉시 신규 기능 배포를 멈추고 안정화 모드로 전환할 수 있다.</div>
+      </div>
+      <div class="bx">
+        <div class="bx-t">▼ 예시 연계 규칙</div>
+        <table class="tb">
+          <thead><tr><th>신호</th><th>의미</th><th>정책 반응</th></tr></thead>
+          <tbody>
+            <tr><td>Fast burn alert</td><td>짧은 시간에 Budget을 빠르게 소진</td><td>즉시 Control 이상으로 격상, 현재 배포 중지</td></tr>
+            <tr><td>Slow burn alert</td><td>눈에 띄지 않지만 지속적으로 새고 있음</td><td>다음 주기까지 원인 파악과 개선 계획 필수</td></tr>
+            <tr><td>Repeated burn</td><td>비슷한 유형의 반복 장애</td><td>기능보다 구조 개선 우선, Freeze 가능</td></tr>
+            <tr><td>No alert but high spend</td><td>큰 장애는 없지만 꾸준히 나쁨</td><td>정책 리뷰 기준 재조정, SLI 정의 점검</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt r"><strong>⚠ 알림과 정책을 분리하면 생기는 문제</strong><br>Burn rate alert는 울리는데 아무 행동도 바뀌지 않으면 팀은 곧 알림을 무시하게 된다. 알림은 반드시 <strong>배포 규칙, 에스컬레이션, 리뷰 강도</strong>와 연결되어야 한다.</div>
+    </div>
+
+    <div class="sec" id="weekly-review">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Review</div>
+        <h3>주간 운영 루틴</h3>
+        <div class="cs">정책은 인시던트 때만 보는 문서가 아니라 주간 운영 리듬 안에 들어가야 한다</div>
+        <div class="cg">
+          <div class="cd" style="border-top:3px solid var(--teal);"><h4 style="color:var(--teal)"><span class="d" style="background:var(--teal)"></span>월요일: 상태 확인</h4><p>현재 Guardrail 단계, 남은 Budget, 지난주 주요 소진 이벤트, 이번 주 예정된 고위험 변경을 함께 본다.</p></div>
+          <div class="cd" style="border-top:3px solid var(--blue);"><h4 style="color:var(--blue)"><span class="d" style="background:var(--blue)"></span>수요일: 변경 점검</h4><p>릴리즈 전 high-risk 변경에 대해 canary, rollback, owner-on-call 준비 여부를 확인한다.</p></div>
+          <div class="cd" style="border-top:3px solid var(--orange);"><h4 style="color:var(--orange)"><span class="d" style="background:var(--orange)"></span>금요일: 회복 평가</h4><p>Control/Freeze 상태였다면 정상 모드로 복귀 가능한지 판단하고, 다음 주 목표를 조정한다.</p></div>
+          <div class="cd" style="border-top:3px solid var(--purple);"><h4 style="color:var(--purple)"><span class="d" style="background:var(--purple)"></span>월말: 정책 재조정</h4><p>Guardrail 기준이 너무 빡빡하거나 느슨하지 않은지, 팀이 실제로 따를 수 있는지 평가한다.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="P" id="p-governance">
+    <div class="PH"><div class="bg bg-p">● Governance</div><h2>역할, 책임, 그리고 회고</h2><p>정책은 문장보다 운영 주체가 중요하다. 누가 상태를 선언하고, 누가 예외를 승인하고, 누가 정책이 현실과 맞는지 주기적으로 고칠지 명확해야 한다.</p></div>
+
+    <div class="sec" id="ownership">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Ownership</div>
+        <h3>역할과 책임 분리</h3>
+        <div class="cs">정책 집행이 개인의 눈치가 되지 않도록 책임 주체를 분리한다</div>
+        <div class="dt">
+          <div class="db"><div class="l">서비스 오너</div><div class="v">현재 Guardrail 상태를 팀에 공유하고, 배포 지속 여부를 결정한다.<br><strong>책임:</strong> 기능 우선순위 조정, 제품 커뮤니케이션.</div></div>
+          <div class="db"><div class="l">운영 책임자 / SRE</div><div class="v">Budget 계산, burn alert 품질, 예외 승인 시 완화장치 검토를 담당한다.<br><strong>책임:</strong> 정책의 기술적 집행 가능성 보장.</div></div>
+          <div class="db"><div class="l">제품 리더</div><div class="v">Freeze 상태에서 매출/고객 영향 때문에 예외가 필요한 경우 사업적 근거를 제시한다.</div></div>
+          <div class="db"><div class="l">엔지니어링 리더</div><div class="v">장애 후 안정화 작업과 기능 작업 사이의 자원 배분을 최종 조정한다.</div></div>
+        </div>
+      </div>
+      <div class="nt p"><strong>💡 역할 설계 팁</strong><br>정책은 운영팀만의 문서가 되면 안 된다. <strong>제품 리더도 서명하는 운영 규칙</strong>이어야 실제 배포 우선순위가 바뀐다.</div>
+    </div>
+
+    <div class="sec" id="post-incident">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Aftermath</div>
+        <h3>장애 이후 정책 처리</h3>
+        <div class="cs">큰 장애가 난 뒤에는 숫자 복구보다 운영 모드 전환이 더 중요하다</div>
+        <div class="cp">대형 장애 직후에는 모두가 "당분간 배포하지 말자"로 기울기 쉽다. 하지만 Freeze는 임시 상태여야 하며, <strong>어떤 조건을 만족하면 Watch 또는 Green으로 되돌아갈지</strong>가 명확해야 한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">장애 직후 24시간</div><div class="v">SLO 영향 계산, 현재 Guardrail 단계 선언, 추가 배포 중지 여부 공지, 임시 완화장치 적용.</div></div>
+          <div class="db"><div class="l">48~72시간</div><div class="v">Postmortem 초안, 재발 방지 항목 선정, Freeze 해제 조건 합의.</div></div>
+          <div class="db df"><div class="l">Freeze 해제 예시 조건</div><div class="v"><strong>1.</strong> 근본 원인 또는 우회 원인 파악됨<br><strong>2.</strong> rollback/kill switch 경로 검증됨<br><strong>3.</strong> 관련 알림/대시보드 보강 완료<br><strong>4.</strong> 첫 1~2회 배포는 canary와 owner-on-call 조건으로 진행</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="anti-patterns">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Anti-patterns</div>
+        <h3>Error Budget Policy의 대표적인 실패 패턴</h3>
+        <div class="cs">정책이 살아남지 못하는 이유는 대부분 운영 현실과의 단절이다</div>
+        <div class="cg">
+          <div class="cd" style="border-top:3px solid var(--red);"><h4 style="color:var(--red)"><span class="d" style="background:var(--red)"></span>징벌 도구로 쓰기</h4><p>"이번 분기 Budget 다 썼으니 기능팀 잘못"처럼 쓰면 팀은 SLO 숫자를 숨기기 시작한다.</p></div>
+          <div class="cd" style="border-top:3px solid var(--orange);"><h4 style="color:var(--orange)"><span class="d" style="background:var(--orange)"></span>항상 Freeze 유지</h4><p>해제 조건이 없으면 정책은 영구 비상상태가 된다. 결국 아무도 정책을 신뢰하지 않는다.</p></div>
+          <div class="cd" style="border-top:3px solid var(--blue);"><h4 style="color:var(--blue)"><span class="d" style="background:var(--blue)"></span>서비스 티어 무시</h4><p>내부 도구와 결제 시스템에 같은 Guardrail을 적용하면 둘 다 망가진다. 티어별 차등이 필요하다.</p></div>
+          <div class="cd" style="border-top:3px solid var(--green);"><h4 style="color:var(--green)"><span class="d" style="background:var(--green)"></span>정책과 배포 시스템 분리</h4><p>문서만 있고 실제 리뷰 템플릿, change request, release checklist와 연결되지 않으면 금방 잊힌다.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="P" id="p-templates">
+    <div class="PH"><div class="bg bg-g">● Templates</div><h2>바로 가져다 쓸 수 있는 템플릿</h2><p>초기 도입 시에는 완벽한 정책보다 반복 가능한 기본 템플릿이 더 중요하다. 아래 항목들은 팀 위키나 runbook에 거의 그대로 옮겨 적을 수 있게 작성했다.</p></div>
+
+    <div class="sec" id="policy-template">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Template</div>
+        <h3>Error Budget Policy 기본 템플릿</h3>
+        <div class="cs">서비스 단위로 짧게 작성하고, 실제 릴리즈 절차와 연결한다</div>
+      </div>
+      <div class="fm">
+서비스명: ________<br>
+서비스 티어: Tier 1 / 2 / 3<br>
+기본 SLO: ________ over 30d<br>
+Budget 계산 기준: ________<br>
+Guardrail 단계: Green / Watch / Control / Freeze<br>
+Watch 조건: ________<br>
+Control 조건: ________<br>
+Freeze 조건: ________<br>
+허용되는 변경: ________<br>
+예외 승인자: ________<br>
+Freeze 해제 조건: ________<br>
+주간 리뷰 책임자: ________
+      </div>
+    </div>
+
+    <div class="sec" id="review-template">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Checklist</div>
+        <h3>주간 Error Budget 리뷰 체크리스트</h3>
+        <div class="cs">15분 회의로도 충분히 돌릴 수 있는 최소 항목</div>
+        <div class="dt">
+          <div class="db"><div class="l">숫자 확인</div><div class="v">현재 잔량은 얼마인가?<br>최근 24시간 burn rate는 어떤가?<br>이번 주 최대 소진 이벤트는 무엇이었나?</div></div>
+          <div class="db"><div class="l">변경 계획</div><div class="v">이번 주 예정된 high-risk 변경은?<br>각 변경의 rollback plan은 있는가?<br>owner-on-call이 지정되었는가?</div></div>
+          <div class="db"><div class="l">안정화 필요성</div><div class="v">반복 장애가 있는가?<br>알림 노이즈가 원인 파악을 방해하는가?<br>기능보다 먼저 해야 할 안정화 작업은 무엇인가?</div></div>
+          <div class="db"><div class="l">정책 조정 필요성</div><div class="v">현재 Guardrail 기준이 너무 느슨하거나 빡빡한가?<br>예외 승인 빈도가 높다면 정책 자체를 다시 써야 하지 않는가?</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="message-template">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Communication</div>
+        <h3>팀 공지 문안 예시</h3>
+        <div class="cs">Freeze/Control 전환 시 내부 커뮤니케이션 예시</div>
+      </div>
+      <div class="fm">
+[Error Budget 상태 변경 안내]<br><br>
+서비스: ________<br>
+현재 단계: Control / Freeze<br>
+사유: 지난 24시간 동안 ________ SLO에서 높은 burn rate가 발생했고, 30일 Budget의 ________%를 소진했습니다.<br>
+즉시 적용 규칙: 신규 기능 배포 중지 / high-risk 변경 보류 / 핫픽스만 허용<br>
+예외 승인 경로: 서비스 오너 + 운영 책임자<br>
+다음 리뷰 시각: ________<br>
+정상 모드 복귀 조건: ________
+      </div>
+      <div class="nt g"><strong>💡 실무 팁</strong><br>정책 공지는 감정적인 문장보다 <strong>숫자, 현재 단계, 즉시 바뀌는 행동, 다음 리뷰 시각</strong>을 명확히 적는 것이 훨씬 효과적이다.</div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.T').forEach(function(b){b.addEventListener('click',function(){sw(b.dataset.t)})});
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

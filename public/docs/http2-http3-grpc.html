@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTTP/2, HTTP/3 & gRPC — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--blue)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="h2"].on{color:var(--blue)}.T[data-t="h2"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="h3"].on{color:var(--teal)}.T[data-t="h3"].on::after{background:var(--teal);left:8%;right:8%}
+.T[data-t="grpc"].on{color:var(--orange)}.T[data-t="grpc"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="k8s-proto"].on{color:var(--green)}.T[data-t="k8s-proto"].on::after{background:var(--green);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">Protocol Deep Dive</div><h1><em>HTTP/2 · 3</em><br>& gRPC</h1></div>
+  <div class="sl">HTTP/2</div>
+  <ul class="sn">
+    <li><a data-t="h2" data-s="h2-multi" class="on"><span class="d" style="background:var(--blue)"></span>멀티플렉싱</a></li>
+    <li><a data-t="h2" data-s="h2-hpack"><span class="d" style="background:var(--blue)"></span>HPACK & Flow Control</a></li>
+    <li><a data-t="h2" data-s="h2-problem"><span class="d" style="background:var(--blue)"></span>HOL Blocking 문제</a></li>
+  </ul>
+  <div class="sl">HTTP/3 & QUIC</div>
+  <ul class="sn">
+    <li><a data-t="h3" data-s="quic-arch"><span class="d" style="background:var(--teal)"></span>QUIC 아키텍처</a></li>
+    <li><a data-t="h3" data-s="h3-benefit"><span class="d" style="background:var(--teal)"></span>HTTP/3 장점</a></li>
+    <li><a data-t="h3" data-s="h3-adopt"><span class="d" style="background:var(--teal)"></span>도입 현황</a></li>
+  </ul>
+  <div class="sl">gRPC</div>
+  <ul class="sn">
+    <li><a data-t="grpc" data-s="grpc-arch"><span class="d" style="background:var(--orange)"></span>gRPC 내부</a></li>
+    <li><a data-t="grpc" data-s="grpc-stream"><span class="d" style="background:var(--orange)"></span>스트리밍 패턴</a></li>
+    <li><a data-t="grpc" data-s="grpc-lb"><span class="d" style="background:var(--orange)"></span>LB 문제</a></li>
+  </ul>
+  <div class="sl">K8s 환경</div>
+  <ul class="sn">
+    <li><a data-t="k8s-proto" data-s="proto-proxy"><span class="d" style="background:var(--green)"></span>프록시 설정</a></li>
+    <li><a data-t="k8s-proto" data-s="proto-compare"><span class="d" style="background:var(--green)"></span>프로토콜 비교</a></li>
+  </ul>
+  <div class="S-f"><p>Protocols evolve.<br>HOL blocking dies.<br>UDP wins.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="h2" onclick="sw('h2')">● HTTP/2</button>
+    <button class="T" data-t="h3" onclick="sw('h3')">● HTTP/3 & QUIC</button>
+    <button class="T" data-t="grpc" onclick="sw('grpc')">● gRPC</button>
+    <button class="T" data-t="k8s-proto" onclick="sw('k8s-proto')">● K8s 환경</button>
+  </div>
+
+  <!-- ===== HTTP/2 ===== -->
+  <div class="P on" id="p-h2">
+    <div class="PH"><div class="bg bg-b">● HTTP/2 Internals</div><h2>HTTP/2 내부 동작</h2><p>멀티플렉싱, 바이너리 프레이밍, HPACK, Flow Control — HTTP/1.1의 근본적 한계를 해결.</p></div>
+
+    <div class="sec" id="h2-multi">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Core</div>
+        <h3>멀티플렉싱 & 바이너리 프레이밍</h3>
+        <div class="cs">하나의 TCP 연결에서 여러 요청/응답을 동시에 주고받는 핵심 혁신</div>
+        <div class="cp">HTTP/1.1에서는 하나의 TCP 연결에서 <strong>한 번에 하나의 요청-응답만</strong> 처리할 수 있었다(Head-of-Line Blocking). 6개 병렬 연결을 열어 우회했지만 근본적 해결이 아니었다. HTTP/2는 <strong>단일 TCP 연결에서 여러 Stream을 동시에</strong> 주고받는다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 개념</div><div class="v"><strong>Connection:</strong> 하나의 TCP 연결. 클라이언트-서버 간 1개면 충분<br><strong>Stream:</strong> Connection 내의 양방향 데이터 흐름. 요청-응답 쌍 하나가 1 Stream<br><strong>Frame:</strong> HTTP/2의 최소 전송 단위. 바이너리 형식<br>• <strong>HEADERS frame:</strong> 요청/응답 헤더 (HPACK 압축)<br>• <strong>DATA frame:</strong> 바디 데이터<br>• <strong>SETTINGS, PING, GOAWAY, WINDOW_UPDATE</strong> 등 제어 프레임<br><br><strong>바이너리 프레이밍:</strong> HTTP/1.1은 텍스트 기반이라 파싱 비용이 크고 모호성 있음. HTTP/2는 고정 포맷 바이너리 → 파싱 빠름, 에러 적음</div></div>
+          <div class="db"><div class="l">멀티플렉싱 동작</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">TCP Connection
+├── Stream 1: GET /api/users    (요청 전송 중)
+├── Stream 3: GET /api/orders   (응답 수신 중)
+├── Stream 5: POST /api/payment (요청 완료, 응답 대기)
+└── Stream 7: GET /api/items    (응답 수신 완료)
+
+각 Stream의 Frame이 인터리브되어 전송:
+[S1:HEADERS][S3:DATA][S1:DATA][S5:HEADERS][S3:DATA]...</div><br><strong>Server Push:</strong> 서버가 클라이언트 요청 없이 리소스를 미리 보낼 수 있음. 하지만 실무에서 활용도 낮아 HTTP/3에서 사실상 폐기됨</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="h2-hpack">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Efficiency</div>
+        <h3>HPACK & Flow Control</h3>
+        <div class="cs">헤더 압축으로 대역폭 절감, Flow Control로 스트림별 흐름 제어</div>
+        <div class="dt">
+          <div class="db"><div class="l">HPACK 헤더 압축</div><div class="v"><strong>문제:</strong> HTTP/1.1에서 매 요청마다 Cookie, User-Agent 등 <strong>수백 바이트의 동일 헤더</strong>를 반복 전송<br><br><strong>HPACK 해결:</strong><br>• <strong>Static Table:</strong> 자주 쓰는 헤더 61개를 인덱스로 (예: :method GET = index 2)<br>• <strong>Dynamic Table:</strong> 연결 중 사용된 헤더를 동적으로 테이블에 추가. 이후 인덱스로만 참조<br>• <strong>Huffman Encoding:</strong> 문자열을 Huffman 코드로 압축<br><br><strong>효과:</strong> 헤더 크기 85~95% 감소. API 서비스에서 체감 큰 대역폭 절감</div></div>
+          <div class="db"><div class="l">Flow Control</div><div class="v"><strong>스트림별 흐름 제어:</strong><br>• 수신측이 <code>WINDOW_UPDATE</code> frame으로 수신 가능 크기를 알림<br>• 송신측은 윈도우 크기 내에서만 DATA frame 전송<br>• Connection 레벨 + Stream 레벨 이중 제어<br><br><strong>SRE 관점:</strong> Flow Control이 너무 작으면 throughput 저하. Envoy/Nginx에서 <code>initial_stream_window_size</code>, <code>initial_connection_window_size</code> 튜닝 가능<br><br><strong>기본값:</strong> 65535 bytes (64KB). 고대역폭 환경에서는 1MB+ 권장</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="h2-problem">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Problem</div>
+        <h3>TCP Head-of-Line Blocking 문제</h3>
+        <div class="cs">HTTP/2가 해결하지 못한 근본적 문제 — HTTP/3(QUIC)이 등장한 이유</div>
+        <div class="cp">HTTP/2는 <strong>HTTP 레벨</strong>의 HOL Blocking은 해결했지만, <strong>TCP 레벨</strong>의 HOL Blocking은 해결하지 못했다. 하나의 TCP 세그먼트가 손실되면 <strong>해당 연결의 모든 스트림</strong>이 재전송을 기다리며 대기한다. 무선 환경(패킷 손실 1~5%)에서 이 문제가 심각하다.</div>
+        <div class="dt">
+          <div class="db df"><div class="l">TCP vs QUIC HOL Blocking</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">HTTP/2 over TCP:
+Stream 1: [pkt1][pkt2]     ← pkt1 손실!
+Stream 2: [pkt3][pkt4]     ← pkt3 정상인데 pkt1 재전송 대기!
+Stream 3: [pkt5]            ← 역시 대기!
+→ 모든 Stream이 하나의 패킷 손실에 막힘
+
+HTTP/3 over QUIC:
+Stream 1: [pkt1][pkt2]     ← pkt1 손실 → Stream 1만 대기
+Stream 2: [pkt3][pkt4]     ← 정상 처리 계속!
+Stream 3: [pkt5]            ← 정상 처리 계속!
+→ 손실된 Stream만 영향. 나머지는 독립적 진행</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HTTP/3 ===== -->
+  <div class="P" id="p-h3">
+    <div class="PH"><div class="bg bg-t">● HTTP/3 & QUIC</div><h2>HTTP/3 & QUIC 프로토콜</h2><p>UDP 기반 전송 프로토콜. TCP의 HOL Blocking을 근본적으로 해결.</p></div>
+
+    <div class="sec" id="quic-arch">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Architecture</div>
+        <h3>QUIC 아키텍처</h3>
+        <div class="cs">UDP 위에 구축된 전송 프로토콜. TLS 1.3 통합, 스트림별 독립 흐름 제어</div>
+        <div class="cp">QUIC(Quick UDP Internet Connections)는 Google이 개발하고 IETF가 표준화한 <strong>UDP 기반 전송 프로토콜</strong>이다. TCP + TLS의 기능을 하나로 통합하면서 TCP의 근본적 한계(HOL Blocking, 연결 설정 지연)를 해결한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">QUIC 핵심 특성</div><div class="v"><strong>1) UDP 기반:</strong> 커널 TCP 스택을 우회. 유저스페이스에서 구현 가능 → OS 업데이트 없이 프로토콜 개선<br><strong>2) TLS 1.3 통합:</strong> 전송 핸드셰이크 + 암호화 핸드셰이크를 합쳐 1-RTT. 재연결 시 0-RTT<br><strong>3) 스트림 독립:</strong> 각 스트림이 독립적 흐름 제어. 패킷 손실이 해당 스트림만 영향<br><strong>4) Connection Migration:</strong> 연결 ID 기반. IP가 바뀌어도(Wi-Fi→LTE) 연결 유지<br><strong>5) 개선된 Loss Detection:</strong> 패킷 번호가 단조 증가하여 재전송 모호성 제거</div></div>
+          <div class="db"><div class="l">연결 설정 비교</div><div class="v"><strong>TCP + TLS 1.2:</strong><br>TCP 3-way (1 RTT) + TLS (2 RTT) = <strong>3 RTT</strong><br><br><strong>TCP + TLS 1.3:</strong><br>TCP 3-way (1 RTT) + TLS (1 RTT) = <strong>2 RTT</strong><br><br><strong>QUIC (첫 연결):</strong><br>QUIC + TLS 1.3 통합 = <strong>1 RTT</strong><br><br><strong>QUIC (재연결):</strong><br>0-RTT — 이전 세션 키로 즉시 데이터 전송 = <strong>0 RTT</strong><br><br>모바일 환경(RTT 50~100ms)에서 <strong>체감 100~300ms 개선</strong></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="h3-benefit">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Benefits</div>
+        <h3>HTTP/3의 SRE 관점 장점</h3>
+        <div class="cs">네트워크 불안정 환경에서의 성능, 연결 마이그레이션, 빠른 프로토콜 진화</div>
+        <div class="dt">
+          <div class="db"><div class="l">패킷 손실 환경</div><div class="v"><strong>TCP (HTTP/2):</strong> 패킷 손실 2%에서 성능이 급격히 저하. 모든 스트림이 재전송 대기<br><strong>QUIC (HTTP/3):</strong> 패킷 손실 2%에서도 영향받지 않는 스트림은 정상 처리<br><br><strong>실측:</strong> 손실 1%에서 HTTP/3가 HTTP/2 대비 P99 latency <strong>30~50% 개선</strong><br>모바일 앱, 글로벌 서비스에서 특히 효과적</div></div>
+          <div class="db"><div class="l">Connection Migration</div><div class="v"><strong>시나리오:</strong> 모바일 사용자가 Wi-Fi에서 LTE로 전환<br><br><strong>TCP:</strong> IP 변경 → 기존 TCP 연결 끊김 → 새 연결 + TLS 핸드셰이크 → 2~3 RTT 손실<br><strong>QUIC:</strong> Connection ID 기반으로 연결 유지 → <strong>끊김 없이 계속 통신</strong><br><br><strong>SRE 영향:</strong> 모바일 앱의 에러율과 재연결 비용 대폭 감소. SLI에서 네트워크 전환 관련 에러가 줄어듦</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="h3-adopt">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Adoption</div>
+        <h3>HTTP/3 도입 현황과 고려사항</h3>
+        <div class="cs">CDN/브라우저는 이미 기본 지원. 서버/프록시 지원은 성장 중</div>
+        <div class="dt">
+          <div class="db"><div class="l">지원 현황</div><div class="v"><strong>CDN:</strong> Cloudflare, AWS CloudFront, Google Cloud CDN — 기본 활성<br><strong>브라우저:</strong> Chrome, Firefox, Safari, Edge — 모두 지원<br><strong>서버:</strong> Nginx(실험적), Caddy(기본), LiteSpeed(기본), Go net/http(1.24 실험적)<br><strong>프록시:</strong> Envoy(진행 중), Traefik(진행 중), HAProxy(미지원)<br><br><strong>K8s 환경:</strong> 아직 Ingress/Gateway 레벨에서 HTTP/3 지원이 제한적. CDN → HTTP/3 → LB → HTTP/2 → 내부 서비스 구조가 현실적</div></div>
+          <div class="db"><div class="l">도입 시 주의</div><div class="v"><strong>방화벽:</strong> 많은 기업 방화벽이 UDP 443을 차단. QUIC fallback → TCP 필수<br><strong>DDoS:</strong> UDP 기반이라 반사 공격에 취약할 수 있음. QUIC은 자체 대응(Initial packet 검증) 내장<br><strong>모니터링:</strong> TCP 기반 모니터링 도구가 QUIC 트래픽을 인식 못 할 수 있음. Wireshark 4.0+에서 QUIC 디코딩 지원<br><strong>Alt-Svc 헤더:</strong> 서버가 <code>Alt-Svc: h3=":443"</code> 헤더로 HTTP/3 지원을 알림. 클라이언트가 다음 요청부터 QUIC 시도</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== gRPC ===== -->
+  <div class="P" id="p-grpc">
+    <div class="PH"><div class="bg bg-o">● gRPC Internals</div><h2>gRPC 내부 동작</h2><p>HTTP/2 기반 RPC 프레임워크. Protobuf, 스트리밍, LB 문제 — 마이크로서비스 통신의 핵심.</p></div>
+
+    <div class="sec" id="grpc-arch">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Architecture</div>
+        <h3>gRPC 내부 아키텍처</h3>
+        <div class="cs">HTTP/2 + Protocol Buffers — 바이너리 직렬화 + 멀티플렉싱의 조합</div>
+        <div class="cp">gRPC는 Google이 개발한 <strong>HTTP/2 기반 고성능 RPC 프레임워크</strong>다. REST(JSON over HTTP/1.1) 대비 <strong>직렬화 크기 3~10배 축소, latency 2~5배 개선</strong>이 가능하다. Go, Java, Python, C++ 등 다언어 지원으로 마이크로서비스 간 통신의 표준이 되고 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 구성</div><div class="v"><strong>Protocol Buffers (protobuf):</strong> 인터페이스 정의 언어(IDL) + 바이너리 직렬화 포맷<br><code>.proto</code> 파일에서 서비스/메시지 정의 → 각 언어 코드 자동 생성<br><br><strong>HTTP/2 전송:</strong><br>• 각 RPC 호출 = 하나의 HTTP/2 Stream<br>• 멀티플렉싱으로 단일 연결에서 수천 RPC 동시 처리<br>• 헤더 압축(HPACK)으로 메타데이터 오버헤드 최소화<br><br><strong>gRPC 상태 코드:</strong> HTTP 상태 코드와 별도. <code>OK</code>, <code>CANCELLED</code>, <code>DEADLINE_EXCEEDED</code>, <code>UNAVAILABLE</code>, <code>RESOURCE_EXHAUSTED</code> 등. <code>grpc-status</code> 헤더로 전달</div></div>
+          <div class="db"><div class="l">REST vs gRPC 비교</div><div class="v"><strong>직렬화:</strong> JSON ~200 bytes vs protobuf ~50 bytes (같은 데이터)<br><strong>파싱:</strong> JSON 텍스트 파싱 vs protobuf 바이너리 디코딩 (10배 빠름)<br><strong>타입 안전성:</strong> JSON은 런타임 에러 vs protobuf는 컴파일 타임 검증<br><strong>스트리밍:</strong> REST는 요청-응답만 vs gRPC는 양방향 스트리밍<br><strong>코드 생성:</strong> REST는 수동 클라이언트 vs gRPC는 자동 생성<br><br><strong>REST가 나은 경우:</strong> 브라우저 직접 호출, 사람이 읽을 수 있는 API, 간단한 CRUD<br><strong>gRPC가 나은 경우:</strong> 서비스 간 내부 통신, 고성능 요구, 스트리밍 필요</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="grpc-stream">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Streaming</div>
+        <h3>gRPC 스트리밍 4패턴</h3>
+        <div class="cs">Unary, Server Streaming, Client Streaming, Bidirectional — 실시간 데이터 전달</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>패턴</th><th>설명</th><th>사용 예</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Unary</strong></td><td>1 요청 → 1 응답. REST와 동일</td><td>일반 API 호출, 데이터 조회</td></tr>
+            <tr><td><strong>Server Streaming</strong></td><td>1 요청 → N 응답 스트림</td><td>로그 테일링, 실시간 주가, 검색 결과 스트리밍</td></tr>
+            <tr><td><strong>Client Streaming</strong></td><td>N 요청 스트림 → 1 응답</td><td>파일 업로드, 센서 데이터 수집, 배치 쓰기</td></tr>
+            <tr><td><strong>Bidirectional</strong></td><td>N 요청 ↔ N 응답 동시 스트림</td><td>채팅, 실시간 협업, 게임 상태 동기화</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 gRPC Deadline/Timeout</strong><br>gRPC는 <strong>Deadline propagation</strong>을 내장 지원한다. 클라이언트가 deadline을 설정하면 <strong>전체 호출 체인(A→B→C)에 자동 전파</strong>되어, deadline이 지난 요청은 중간에 취소된다. Distributed Systems 문서의 Timeout Chain 원칙이 프로토콜 레벨에서 구현된 것.</div>
+    </div>
+
+    <div class="sec" id="grpc-lb">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Critical</div>
+        <h3>gRPC 로드밸런싱 문제</h3>
+        <div class="cs">HTTP/2 단일 연결 → L4 LB가 한 서버에만 트래픽 몰리는 문제</div>
+        <div class="cp">gRPC는 HTTP/2의 <strong>단일 연결에서 모든 요청을 멀티플렉싱</strong>한다. L4 로드밸런서(K8s Service 기본)는 <strong>연결 레벨</strong>에서 분산하므로, 한 클라이언트의 모든 gRPC 호출이 <strong>같은 서버에만</strong> 전달되는 문제가 발생한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">문제 시나리오</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Client → K8s Service (L4 ClusterIP) → Pod A
+       ↗ 모든 RPC가 같은 TCP 연결을 사용
+       ↗ L4 LB는 연결 시작 시 한 번만 Pod 선택
+       ↗ Pod A에 100% 트래픽, Pod B/C는 0%
+
+HTTP/1.1은 요청마다 새 연결 → L4로도 잘 분산
+HTTP/2(gRPC)는 연결 재사용 → L4 분산 불가능</div></div></div>
+          <div class="db"><div class="l">해결 방법</div><div class="v"><strong>1) L7 로드밸런싱 (권장):</strong><br>Envoy, Traefik, Nginx가 <strong>RPC 레벨</strong>에서 분산<br>K8s: Headless Service + 클라이언트 사이드 LB<br>또는 Istio/Linkerd가 L7 LB 자동 처리<br><br><strong>2) 클라이언트 사이드 LB:</strong><br>gRPC 클라이언트가 여러 서버 주소를 알고 직접 분산<br>Go: <code>google.golang.org/grpc/balancer/roundrobin</code><br>K8s Headless Service로 Pod IP 목록 획득<br><br><strong>3) Lookaside LB (외부 LB):</strong><br>별도 LB 서비스가 서버 목록과 가중치를 클라이언트에 제공<br>gRPC xDS 프로토콜로 Envoy와 통합<br><br><strong>Traefik Gateway API:</strong> GRPCRoute CRD로 gRPC 트래픽을 L7에서 라우팅 가능</div></div>
+        </div>
+      </div>
+      <div class="nt r"><strong>⚠ K8s 기본 Service로 gRPC를 쓰면</strong><br>ClusterIP Service는 L4(iptables/IPVS) 로드밸런싱이다. gRPC 클라이언트가 <strong>연결을 장시간 유지</strong>하면 새 Pod이 추가되어도 트래픽을 받지 못한다. <strong>반드시 L7 프록시 또는 클라이언트 사이드 LB</strong>를 사용해야 한다. 이것이 gRPC + K8s에서 가장 흔한 실수.</div>
+    </div>
+  </div>
+
+  <!-- ===== K8S PROTO ===== -->
+  <div class="P" id="p-k8s-proto">
+    <div class="PH"><div class="bg bg-g">● K8s Protocol Integration</div><h2>K8s 환경에서의 프로토콜 관리</h2><p>Traefik/Envoy gRPC 프록시, 프로토콜 선택 가이드, 헬스체크.</p></div>
+
+    <div class="sec" id="proto-proxy">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Proxy</div>
+        <h3>프록시 gRPC/HTTP/2 설정</h3>
+        <div class="cs">Traefik, Envoy에서 gRPC 트래픽을 올바르게 프록시하는 설정</div>
+        <div class="dt">
+          <div class="db"><div class="l">Traefik gRPC 설정</div><div class="v"><strong>IngressRoute (H2C — TLS 없이):</strong><br><code>spec.routes[].services[].scheme: h2c</code><br><br><strong>Gateway API (GRPCRoute):</strong><br><code>kind: GRPCRoute</code>로 gRPC 전용 라우팅<br>Traefik v3+에서 Gateway API를 통한 gRPC 지원<br><br><strong>주의:</strong><br>• Traefik이 TLS를 종료하고 백엔드에 H2C(HTTP/2 Cleartext)로 전달<br>• 백엔드가 gRPC를 H2C로 리스닝해야 함<br>• keepalive 설정: <code>serversTransport.forwardingTimeouts.idleConnTimeout</code></div></div>
+          <div class="db"><div class="l">gRPC 헬스체크</div><div class="v"><strong>K8s gRPC 헬스체크 (1.24+):</strong><br><code>livenessProbe:</code><br><code>  grpc:</code><br><code>    port: 50051</code><br><code>    service: ""</code><br><br>gRPC 서버가 <code>grpc.health.v1.Health</code> 서비스를 구현해야 함<br>Go: <code>google.golang.org/grpc/health</code> 패키지<br><br><strong>이전 방식 (exec probe):</strong><br><code>exec: { command: ["/bin/grpc_health_probe", "-addr=:50051"] }</code><br>grpc-health-probe 바이너리를 이미지에 포함해야 했음. 이제 네이티브 지원</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="proto-compare">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Selection</div>
+        <h3>프로토콜 선택 가이드</h3>
+        <div class="cs">REST, gRPC, WebSocket, SSE, GraphQL — 워크로드에 맞는 프로토콜 선택</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>프로토콜</th><th>전송</th><th>방향</th><th>최적 사용처</th><th>K8s LB</th></tr></thead>
+          <tbody>
+            <tr><td><strong>REST/JSON</strong></td><td>HTTP/1.1 or 2</td><td>요청-응답</td><td>공개 API, CRUD, 브라우저 직접 호출</td><td>L4 OK</td></tr>
+            <tr><td><strong>gRPC</strong></td><td>HTTP/2</td><td>4패턴 스트리밍</td><td>서비스 간 내부 통신, 고성능 RPC</td><td>L7 필요</td></tr>
+            <tr><td><strong>WebSocket</strong></td><td>TCP (HTTP upgrade)</td><td>양방향 전이중</td><td>실시간 채팅, 알림, 협업</td><td>L7 (upgrade 지원)</td></tr>
+            <tr><td><strong>SSE</strong></td><td>HTTP/1.1 or 2</td><td>서버→클라이언트</td><td>실시간 피드, 알림 (단방향)</td><td>L4 OK</td></tr>
+            <tr><td><strong>GraphQL</strong></td><td>HTTP/1.1 or 2</td><td>요청-응답</td><td>유연한 쿼리, 프론트엔드 주도 데이터 요청</td><td>L4 OK</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 서비스 간 통신 권장 전략</strong><br><strong>외부 클라이언트 → API Gateway:</strong> REST/JSON (범용, 브라우저 호환) 또는 GraphQL (프론트 유연성)<br><strong>서비스 ↔ 서비스 (동기):</strong> gRPC (성능, 타입 안전성, 스트리밍) — Headless Service + 클라이언트 LB<br><strong>서비스 → 서비스 (비동기):</strong> Kafka/NATS (이벤트 기반, 비결합)<br><strong>서비스 → 클라이언트 (실시간):</strong> SSE (단방향) 또는 WebSocket (양방향)</div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

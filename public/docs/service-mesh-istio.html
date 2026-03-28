@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Service Mesh & Istio — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--indigo);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--indigo)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="concept"].on{color:var(--indigo)}.T[data-t="concept"].on::after{background:var(--indigo);left:8%;right:8%}
+.T[data-t="istio"].on{color:var(--blue)}.T[data-t="istio"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="traffic"].on{color:var(--orange)}.T[data-t="traffic"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="security"].on{color:var(--red)}.T[data-t="security"].on::after{background:var(--red);left:8%;right:8%}
+.T[data-t="observe"].on{color:var(--green)}.T[data-t="observe"].on::after{background:var(--green);left:8%;right:8%}
+.T[data-t="ops"].on{color:var(--purple)}.T[data-t="ops"].on::after{background:var(--purple);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-i{color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt.b{background:var(--bbg);border-left-color:var(--blue)}.nt.b strong{color:var(--blue)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.fl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin:12px 0}.fn{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;text-align:center;min-width:90px;box-shadow:var(--sh)}.fn h4{font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:1px;font-weight:700}.fn p{font-size:9px;color:var(--td)}.fa{font-family:'JetBrains Mono',monospace;color:var(--tm);font-size:16px}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Deep Dive</div><h1><em>Service Mesh</em><br>& Istio</h1></div>
+  <div class="sl">Concepts</div>
+  <ul class="sn">
+    <li><a data-t="concept" data-s="why-mesh" class="on"><span class="d" style="background:var(--indigo)"></span>왜 Service Mesh?</a></li>
+    <li><a data-t="concept" data-s="data-ctrl"><span class="d" style="background:var(--indigo)"></span>Data/Control Plane</a></li>
+    <li><a data-t="concept" data-s="mesh-compare"><span class="d" style="background:var(--indigo)"></span>구현체 비교</a></li>
+    <li><a data-t="concept" data-s="sidecar-ambient"><span class="d" style="background:var(--indigo)"></span>Sidecar vs Ambient</a></li>
+  </ul>
+  <div class="sl">Istio Architecture</div>
+  <ul class="sn">
+    <li><a data-t="istio" data-s="istio-arch"><span class="d" style="background:var(--blue)"></span>아키텍처</a></li>
+    <li><a data-t="istio" data-s="envoy"><span class="d" style="background:var(--blue)"></span>Envoy Proxy</a></li>
+    <li><a data-t="istio" data-s="istiod"><span class="d" style="background:var(--blue)"></span>Istiod</a></li>
+    <li><a data-t="istio" data-s="crd-map"><span class="d" style="background:var(--blue)"></span>CRD 전체 맵</a></li>
+  </ul>
+  <div class="sl">Traffic Management</div>
+  <ul class="sn">
+    <li><a data-t="traffic" data-s="vs-dr"><span class="d" style="background:var(--orange)"></span>VirtualService & DR</a></li>
+    <li><a data-t="traffic" data-s="canary-mesh"><span class="d" style="background:var(--orange)"></span>Canary / A-B</a></li>
+    <li><a data-t="traffic" data-s="fault"><span class="d" style="background:var(--orange)"></span>Fault Injection</a></li>
+    <li><a data-t="traffic" data-s="timeout-retry"><span class="d" style="background:var(--orange)"></span>Timeout & Retry</a></li>
+    <li><a data-t="traffic" data-s="circuit-mesh"><span class="d" style="background:var(--orange)"></span>Circuit Breaker</a></li>
+  </ul>
+  <div class="sl">Security</div>
+  <ul class="sn">
+    <li><a data-t="security" data-s="mtls-auto"><span class="d" style="background:var(--red)"></span>자동 mTLS</a></li>
+    <li><a data-t="security" data-s="authz"><span class="d" style="background:var(--red)"></span>AuthorizationPolicy</a></li>
+    <li><a data-t="security" data-s="peer-req"><span class="d" style="background:var(--red)"></span>PeerAuth & RequestAuth</a></li>
+  </ul>
+  <div class="sl">Observability</div>
+  <ul class="sn">
+    <li><a data-t="observe" data-s="mesh-metrics"><span class="d" style="background:var(--green)"></span>메트릭 자동 생성</a></li>
+    <li><a data-t="observe" data-s="mesh-trace"><span class="d" style="background:var(--green)"></span>분산 트레이싱</a></li>
+    <li><a data-t="observe" data-s="kiali"><span class="d" style="background:var(--green)"></span>Kiali & 토폴로지</a></li>
+  </ul>
+  <div class="sl">운영</div>
+  <ul class="sn">
+    <li><a data-t="ops" data-s="install"><span class="d" style="background:var(--purple)"></span>설치 & 업그레이드</a></li>
+    <li><a data-t="ops" data-s="perf"><span class="d" style="background:var(--purple)"></span>성능 오버헤드</a></li>
+    <li><a data-t="ops" data-s="debug-mesh"><span class="d" style="background:var(--purple)"></span>트러블슈팅</a></li>
+    <li><a data-t="ops" data-s="adopt"><span class="d" style="background:var(--purple)"></span>도입 전략</a></li>
+  </ul>
+  <div class="S-f"><p>The network between<br>services is not<br>somebody else's problem.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="concept" onclick="sw('concept')">● Concepts</button>
+    <button class="T" data-t="istio" onclick="sw('istio')">● Istio Arch</button>
+    <button class="T" data-t="traffic" onclick="sw('traffic')">● Traffic</button>
+    <button class="T" data-t="security" onclick="sw('security')">● Security</button>
+    <button class="T" data-t="observe" onclick="sw('observe')">● Observability</button>
+    <button class="T" data-t="ops" onclick="sw('ops')">● 운영</button>
+  </div>
+
+  <!-- ===== CONCEPTS ===== -->
+  <div class="P on" id="p-concept">
+    <div class="PH"><div class="bg bg-i">● Service Mesh Fundamentals</div><h2>왜 Service Mesh가 필요한가</h2><p>서비스 간 통신의 복잡성을 인프라 레이어로 내려 앱 코드에서 분리하는 아키텍처 패턴.</p></div>
+
+    <div class="sec" id="why-mesh">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Motivation</div>
+        <h3>왜 Service Mesh인가?</h3>
+        <div class="cs">마이크로서비스가 늘어나면 서비스 간 통신(East-West)이 가장 복잡한 문제가 된다</div>
+        <div class="cp">마이크로서비스 환경에서 각 서비스가 <strong>재시도, 타임아웃, 서킷 브레이커, mTLS, 메트릭 수집, 트레이싱</strong>을 직접 구현하면 <strong>모든 서비스에 같은 코드가 중복</strong>되고, 언어별로 다시 구현해야 하며, 일관성이 무너진다.<br><br>Service Mesh는 이 공통 기능을 <strong>앱 코드에서 분리하여 프록시(사이드카) 레이어</strong>에서 투명하게 처리한다. 앱은 <strong>비즈니스 로직에만 집중</strong>하고, 통신 정책은 인프라 팀이 중앙에서 관리한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Service Mesh가 해결하는 문제</div><div class="v"><strong>Traffic Management:</strong> Canary, A/B, 가중치 라우팅, 서킷 브레이커, 재시도, 타임아웃<br><strong>Security:</strong> 자동 mTLS (서비스 간 암호화), 인가 정책, 인증서 자동 로테이션<br><strong>Observability:</strong> L7 메트릭 자동 생성 (RPS, latency, error rate), 분산 트레이싱, 서비스 토폴로지<br><strong>Resilience:</strong> fault injection (chaos engineering), rate limiting, outlier detection</div></div>
+          <div class="db"><div class="l">도입 판단 기준</div><div class="v"><strong>필요한 경우:</strong><br>• 서비스 10개 이상, 서비스 간 통신이 복잡<br>• mTLS가 컴플라이언스 요구사항<br>• 서비스 간 트래픽의 세밀한 제어 필요<br>• 다중 언어(Go, Java, Python) 서비스 혼재<br><br><strong>불필요한 경우:</strong><br>• 서비스 수가 적고 (5개 미만) 통신이 단순<br>• 팀이 Mesh 운영 역량을 감당할 수 없음<br>• 이미 앱 레벨에서 충분히 구현됨<br>• 성능 오버헤드가 허용 불가 (ultra-low latency)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="data-ctrl">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Architecture</div>
+        <h3>Data Plane vs Control Plane</h3>
+        <div class="cs">Service Mesh의 2계층 구조 — 트래픽을 처리하는 층과 정책을 관리하는 층</div>
+        <div class="dt">
+          <div class="db"><div class="l">Data Plane</div><div class="v"><strong>역할:</strong> 실제 서비스 간 트래픽을 중개(proxy). 모든 요청이 이 프록시를 거침<br><strong>구현:</strong> Envoy Proxy (사이드카 또는 노드별 프록시)<br><br><strong>처리하는 것:</strong><br>• L4/L7 로드밸런싱<br>• mTLS 핸드셰이크 / 인증서 관리<br>• 재시도, 타임아웃, 서킷 브레이커<br>• 메트릭 수집 (RPS, latency, status code)<br>• 트레이스 컨텍스트 전파<br>• 헤더 기반 라우팅, 트래픽 분할</div></div>
+          <div class="db"><div class="l">Control Plane</div><div class="v"><strong>역할:</strong> Data Plane의 동작을 설정하고 관리. 정책을 프록시에 배포<br><strong>구현:</strong> Istiod (Istio), Linkerd Control Plane 등<br><br><strong>처리하는 것:</strong><br>• 서비스 디스커버리 (K8s API 감시)<br>• 인증서 발급 & 로테이션 (내장 CA)<br>• 설정 배포 (xDS API로 Envoy에 푸시)<br>• 정책 평가 (AuthorizationPolicy 등)<br>• CRD 감시 (VirtualService, DestinationRule 등)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="mesh-compare">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Comparison</div>
+        <h3>Service Mesh 구현체 비교</h3>
+        <div class="cs">Istio, Linkerd, Cilium Service Mesh — 각각의 철학과 트레이드오프</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>항목</th><th>Istio</th><th>Linkerd</th><th>Cilium SM</th></tr></thead>
+          <tbody>
+            <tr><td>Proxy</td><td>Envoy (C++)</td><td>linkerd2-proxy (Rust)</td><td>eBPF (커널) + Envoy(L7)</td></tr>
+            <tr><td>리소스</td><td>높음 (~100MB/sidecar)</td><td>낮음 (~20MB/sidecar)</td><td>사이드카 없음 (L4), 낮음 (L7)</td></tr>
+            <tr><td>기능</td><td>가장 풍부. 트래픽, 보안, 관측 모두</td><td>핵심에 집중. 단순하고 안정적</td><td>eBPF 기반. NetworkPolicy 통합</td></tr>
+            <tr><td>복잡도</td><td>높음. CRD 많음, 학습 곡선 가파름</td><td>낮음. 설치 5분, CRD 적음</td><td>중간. CNI와 통합</td></tr>
+            <tr><td>Gateway API</td><td>지원 (GAMMA initiative)</td><td>지원</td><td>지원 (Cilium Gateway)</td></tr>
+            <tr><td>mTLS</td><td>자동 (STRICT/PERMISSIVE)</td><td>자동 (기본 활성)</td><td>eBPF L4 암호화 또는 Envoy mTLS</td></tr>
+            <tr><td>CNCF</td><td>Graduated</td><td>Graduated</td><td>Graduated (Cilium 자체)</td></tr>
+            <tr><td>적합</td><td>대규모, 다기능 필요, 엔터프라이즈</td><td>중소규모, 단순성 우선</td><td>eBPF 기반 통합 플랫폼 지향</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sec" id="sidecar-ambient">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Evolution</div>
+        <h3>Sidecar 모델 vs Ambient Mesh</h3>
+        <div class="cs">Istio Ambient — 사이드카 없이 Service Mesh를 구현하는 차세대 아키텍처</div>
+        <div class="cp">전통적 Service Mesh는 <strong>모든 Pod에 사이드카 프록시</strong>를 주입한다. Pod 수 × 프록시 리소스만큼 오버헤드가 발생하고, 사이드카 업그레이드 시 모든 Pod를 재시작해야 한다.<br><br><strong>Istio Ambient Mesh</strong>는 사이드카를 제거하고, <strong>노드별 ztunnel(L4)</strong>과 <strong>필요한 곳에만 waypoint proxy(L7)</strong>를 배치하는 새로운 모델이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Sidecar 모델</div><div class="v"><strong>각 Pod에 Envoy 사이드카:</strong><br>• 모든 in/out 트래픽이 사이드카를 통과<br>• Pod당 ~100MB 메모리, ~0.5 vCPU<br>• sidecar injection으로 자동 주입<br><br><strong>장점:</strong><br>• 완전한 L7 기능 (헤더 라우팅, fault injection 등)<br>• Pod별 격리된 정책 적용<br><br><strong>단점:</strong><br>• 리소스 오버헤드가 크다<br>• 사이드카 업그레이드 = Pod 재시작<br>• latency 추가 (~1ms per hop)</div></div>
+          <div class="db"><div class="l">Ambient Mesh</div><div class="v"><strong>ztunnel (DaemonSet, L4):</strong><br>• 노드당 1개. mTLS와 L4 보안 오버레이 담당<br>• 투명한 트래픽 리다이렉션으로 서비스 통신을 중개<br>• 리소스 오버헤드가 상대적으로 작음<br><br><strong>Waypoint Proxy (L7):</strong><br>• L7 기능이 필요한 서비스나 네임스페이스에만 선택적으로 배치<br>• HTTP 라우팅, L7 인가, 트레이싱 같은 기능 처리<br>• Kubernetes Gateway 리소스를 통해 배포하고 Istio가 관리<br><br><strong>장점:</strong><br>• 사이드카 수가 줄어 리소스 절감 효과가 큼<br>• 데이터 플레인 업그레이드를 애플리케이션 재시작과 더 잘 분리 가능<br>• L4만 먼저 도입하고 필요한 곳에만 L7을 추가 가능<br><br><strong>주의:</strong> Ambient의 세부 기능 범위와 운영 성숙도는 Istio 버전에 따라 달라질 수 있으니 도입 전 릴리스 노트와 공식 문서를 함께 확인하는 편이 안전하다.</div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 Sidecar vs Ambient 선택</strong><br><strong>Ambient 추천:</strong> 새로 도입하는 경우, 리소스 효율이 중요한 경우, L4(mTLS)만 우선 필요한 경우<br><strong>Sidecar 유지:</strong> 이미 sidecar로 운영 중, Pod별 세밀한 L7 정책이 많은 경우, 검증된 안정성이 중요한 경우<br>Ambient가 Istio의 미래 방향이지만, sidecar 모델도 계속 지원됨</div>
+    </div>
+  </div>
+
+  <!-- ===== ISTIO ARCH ===== -->
+  <div class="P" id="p-istio">
+    <div class="PH"><div class="bg bg-b">● Istio Architecture</div><h2>Istio 내부 아키텍처</h2><p>Envoy Proxy, Istiod, xDS API, CRD 전체 맵 — Istio가 어떻게 동작하는가.</p></div>
+
+    <div class="sec" id="istio-arch">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Overview</div>
+        <h3>Istio 전체 아키텍처</h3>
+        <div class="cs">Istiod(Control Plane) + Envoy Sidecar/ztunnel(Data Plane)의 전체 구조</div>
+      </div>
+      <div class="fl" style="margin:20px 0;">
+        <div class="fn" style="border-color:var(--bbd);background:var(--bbg);min-width:120px"><h4 style="color:var(--blue)">Istiod</h4><p>Control Plane<br>Discovery + Config + CA</p></div>
+        <div class="fa">⇅ xDS</div>
+        <div class="fn" style="border-color:var(--obd);background:var(--obg);min-width:120px"><h4 style="color:var(--orange)">Envoy</h4><p>Data Plane<br>Sidecar / ztunnel</p></div>
+        <div class="fa">⇅ proxy</div>
+        <div class="fn" style="min-width:120px"><h4>Services</h4><p>App Containers<br>Business Logic</p></div>
+      </div>
+      <div class="dt">
+        <div class="db df"><div class="l">구성 요소 역할</div><div class="v"><strong>Istiod:</strong> 단일 Control Plane 바이너리. 서비스 디스커버리, xDS 생성/배포, 설정 검증, 인증서 발급과 로테이션 같은 기능을 담당한다.<br><strong>Envoy Proxy:</strong> C++로 작성된 고성능 L4/L7 프록시. Sidecar 또는 Gateway로 배포되며 xDS API로 Istiod에서 동적으로 설정을 수신한다.<br><strong>Istio Ingress Gateway:</strong> 클러스터 외부 트래픽의 진입점. Envoy 기반이며 Gateway API 또는 Istio Gateway 리소스로 설정한다.<br><strong>ztunnel (Ambient):</strong> Ambient 데이터 플레인의 L4 프록시. 노드 단위로 배포되며 보안 오버레이와 기본 트래픽 처리에 집중한다.</div></div>
+      </div>
+    </div>
+
+    <div class="sec" id="envoy">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Proxy</div>
+        <h3>Envoy Proxy 내부</h3>
+        <div class="cs">Listener → Filter Chain → Route → Cluster → Endpoint — Envoy의 요청 처리 경로</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 개념</div><div class="v"><strong>Listener:</strong> 포트를 바인딩하여 연결 수신. 여러 filter chain 가능<br><strong>Filter Chain:</strong> 요청을 처리하는 필터들의 체인. HTTP connection manager, TCP proxy 등<br><strong>Route:</strong> 요청의 호스트/경로/헤더를 기반으로 어디로 보낼지 결정<br><strong>Cluster:</strong> 업스트림 서비스 그룹. 로드밸런싱 정책, 서킷 브레이커, 헬스체크 포함<br><strong>Endpoint:</strong> 실제 업스트림 인스턴스 (Pod IP:Port)</div></div>
+          <div class="db"><div class="l">xDS API</div><div class="v"><strong>Envoy가 Istiod에서 설정을 동적으로 수신하는 API 세트:</strong><br><code>LDS</code> — Listener Discovery Service<br><code>RDS</code> — Route Discovery Service<br><code>CDS</code> — Cluster Discovery Service<br><code>EDS</code> — Endpoint Discovery Service<br><code>SDS</code> — Secret Discovery Service (인증서)<br><br><strong>ADS (Aggregated):</strong> 모든 xDS를 단일 gRPC 스트림으로 통합. 설정 일관성 보장<br><br>CRD(VirtualService 등) 변경 → Istiod가 감지 → xDS로 Envoy에 push → Envoy가 즉시 반영 (Pod 재시작 없음)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="istiod">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Control</div>
+        <h3>Istiod 내부 동작</h3>
+        <div class="cs">서비스 디스커버리, xDS 배포, 인증서 발급을 담당하는 Control Plane의 핵심 기능</div>
+        <div class="dt">
+          <div class="db"><div class="l">Pilot (트래픽 관리)</div><div class="v"><strong>K8s API 감시:</strong> Service, Endpoint, Pod 변경을 실시간 추적<br><strong>CRD 감시:</strong> VirtualService, DestinationRule 등 Istio CRD 변경 감지<br><strong>xDS 변환:</strong> K8s 리소스 + Istio CRD를 Envoy 설정(xDS)으로 변환<br><strong>Push:</strong> 변경된 설정을 연결된 모든 Envoy에 gRPC로 push<br><br><strong>성능 포인트:</strong> 대규모 클러스터에서 Endpoint 변경이 잦으면 xDS push가 빈번 → Istiod CPU 부하. EDS 필터링으로 필요한 Envoy에만 push</div></div>
+          <div class="db"><div class="l">보안/CA 기능</div><div class="v"><strong>내장 CA:</strong> 각 서비스의 SPIFFE ID 기반 x509 인증서를 발급한다.<br><strong>SDS:</strong> 인증서를 Envoy에 Secret Discovery Service로 배포한다.<br><strong>자동 로테이션:</strong> 인증서는 주기적으로 갱신되며 설정으로 조정할 수 있다.<br><strong>Root CA:</strong> 자체 생성하거나 외부 CA(cert-manager, Vault)와 연동할 수 있다.<br><br><strong>SPIFFE ID 형식:</strong><div class="fm">spiffe://cluster.local/ns/production/sa/api-server</div>네임스페이스와 ServiceAccount를 기반으로 서비스 신원을 식별한다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="crd-map">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Reference</div>
+        <h3>Istio CRD 전체 맵</h3>
+        <div class="cs">주요 CRD와 각각의 역할 한눈에 보기</div>
+      </div>
+      <div class="cg">
+        <div class="cd" style="border-top:3px solid var(--orange);">
+          <h4 style="color:var(--orange)">Traffic</h4>
+          <p><code>VirtualService</code> — 라우팅 규칙 (호스트, 경로, 가중치)<br><code>DestinationRule</code> — 업스트림 정책 (LB, 서킷 브레이커, subset)<br><code>Gateway</code> — 외부 트래픽 진입점 (포트, TLS)<br><code>ServiceEntry</code> — 외부 서비스를 메시에 등록<br><code>Sidecar</code> — 사이드카 범위 제한 (메모리 최적화)</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--red);">
+          <h4 style="color:var(--red)">Security</h4>
+          <p><code>PeerAuthentication</code> — mTLS 모드 (STRICT/PERMISSIVE)<br><code>RequestAuthentication</code> — JWT 토큰 검증<br><code>AuthorizationPolicy</code> — L7 접근 제어 (ALLOW/DENY/CUSTOM)</p>
+        </div>
+        <div class="cd" style="border-top:3px solid var(--green);">
+          <h4 style="color:var(--green)">Observability</h4>
+          <p><code>Telemetry</code> — 메트릭/로깅/트레이싱 세부 설정<br>자동 생성 메트릭은 CRD 없이도 동작 (Envoy 내장)</p>
+        </div>
+          <div class="cd" style="border-top:3px solid var(--purple);">
+          <h4 style="color:var(--purple)">Ambient 관련</h4>
+          <p>Kubernetes Gateway API <code>Gateway</code> — waypoint 프록시 배포에 사용<br>Gateway API <code>HTTPRoute</code> — Ambient L7 라우팅에서 자주 함께 사용<br>Ambient에서는 Gateway API 기반 구성이 중요한 역할을 하지만, Istio 고유 API와의 관계는 버전과 기능 범위에 따라 함께 봐야 한다</p>
+          </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TRAFFIC ===== -->
+  <div class="P" id="p-traffic">
+    <div class="PH"><div class="bg bg-o">● Traffic Management</div><h2>트래픽 관리</h2><p>VirtualService, DestinationRule, Canary, Fault Injection, Circuit Breaker — 서비스 간 트래픽의 세밀한 제어.</p></div>
+
+    <div class="sec" id="vs-dr">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Core</div>
+        <h3>VirtualService & DestinationRule</h3>
+        <div class="cs">Istio 트래픽 관리의 핵심 2가지 CRD — "어디로" + "어떻게"</div>
+        <div class="cp"><strong>VirtualService</strong>는 "요청을 어디로 보낼 것인가"를 정의한다 (라우팅 규칙). <strong>DestinationRule</strong>은 "보내진 트래픽을 어떻게 처리할 것인가"를 정의한다 (LB, 서킷 브레이커, subset).</div>
+        <div class="dt">
+          <div class="db"><div class="l">VirtualService</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="k">apiVersion</span>: networking.istio.io/v1
+<span class="k">kind</span>: VirtualService
+<span class="k">spec</span>:
+  <span class="k">hosts</span>: [<span class="s">api-server</span>]
+  <span class="k">http</span>:
+  - <span class="k">match</span>:
+    - <span class="k">headers</span>:
+        <span class="s">x-canary</span>: { <span class="k">exact</span>: <span class="s">"true"</span> }
+    <span class="k">route</span>:
+    - <span class="k">destination</span>:
+        <span class="k">host</span>: <span class="s">api-server</span>
+        <span class="k">subset</span>: <span class="s">canary</span>
+  - <span class="k">route</span>:                <span class="c"># default</span>
+    - <span class="k">destination</span>:
+        <span class="k">host</span>: <span class="s">api-server</span>
+        <span class="k">subset</span>: <span class="s">stable</span></div></div></div>
+          <div class="db"><div class="l">DestinationRule</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="k">apiVersion</span>: networking.istio.io/v1
+<span class="k">kind</span>: DestinationRule
+<span class="k">spec</span>:
+  <span class="k">host</span>: <span class="s">api-server</span>
+  <span class="k">trafficPolicy</span>:
+    <span class="k">loadBalancer</span>:
+      <span class="k">simple</span>: <span class="s">LEAST_REQUEST</span>
+    <span class="k">connectionPool</span>:
+      <span class="k">tcp</span>: { <span class="k">maxConnections</span>: <span class="n">100</span> }
+      <span class="k">http</span>: { <span class="k">h2UpgradePolicy</span>: <span class="s">UPGRADE</span> }
+  <span class="k">subsets</span>:
+  - <span class="k">name</span>: <span class="s">stable</span>
+    <span class="k">labels</span>: { <span class="s">version</span>: <span class="s">v1</span> }
+  - <span class="k">name</span>: <span class="s">canary</span>
+    <span class="k">labels</span>: { <span class="s">version</span>: <span class="s">v2</span> }</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="canary-mesh">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Deployment</div>
+        <h3>Canary & A/B Testing</h3>
+        <div class="cs">VirtualService의 가중치(weight)와 매칭(match)으로 구현하는 점진적 배포</div>
+        <div class="dt">
+          <div class="db"><div class="l">가중치 기반 Canary</div><div class="v"><div class="fm">route:
+- destination: { host: api, subset: stable }
+  weight: 90
+- destination: { host: api, subset: canary }
+  weight: 10</div><strong>점진적 확대:</strong> 10→25→50→100%<br>각 단계에서 canary subset의 메트릭을 stable과 비교하고, 문제 발견 시 canary weight를 0으로 내려 즉시 롤백할 수 있다.<br><br><strong>Argo Rollouts + Istio:</strong> AnalysisTemplate으로 자동 weight 조절 가능</div></div>
+          <div class="db"><div class="l">헤더 기반 A/B</div><div class="v"><div class="fm">match:
+- headers:
+    x-user-group: { exact: "beta" }
+  route: [{ destination: { subset: canary } }]</div><strong>활용:</strong><div class="fm">• 내부 직원만 canary 경험: x-internal: true
+• 특정 사용자 그룹만 새 기능: x-user-group: beta
+• 모바일 vs 웹: user-agent 매칭</div><strong>vs Feature Flag:</strong> Mesh 라우팅은 인프라 레벨, Feature Flag는 앱 레벨이라 서로 보완적이다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="fault">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Chaos</div>
+        <h3>Fault Injection</h3>
+        <div class="cs">의도적으로 지연이나 에러를 주입하여 서비스의 복원력을 테스트</div>
+        <div class="cp">Chaos Engineering을 <strong>앱 코드 변경 없이</strong> 인프라 레벨에서 수행할 수 있다. Envoy가 요청을 가로채 지연을 삽입하거나 에러를 반환한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Delay Injection</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="k">http</span>:
+- <span class="k">fault</span>:
+    <span class="k">delay</span>:
+      <span class="k">percentage</span>: { <span class="k">value</span>: <span class="n">10</span> }   <span class="c"># 10% 요청에</span>
+      <span class="k">fixedDelay</span>: <span class="s">3s</span>              <span class="c"># 3초 지연 삽입</span>
+  <span class="k">route</span>:
+  - <span class="k">destination</span>: { <span class="k">host</span>: <span class="s">payment-svc</span> }</div><br><strong>테스트:</strong> payment-svc가 3초 느려지면 호출자의 timeout/서킷 브레이커가 동작하는지 확인</div></div>
+          <div class="db"><div class="l">Abort (에러 주입)</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="k">http</span>:
+- <span class="k">fault</span>:
+    <span class="k">abort</span>:
+      <span class="k">percentage</span>: { <span class="k">value</span>: <span class="n">5</span> }    <span class="c"># 5% 요청에</span>
+      <span class="k">httpStatus</span>: <span class="n">503</span>             <span class="c"># 503 반환</span>
+  <span class="k">route</span>:
+  - <span class="k">destination</span>: { <span class="k">host</span>: <span class="s">payment-svc</span> }</div><br><strong>테스트:</strong> 하류 서비스가 503을 반환할 때 호출자의 fallback/재시도가 정상 동작하는지 확인<br>Game Day에서 활용하면 실제 서비스 중단 없이 장애 대응 연습 가능</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="timeout-retry">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Resilience</div>
+        <h3>Timeout & Retry (Mesh 레벨)</h3>
+        <div class="cs">앱 코드 수정 없이 VirtualService에서 일괄 적용하는 타임아웃과 재시도</div>
+        <div class="dt">
+          <div class="db"><div class="l">Timeout</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="k">http</span>:
+- <span class="k">timeout</span>: <span class="s">5s</span>
+  <span class="k">route</span>:
+  - <span class="k">destination</span>: { <span class="k">host</span>: <span class="s">api-server</span> }</div><br><strong>주의:</strong> Mesh 타임아웃과 앱 타임아웃이 공존하면 <strong>짧은 쪽이 먼저 발동</strong>. Mesh 타임아웃은 앱 타임아웃보다 약간 길게 설정하여 앱이 먼저 에러를 처리하도록<br><br><strong>Timeout Chain:</strong> Client → Gateway timeout → VirtualService timeout → App timeout. 외부에서 내부로 갈수록 짧게</div></div>
+          <div class="db"><div class="l">Retry</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="k">http</span>:
+- <span class="k">retries</span>:
+    <span class="k">attempts</span>: <span class="n">3</span>
+    <span class="k">perTryTimeout</span>: <span class="s">2s</span>
+    <span class="k">retryOn</span>: <span class="s">5xx,reset,connect-failure</span>
+    <span class="k">retryRemoteLocalities</span>: <span class="n">true</span>
+  <span class="k">route</span>:
+  - <span class="k">destination</span>: { <span class="k">host</span>: <span class="s">payment-svc</span> }</div><br><strong>핵심:</strong> 앱 레벨 retry와 Mesh retry가 <strong>겹치면 retry storm</strong>. 한 곳에서만 retry하도록 조율. Mesh에서 통합 관리가 일관성 측면에서 유리<br><br><code>retryRemoteLocalities: true</code> → 실패한 인스턴스가 있는 AZ 대신 다른 AZ로 재시도</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="circuit-mesh">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Protection</div>
+        <h3>Circuit Breaker (Outlier Detection)</h3>
+        <div class="cs">DestinationRule의 outlierDetection으로 장애 인스턴스를 자동 격리</div>
+      </div>
+      <div class="co"><span class="c"># ── DestinationRule: Outlier Detection (Circuit Breaker) ──</span>
+<span class="k">spec</span>:
+  <span class="k">host</span>: <span class="s">api-server</span>
+  <span class="k">trafficPolicy</span>:
+    <span class="k">outlierDetection</span>:
+      <span class="k">consecutive5xxErrors</span>: <span class="n">5</span>       <span class="c"># 연속 5xx 5회 발생 시</span>
+      <span class="k">interval</span>: <span class="s">10s</span>                  <span class="c"># 10초 간격으로 평가</span>
+      <span class="k">baseEjectionTime</span>: <span class="s">30s</span>         <span class="c"># 30초간 격리 (backoff 증가)</span>
+      <span class="k">maxEjectionPercent</span>: <span class="n">50</span>        <span class="c"># 최대 50%까지 격리 (전부 격리 방지)</span>
+      <span class="k">minHealthPercent</span>: <span class="n">30</span>          <span class="c"># 정상 30% 미만이면 outlier detection 비활성</span>
+    <span class="k">connectionPool</span>:
+      <span class="k">tcp</span>:
+        <span class="k">maxConnections</span>: <span class="n">100</span>          <span class="c"># 업스트림 최대 커넥션</span>
+      <span class="k">http</span>:
+        <span class="k">http1MaxPendingRequests</span>: <span class="n">100</span> <span class="c"># 대기 큐 최대 크기</span>
+        <span class="k">http2MaxRequests</span>: <span class="n">1000</span>       <span class="c"># 동시 요청 최대 수</span></div>
+      <div class="nt o"><strong>⚠ maxEjectionPercent 주의</strong><br>100%로 설정하면 <strong>모든 인스턴스가 격리되어 서비스 완전 중단</strong>. 50%로 제한하면 최소 절반은 항상 트래픽을 받음. <code>minHealthPercent</code>와 함께 사용하여 안전장치 구성.</div>
+    </div>
+  </div>
+
+  <!-- ===== SECURITY ===== -->
+  <div class="P" id="p-security">
+    <div class="PH"><div class="bg bg-r">● Mesh Security</div><h2>Service Mesh 보안</h2><p>자동 mTLS, AuthorizationPolicy, JWT 인증 — 앱 코드 변경 없는 Zero Trust 보안.</p></div>
+
+    <div class="sec" id="mtls-auto">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Encryption</div>
+        <h3>자동 mTLS</h3>
+        <div class="cs">모든 서비스 간 통신을 자동으로 암호화하고 상호 인증 — Zero Trust의 기반</div>
+        <div class="cp">Istio는 <strong>앱 코드 변경 없이</strong> 모든 서비스 간 통신을 mTLS로 암호화한다. 각 서비스에 <strong>SPIFFE 기반 x509 인증서</strong>를 자동 발급하고, Envoy가 투명하게 TLS 핸드셰이크를 처리한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">mTLS 모드</div><div class="v"><strong>PERMISSIVE:</strong> mTLS와 평문을 모두 허용한다. 마이그레이션 단계에서 주로 쓴다.<br><strong>STRICT:</strong> mTLS만 허용하고 평문 통신은 거부한다.<br><strong>DISABLE:</strong> mTLS를 비활성화한다. 특수한 경우에만 사용한다.<br><br><code>PeerAuthentication</code>으로 설정:<div class="fm">spec.mtls.mode: STRICT</div><strong>범위:</strong><div class="fm">• 메시 전체
+• 네임스페이스별
+• 워크로드별 (selector.matchLabels)</div>좁은 범위의 정책이 넓은 범위보다 우선한다.</div></div>
+          <div class="db"><div class="l">인증서 관리</div><div class="v"><strong>자동 발급:</strong> Istiod CA가 ServiceAccount 기반 SPIFFE ID로 인증서를 발급한다.<br><strong>자동 로테이션:</strong> 인증서 수명과 갱신 시점은 설정으로 조정할 수 있다.<br><strong>Root CA 교체:</strong> 외부 CA(cert-manager, Vault)와 연동할 수 있다.<br><br><strong>인증서 확인:</strong><div class="fm">istioctl proxy-config secret POD_NAME</div>현재 인증서 정보와 만료 시각, SAN 등을 확인할 수 있다.<br><br><strong>SPIFFE ID 형식:</strong><div class="fm">spiffe://cluster.local/ns/{ns}/sa/{sa}</div>이 ID가 AuthorizationPolicy에서 서비스 신원으로 쓰인다.</div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 mTLS 마이그레이션 전략</strong><br><strong>Phase 1:</strong> <code>PERMISSIVE</code> 모드로 시작. 모든 서비스를 메시에 편입<br><strong>Phase 2:</strong> Kiali에서 mTLS 트래픽 비율 확인. 100%에 가까워지면<br><strong>Phase 3:</strong> 네임스페이스별로 <code>STRICT</code> 전환. 문제 발생 시 즉시 <code>PERMISSIVE</code> 복귀<br><strong>Phase 4:</strong> 메시 전체 <code>STRICT</code> 적용</div>
+    </div>
+
+    <div class="sec" id="authz">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Access Control</div>
+        <h3>AuthorizationPolicy</h3>
+        <div class="cs">L7 수준의 서비스 간 접근 제어 — "누가 이 서비스를 호출할 수 있는가?"</div>
+        <div class="cp">NetworkPolicy가 <strong>L3/L4(IP, Port)</strong>에서 제어한다면, AuthorizationPolicy는 <strong>L7(HTTP method, path, header, SPIFFE ID)</strong>에서 제어한다. 더 세밀하고, 서비스 신원 기반 제어가 가능하다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">정책 유형</div><div class="v"><strong>ALLOW:</strong> 조건에 맞는 요청만 허용<br><strong>DENY:</strong> 조건에 맞는 요청 거부 (ALLOW보다 우선)<br><strong>CUSTOM:</strong> 외부 인가 서버에 위임 (OPA 등)<br><br><strong>평가 순서:</strong> CUSTOM → DENY → ALLOW<br>DENY에 매칭되면 ALLOW와 무관하게 거부<br>ALLOW 정책이 있으면 매칭되지 않는 것은 모두 거부</div></div>
+          <div class="db"><div class="l">실전 예시</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="c"># payment-svc는 api-server에서만 호출 가능</span>
+<span class="k">apiVersion</span>: security.istio.io/v1
+<span class="k">kind</span>: AuthorizationPolicy
+<span class="k">metadata</span>:
+  <span class="k">name</span>: <span class="s">payment-allow</span>
+  <span class="k">namespace</span>: <span class="s">production</span>
+<span class="k">spec</span>:
+  <span class="k">selector</span>:
+    <span class="k">matchLabels</span>: { <span class="s">app</span>: <span class="s">payment-svc</span> }
+  <span class="k">action</span>: <span class="s">ALLOW</span>
+  <span class="k">rules</span>:
+  - <span class="k">from</span>:
+    - <span class="k">source</span>:
+        <span class="k">principals</span>:
+        - <span class="s">"cluster.local/ns/production/sa/api-server"</span>
+    <span class="k">to</span>:
+    - <span class="k">operation</span>:
+        <span class="k">methods</span>: [<span class="s">"POST"</span>]
+        <span class="k">paths</span>: [<span class="s">"/api/v1/payments/*"</span>]</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="peer-req">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Authentication</div>
+        <h3>PeerAuthentication & RequestAuthentication</h3>
+        <div class="cs">서비스 간 인증(mTLS)과 최종 사용자 인증(JWT)을 분리</div>
+        <div class="dt">
+          <div class="db"><div class="l">PeerAuthentication</div><div class="v"><strong>"서비스가 서비스를 인증"</strong><br>mTLS로 호출자의 SPIFFE ID(= ServiceAccount)를 검증<br><br><strong>서비스 간 신뢰:</strong><br>"이 요청이 정말 api-server ServiceAccount에서 온 것인가?"<br>→ Citadel이 발급한 인증서로 암호학적 검증<br><br>AuthorizationPolicy의 <code>source.principals</code>와 연동</div></div>
+          <div class="db"><div class="l">RequestAuthentication</div><div class="v"><strong>"최종 사용자를 인증"</strong><br>HTTP 요청의 JWT 토큰을 검증<br><br><div class="co" style="margin:4px 0;font-size:10px"><span class="k">spec</span>:
+  <span class="k">jwtRules</span>:
+  - <span class="k">issuer</span>: <span class="s">"https://auth.example.com"</span>
+    <span class="k">jwksUri</span>: <span class="s">"https://auth.example.com/.well-known/jwks.json"</span>
+    <span class="k">forwardOriginalToken</span>: <span class="n">true</span></div><br><strong>활용:</strong> Istio Gateway에서 JWT 검증 → 유효하지 않은 토큰은 앱에 도달하기 전에 거부. 앱은 JWT 검증 로직 불필요<br><br>AuthorizationPolicy에서 <code>source.requestPrincipals</code>로 사용자 ID 기반 인가 가능</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OBSERVABILITY ===== -->
+  <div class="P" id="p-observe">
+    <div class="PH"><div class="bg bg-g">● Mesh Observability</div><h2>Service Mesh 관측</h2><p>자동 메트릭, 분산 트레이싱, Kiali 토폴로지 — 코드 변경 없이 얻는 완전한 가시성.</p></div>
+
+    <div class="sec" id="mesh-metrics">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Metrics</div>
+        <h3>자동 생성 메트릭</h3>
+        <div class="cs">Envoy가 모든 요청에 대해 자동으로 생성하는 L7 메트릭 — 앱 계측 불필요</div>
+        <div class="cp">Service Mesh의 가장 즉각적인 가치. <strong>앱에 한 줄의 코드도 추가하지 않고</strong> 모든 서비스 간 통신의 RPS, latency, error rate를 얻는다. Envoy가 모든 요청을 프록시하면서 자동으로 Prometheus 메트릭을 생성한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 메트릭</div><div class="v"><strong>주요 메트릭:</strong><div class="fm">istio_requests_total{response_code, source_workload, destination_workload, ...}
+istio_request_duration_milliseconds_bucket{...}
+istio_request_bytes_bucket
+istio_response_bytes_bucket
+istio_tcp_connections_opened_total
+istio_tcp_sent_bytes_total</div><code>istio_request_duration_milliseconds_bucket</code>는 histogram이라 P50/P99 계산에 쓸 수 있다.</div></div>
+          <div class="db"><div class="l">LGTM 스택 연동</div><div class="v"><strong>Prometheus:</strong> Envoy의 <code>/stats/prometheus</code> 엔드포인트를 scrape. ServiceMonitor 또는 PodMonitor 설정<br><br><strong>Grafana 대시보드:</strong><br>• Istio Mesh Dashboard (전체 메시 상태)<br>• Istio Service Dashboard (서비스별 상세)<br>• Istio Workload Dashboard (Pod별 상세)<br>→ Istio 공식 대시보드 JSON을 import<br><br><strong>SLI로 활용:</strong><br><code>istio_requests_total</code>로 SLO Burn Rate 알림 구현 가능. 앱 메트릭 없어도 Mesh 메트릭만으로 SLO 운영 가능<br><br><strong>카디널리티 주의:</strong> Istio 메트릭은 source×destination×method×status 등 라벨이 많아 <strong>시계열 폭발</strong> 가능. <code>Telemetry</code> CRD로 불필요한 라벨 제거</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="mesh-trace">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Tracing</div>
+        <h3>분산 트레이싱 (Mesh 레벨)</h3>
+        <div class="cs">Envoy가 Span을 자동 생성하고 Tempo로 전송 — 앱은 헤더 전파만 하면 됨</div>
+        <div class="dt">
+          <div class="db"><div class="l">자동 Span 생성</div><div class="v"><strong>Envoy가 자동으로 하는 것:</strong><br>• 인바운드/아웃바운드 요청마다 Span 생성<br>• Span에 서비스명, 메서드, 경로, 상태 코드, latency 기록<br>• Trace ID가 없으면 새로 생성<br>• 설정된 백엔드(Tempo, Zipkin)로 Span 전송<br><br><strong>앱이 해야 하는 것:</strong><br>• <strong>HTTP 헤더 전파.</strong> Envoy가 인바운드에서 추출한 trace 헤더를 앱이 아웃바운드 요청에 포함해야 함<br>• <code>x-request-id</code>, <code>traceparent</code>, <code>x-b3-*</code> 등<br>• 헤더 전파가 없으면 trace가 서비스 경계에서 끊김</div></div>
+          <div class="db"><div class="l">Tempo 연동</div><div class="v"><strong>Istio 설정:</strong><div class="fm">meshConfig.extensionProviders:
+- name: otel-tracing
+  opentelemetry:
+    service: alloy.monitoring
+    port: 4317</div><strong>Telemetry CRD:</strong><div class="fm">spec.tracing:
+- providers: [{ name: otel-tracing }]
+  randomSamplingPercentage: 10</div><strong>파이프라인:</strong><div class="fm">Envoy -> OTel collector / Alloy -> Tempo</div>Grafana에서 Tempo를 조회하면 Metric↔Trace 연결이 가능하고, LGTM 스택의 trace 파이프라인에 Mesh가 자연스럽게 통합된다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="kiali">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Visualization</div>
+        <h3>Kiali — 서비스 토폴로지</h3>
+        <div class="cs">서비스 간 트래픽 흐름을 실시간 그래프로 시각화하는 Istio 전용 대시보드</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 기능</div><div class="v"><strong>Service Graph:</strong> 서비스 간 연결을 실시간 시각화. 트래픽 양, 에러율, latency를 edge에 표시<br><strong>Health 상태:</strong> 각 서비스의 건강 상태를 색상으로 (초록/노랑/빨강)<br><strong>mTLS 확인:</strong> 어떤 연결이 mTLS인지 평문인지 아이콘으로 표시<br><strong>Istio Config 검증:</strong> VirtualService, DestinationRule 등의 설정 오류 감지<br><strong>Trace 연동:</strong> Grafana/Jaeger와 연동하여 trace drill-down</div></div>
+          <div class="db"><div class="l">운영 활용</div><div class="v"><strong>인시던트 시:</strong> 서비스 그래프의 빨간 edge를 보면 어떤 서비스 간 통신이 실패하는지 빠르게 파악할 수 있다.<br><strong>mTLS 마이그레이션:</strong> 평문 트래픽이 남아있는 연결을 시각적으로 찾을 수 있다.<br><strong>불필요한 의존성 발견:</strong> 예상치 못한 연결이 보이면 제거하거나 NetworkPolicy를 추가할 근거가 된다.<br><br><strong>접속:</strong><div class="fm">istioctl dashboard kiali</div>Kiali 설치 방식은 사용 중인 Istio 버전과 배포 방식에 맞춰 공식 add-on 문서를 확인하는 편이 안전하다.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OPS ===== -->
+  <div class="P" id="p-ops">
+    <div class="PH"><div class="bg bg-p">● Mesh Operations</div><h2>Service Mesh 운영</h2><p>설치/업그레이드, 성능 오버헤드, 트러블슈팅, 도입 전략 — Mesh를 프로덕션에서 안전하게 운영.</p></div>
+
+    <div class="sec" id="install">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Lifecycle</div>
+        <h3>설치 & 업그레이드 전략</h3>
+        <div class="cs">istioctl, Helm, Operator — 설치 방법별 특성과 무중단 업그레이드</div>
+        <div class="dt">
+          <div class="db"><div class="l">설치 방법 비교</div><div class="v"><strong>istioctl install:</strong> 가장 간단하게 시작할 수 있고 `IstioOperator` 형식의 설정 파일을 함께 쓸 수 있다.<div class="fm">istioctl install -f my-config.yaml</div><strong>Helm:</strong> GitOps 친화적이라 ArgoCD와 함께 관리하기 좋다.<div class="fm">helm install istio-base istio/base -n istio-system
+helm install istiod istio/istiod -n istio-system</div><strong>In-Cluster Operator:</strong> 공식 문서 기준으로 deprecated 되었고, 업그레이드 경로는 `istioctl` 또는 Helm으로 이동하는 방향이다.<br><br><strong>추천:</strong> Helm + ArgoCD 조합이 GitOps 기반 생명주기 관리에 잘 맞는다.</div></div>
+          <div class="db"><div class="l">Canary 업그레이드</div><div class="v"><strong>Revision 기반 무중단 업그레이드:</strong><div class="fm">1. 새 버전의 Istiod를 revision 이름으로 설치
+   helm install istiod-1-23 istio/istiod --set revision=1-23
+
+2. 네임스페이스 레이블을 새 revision으로 변경
+   istio.io/rev: 1-23
+
+3. 워크로드를 Rolling restart하여 새 사이드카 주입
+   kubectl rollout restart deployment -n production
+
+4. 모든 워크로드가 새 revision이면 이전 Istiod 제거</div><strong>Ambient:</strong> ztunnel과 waypoint는 애플리케이션 Pod와 분리되어 있어 업그레이드 전략이 sidecar 모드와 다르다. 다만 실제 영향 범위는 배포 형태와 사용 기능에 따라 확인해야 한다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="perf">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Performance</div>
+        <h3>성능 오버헤드</h3>
+        <div class="cs">Mesh가 추가하는 latency, 리소스, 처리량 — 트레이드오프를 수치로 이해</div>
+        <div class="dt">
+          <div class="db"><div class="l">Sidecar 모드 오버헤드</div><div class="v"><strong>Latency:</strong> P50 ~0.5ms, P99 ~2-5ms 추가 (hop당)<br>→ A→B 호출 시 Envoy 2개 거침 = ~1-10ms 추가<br><br><strong>메모리:</strong> sidecar당 ~50-100MB<br>Pod 100개 = 5-10GB 추가 메모리<br><br><strong>CPU:</strong> sidecar당 ~50-100m (idle), 부하 시 더 증가<br><br><strong>처리량:</strong> 직접 통신 대비 ~10-15% 감소<br>(mTLS + L7 파싱 + 메트릭 수집 비용)</div></div>
+          <div class="db"><div class="l">Ambient 모드 오버헤드</div><div class="v"><strong>ztunnel (L4 only):</strong><br>• Latency: ~0.1-0.3ms 추가 (사이드카의 1/3)<br>• 메모리: 노드당 ~30-50MB<br>• Pod 100개 있어도 노드 3개면 = 150MB<br><br><strong>Waypoint (L7):</strong><br>• 필요한 서비스에만 배포<br>• Envoy 기반이므로 sidecar와 유사한 L7 비용<br>• 하지만 서비스 수만큼만 (Pod 수가 아님)<br><br><strong>절감 효과:</strong><br>Sidecar: Pod 수 × 100MB<br>Ambient: 노드 수 × 50MB + L7 서비스 수 × 100MB<br>→ 대규모 클러스터에서 <strong>~90% 리소스 절감</strong></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="debug-mesh">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Debug</div>
+        <h3>Mesh 트러블슈팅</h3>
+        <div class="cs">503 에러, 사이드카 미주입, mTLS 실패 — 흔한 Mesh 문제와 진단법</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>증상</th><th>원인</th><th>진단</th><th>해결</th></tr></thead>
+          <tbody>
+            <tr><td>503 UC</td><td>upstream connect error. 업스트림 연결 실패</td><td><code>istioctl proxy-config cluster POD</code><br>endpoint가 비어있는지 확인</td><td>DestinationRule subset 라벨 확인. K8s Service selector와 Pod 라벨 매칭 검증</td></tr>
+            <tr><td>503 NR</td><td>no route. 라우팅 규칙 미매칭</td><td><code>istioctl proxy-config route POD</code><br>VirtualService 확인</td><td>VirtualService hosts가 K8s Service 이름과 일치하는지 확인</td></tr>
+            <tr><td>사이드카 미주입</td><td>namespace 레이블 누락</td><td><code>kubectl get ns -L istio-injection</code></td><td><code>kubectl label ns NAMESPACE istio-injection=enabled</code> 후 Pod 재시작</td></tr>
+            <tr><td>mTLS 실패</td><td>STRICT에서 비메시 서비스 호출</td><td><code>istioctl authn tls-check POD HOST</code></td><td>해당 서비스에 PERMISSIVE 적용 또는 메시에 편입</td></tr>
+            <tr><td>느린 시작</td><td>사이드카 준비 전 앱이 요청</td><td>init container 로그 확인</td><td><code>holdApplicationUntilProxyStarts: true</code></td></tr>
+            <tr><td>config not applied</td><td>CRD 문법 오류 또는 scope 불일치</td><td><code>istioctl analyze</code></td><td>Kiali Config 검증 또는 istioctl analyze 결과에 따라 수정</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 필수 디버깅 명령</strong><br><code>istioctl proxy-status</code> — 모든 Envoy의 xDS 동기화 상태<br><code>istioctl proxy-config all POD</code> — 특정 Pod의 전체 Envoy 설정 덤프<br><code>istioctl analyze -n NAMESPACE</code> — 설정 검증 (문법 오류, 충돌 감지)<br><code>istioctl dashboard envoy POD</code> — Envoy admin UI (stats, config_dump)</div>
+    </div>
+
+    <div class="sec" id="adopt">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Strategy</div>
+        <h3>도입 전략</h3>
+        <div class="cs">점진적으로, 한 네임스페이스씩, 관측부터 시작 — 안전한 Mesh 도입 로드맵</div>
+        <div class="dt">
+          <div class="db"><div class="l">단계별 도입</div><div class="v"><strong>Phase 0 — 평가 (1~2주):</strong><br>• 스테이징 환경에서 PoC<br>• Sidecar vs Ambient 선택<br>• 성능 오버헤드 측정 (k6 부하 테스트)<br>• 팀 학습<br><br><strong>Phase 1 — 관측 먼저 (2~4주):</strong><br>• non-critical 네임스페이스부터 sidecar/ztunnel 주입<br>• <code>PERMISSIVE</code> mTLS<br>• 메트릭, 트레이싱, Kiali 서비스 그래프 확인<br>• 이 단계에서는 트래픽 정책 없이 관측만</div></div>
+          <div class="db"><div class="l">확장 단계</div><div class="v"><strong>Phase 2 — 보안 (2~4주):</strong><br>• mTLS <code>STRICT</code> 전환 (네임스페이스별)<br>• AuthorizationPolicy 적용 (핵심 서비스부터)<br>• NetworkPolicy와 AuthorizationPolicy 보완 관계 설정<br><br><strong>Phase 3 — 트래픽 관리 (필요 시):</strong><br>• Canary 배포 (VirtualService weight 기반)<br>• Retry/Timeout 중앙 관리<br>• Circuit Breaker (outlierDetection)<br>• Fault injection (Game Day)<br><br><strong>Phase 4 — 프로덕션 전체:</strong><br>• 모든 네임스페이스 확장<br>• 운영 Runbook 작성<br>• 알림 설정 (Envoy 메트릭 기반)<br>• 업그레이드 절차 수립</div></div>
+        </div>
+      </div>
+      <div class="nt o"><strong>⚠ 도입하지 않아도 되는 경우</strong><br>현재 Traefik + NetworkPolicy + cert-manager mTLS로 <strong>핵심 기능(라우팅, 보안, 인증서)을 이미 구현</strong>하고 있다면, Service Mesh 도입은 <strong>운영 복잡도 증가</strong>를 감수할 만한 추가 가치가 있는지 신중히 평가해야 한다. 서비스 수가 적고 통신 패턴이 단순하다면 현재 구성이 더 실용적일 수 있다.<br><br><strong>Mesh가 확실히 가치 있는 경우:</strong> 서비스 10개+, 다중 언어, mTLS 컴플라이언스, 정교한 트래픽 제어, 앱 코드 변경 없는 관측이 필요할 때</div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

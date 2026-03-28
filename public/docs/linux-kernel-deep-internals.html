@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux Kernel Deep Internals — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--amber:#92400e;--ambg:#fffbeb;--ambd:#fcd34d;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:258px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}
+.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--teal);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--red)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw);min-height:100vh}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="kmem"].on{color:var(--teal)}.T[data-t="kmem"].on::after{background:var(--teal);left:8%;right:8%}
+.T[data-t="kio"].on{color:var(--blue)}.T[data-t="kio"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="irq"].on{color:var(--orange)}.T[data-t="irq"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="fd"].on{color:var(--purple)}.T[data-t="fd"].on::after{background:var(--purple);left:8%;right:8%}
+.T[data-t="sec"].on{color:var(--red)}.T[data-t="sec"].on::after{background:var(--red);left:8%;right:8%}
+.T[data-t="trace"].on{color:var(--green)}.T[data-t="trace"].on::after{background:var(--green);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}
+.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;position:relative;overflow:hidden}
+.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}
+.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:7px}.cd h4 .d{width:7px;height:7px;border-radius:50%}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt.b{background:var(--bbg);border-left-color:var(--blue)}.nt.b strong{color:var(--blue)}.nt.p{background:var(--pbg);border-left-color:var(--purple)}.nt.p strong{color:var(--purple)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.sr{display:flex;gap:4px;margin:6px 0}.si{flex:1;border-radius:5px;padding:8px 5px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700}.si small{display:block;font-weight:500;font-size:8px;opacity:.7;margin-top:1px}
+.fl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin:12px 0}.fn{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;text-align:center;min-width:90px;box-shadow:var(--sh)}.fn h4{font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:1px;font-weight:700}.fn p{font-size:9px;color:var(--td)}.fa{font-family:'JetBrains Mono',monospace;color:var(--tm);font-size:16px}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">Senior SRE Guide</div><h1><em>Linux Kernel</em><br>Deep Internals</h1></div>
+  <div class="sl">Kernel Memory</div>
+  <ul class="sn">
+    <li><a data-t="kmem" data-s="buddy" class="on"><span class="d" style="background:var(--teal)"></span>Buddy System</a></li>
+    <li><a data-t="kmem" data-s="slab"><span class="d" style="background:var(--teal)"></span>SLAB/SLUB</a></li>
+    <li><a data-t="kmem" data-s="zones"><span class="d" style="background:var(--teal)"></span>Memory Zones</a></li>
+    <li><a data-t="kmem" data-s="reclaim"><span class="d" style="background:var(--teal)"></span>Page Reclaim</a></li>
+    <li><a data-t="kmem" data-s="psi"><span class="d" style="background:var(--teal)"></span>PSI</a></li>
+    <li><a data-t="kmem" data-s="thp"><span class="d" style="background:var(--teal)"></span>THP</a></li>
+  </ul>
+  <div class="sl">I/O Internals</div>
+  <ul class="sn">
+    <li><a data-t="kio" data-s="blkmq"><span class="d" style="background:var(--blue)"></span>blk-mq</a></li>
+    <li><a data-t="kio" data-s="iouring"><span class="d" style="background:var(--blue)"></span>io_uring</a></li>
+    <li><a data-t="kio" data-s="wb-deep"><span class="d" style="background:var(--blue)"></span>Writeback 심화</a></li>
+    <li><a data-t="kio" data-s="io-paths"><span class="d" style="background:var(--blue)"></span>I/O 경로 비교</a></li>
+    <li><a data-t="kio" data-s="nvme"><span class="d" style="background:var(--blue)"></span>NVMe 내부</a></li>
+  </ul>
+  <div class="sl">IRQ & Softirq</div>
+  <ul class="sn">
+    <li><a data-t="irq" data-s="irq-model"><span class="d" style="background:var(--orange)"></span>IRQ 처리 모델</a></li>
+    <li><a data-t="irq" data-s="napi"><span class="d" style="background:var(--orange)"></span>NAPI</a></li>
+    <li><a data-t="irq" data-s="irq-aff"><span class="d" style="background:var(--orange)"></span>IRQ Affinity</a></li>
+    <li><a data-t="irq" data-s="rps"><span class="d" style="background:var(--orange)"></span>RPS/RFS/XPS</a></li>
+  </ul>
+  <div class="sl">FD & epoll</div>
+  <ul class="sn">
+    <li><a data-t="fd" data-s="fd-table"><span class="d" style="background:var(--purple)"></span>FD 테이블 구조</a></li>
+    <li><a data-t="fd" data-s="epoll"><span class="d" style="background:var(--purple)"></span>epoll 내부</a></li>
+    <li><a data-t="fd" data-s="mux-cmp"><span class="d" style="background:var(--purple)"></span>I/O 멀티플렉싱 비교</a></li>
+    <li><a data-t="fd" data-s="uds"><span class="d" style="background:var(--purple)"></span>UDS & zero-copy</a></li>
+  </ul>
+  <div class="sl">Security</div>
+  <ul class="sn">
+    <li><a data-t="sec" data-s="caps"><span class="d" style="background:var(--red)"></span>Capabilities</a></li>
+    <li><a data-t="sec" data-s="seccomp"><span class="d" style="background:var(--red)"></span>seccomp-BPF</a></li>
+    <li><a data-t="sec" data-s="mac"><span class="d" style="background:var(--red)"></span>AppArmor/SELinux</a></li>
+    <li><a data-t="sec" data-s="harden"><span class="d" style="background:var(--red)"></span>Kernel Hardening</a></li>
+  </ul>
+  <div class="sl">Tracing</div>
+  <ul class="sn">
+    <li><a data-t="trace" data-s="ftrace"><span class="d" style="background:var(--green)"></span>ftrace</a></li>
+    <li><a data-t="trace" data-s="kprobe"><span class="d" style="background:var(--green)"></span>kprobes/uprobes</a></li>
+    <li><a data-t="trace" data-s="perf-deep"><span class="d" style="background:var(--green)"></span>perf 심화</a></li>
+    <li><a data-t="trace" data-s="bpf-deep"><span class="d" style="background:var(--green)"></span>bpftrace 심화</a></li>
+    <li><a data-t="trace" data-s="contprof"><span class="d" style="background:var(--green)"></span>Continuous Profiling</a></li>
+  </ul>
+  <div class="S-f"><p>Based on Systems<br>Performance Engineering<br>& Linux Kernel Source</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="kmem" onclick="sw('kmem')">● Kernel Memory</button>
+    <button class="T" data-t="kio" onclick="sw('kio')">● I/O Internals</button>
+    <button class="T" data-t="irq" onclick="sw('irq')">● IRQ & Softirq</button>
+    <button class="T" data-t="fd" onclick="sw('fd')">● FD & epoll</button>
+    <button class="T" data-t="sec" onclick="sw('sec')">● Security</button>
+    <button class="T" data-t="trace" onclick="sw('trace')">● Tracing</button>
+  </div>
+
+  <!-- ==================== KERNEL MEMORY ==================== -->
+  <div class="P on" id="p-kmem">
+    <div class="PH"><div class="bg bg-t">● Kernel Memory Internals</div><h2>커널 메모리 할당기와 회수 메커니즘</h2><p>Buddy System, SLAB/SLUB, Page Reclaim, PSI, THP — Virtual Memory 아래 계층의 물리 메모리 관리.</p></div>
+
+    <div class="sec" id="buddy">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Allocator</div>
+        <h3>Buddy System (Page Allocator)</h3>
+        <div class="cs">물리 메모리를 2^n 페이지(order) 단위로 할당하는 커널의 기본 페이지 할당기</div>
+        <div class="cp">커널이 물리 메모리를 관리하는 <strong>최하위 할당기</strong>. 메모리를 2^0(4KB), 2^1(8KB), ... 2^10(4MB) 크기의 블록(order)으로 관리한다. 요청된 크기에 맞는 블록이 없으면 큰 블록을 <strong>반으로 쪼개서(split)</strong> 제공하고, 해제 시 인접한 같은 크기 블록과 <strong>합쳐서(merge/coalesce)</strong> 큰 블록을 복원한다.<br><br><strong>External fragmentation</strong>이 핵심 문제다. 시스템이 오래 운행되면 메모리가 조각나서 <strong>큰 order 할당이 실패</strong>할 수 있다. 이는 huge page 할당, 네트워크 버퍼(고order SKB) 등에 영향을 준다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">확인 명령</div><div class="v"><code>cat /proc/buddyinfo</code><br>각 zone별 order 0~10의 free 블록 수를 보여줌<br>order 3+ 블록이 0이면 fragmentation 심각<br><code>cat /proc/pagetypeinfo</code> — 이동 가능/불가 분류</div></div>
+          <div class="db"><div class="l">SRE 영향</div><div class="v"><strong>고order 할당 실패:</strong> huge page 할당 불가, 네트워크 성능 저하<br><strong>Memory Compaction:</strong> 커널이 페이지를 재배치해서 연속 공간 확보. CPU 비용 발생<br><code>echo 1 > /proc/sys/vm/compact_memory</code> 수동 트리거<br><code>vmstat -m</code> — slab 할당 통계</div></div>
+          <div class="db df"><div class="l">Buddy Split/Merge 시각화</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">Order 3 (32KB) 할당 요청 → Order 3 free 없음
+  → Order 4 (64KB) 블록을 split → 32KB + 32KB
+  → 하나를 반환, 하나를 Order 3 free list에 추가
+
+해제 시: 인접 buddy가 free이면 merge
+  → Order 3 + Order 3 = Order 4 복원
+  → 재귀적으로 상위 order까지 merge 시도</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="slab">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Allocator</div>
+        <h3>SLAB / SLUB Allocator</h3>
+        <div class="cs">커널 오브젝트를 위한 고속 캐시 할당기. Buddy System 위에서 동작</div>
+        <div class="cp">Buddy System은 페이지(4KB) 단위로만 할당한다. 하지만 커널 오브젝트(task_struct ~6KB, inode ~1KB, sk_buff 등)는 대부분 페이지보다 작다. <strong>SLAB/SLUB 할당기</strong>는 Buddy에서 받은 페이지를 <strong>동일 크기 오브젝트 단위로 쪼개서</strong> 캐싱하고 재사용한다.<br><br>현대 Linux는 <strong>SLUB</strong>을 기본으로 사용한다(SLAB은 6.5에서 제거됨). SLUB은 per-CPU 캐시, NUMA 인식, lockless fast path로 할당 성능을 극대화한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">주요 Slab 캐시</div><div class="v"><code>task_struct</code> — 프로세스/스레드 디스크립터<br><code>inode_cache</code> — VFS inode 객체<br><code>dentry</code> — 디렉토리 엔트리 캐시<br><code>skbuff_head_cache</code> — 네트워크 패킷 버퍼<br><code>kmalloc-*</code> — 범용 커널 메모리 할당</div></div>
+          <div class="db"><div class="l">확인 & 모니터링</div><div class="v"><code>slabtop -s c</code> — 캐시 크기 순 정렬<br><code>cat /proc/slabinfo</code> — 상세 슬랩 정보<br><code>cat /proc/meminfo | grep Slab</code><br><strong>SReclaimable:</strong> 회수 가능 슬랩 (dentry/inode 캐시)<br><strong>SUnreclaim:</strong> 회수 불가 (커널 자료구조)</div></div>
+          <div class="db df"><div class="l">SRE 관점: Slab 메모리 누수</div><div class="v">특정 슬랩 캐시가 지속적으로 성장하면 <strong>커널 메모리 누수</strong> 의심. <code>dentry</code> 캐시가 수 GB로 커지는 것은 정상(파일시스템 캐시)이지만, <code>task_struct</code>나 커스텀 슬랩이 비정상 성장하면 커널 버그.<br><code>echo 2 > /proc/sys/vm/drop_caches</code> — dentry/inode 캐시만 해제 (프로덕션에서 신중히)<br>Prometheus: <code>node_memory_SReclaimable_bytes</code> / <code>node_memory_SUnreclaim_bytes</code> 모니터링</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="zones">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Architecture</div>
+        <h3>Memory Zones</h3>
+        <div class="cs">물리 메모리를 하드웨어 제약에 따라 영역으로 분류하는 체계</div>
+        <div class="cp">모든 물리 메모리가 동일하게 사용될 수 있는 것은 아니다. 구형 DMA 컨트롤러는 16MB 이하만, 32비트 시스템은 약 896MB까지만 직접 매핑할 수 있다. 이런 <strong>하드웨어 제약</strong>을 반영하여 커널은 메모리를 zone으로 분류한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Zone 종류 (x86_64)</div><div class="v"><strong>ZONE_DMA:</strong> 0~16MB. ISA DMA용. 현대 서버에서 거의 사용 안 됨<br><strong>ZONE_DMA32:</strong> 0~4GB. 32비트 DMA 디바이스용<br><strong>ZONE_NORMAL:</strong> 4GB~전체. 일반 메모리. 대부분의 할당이 여기서<br><strong>ZONE_MOVABLE:</strong> 핫플러그/compaction 가능한 이동식 페이지 전용</div></div>
+          <div class="db"><div class="l">확인</div><div class="v"><code>cat /proc/zoneinfo</code> — zone별 상세 (free, min, low, high 워터마크)<br><code>cat /proc/buddyinfo</code> — zone별 free 블록<br>워터마크: <strong>min</strong> 아래면 direct reclaim + OOM 위험<br><strong>low</strong> 아래면 kswapd 기동<br><strong>high</strong> 이상이면 정상</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="reclaim">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Critical Path</div>
+        <h3>Page Reclaim 심화</h3>
+        <div class="cs">메모리 압박 시 커널이 페이지를 회수하는 메커니즘 — kswapd, direct reclaim, compaction</div>
+        <div class="cp">메모리가 부족해지면 커널은 <strong>사용 중인 페이지를 회수</strong>하여 free 메모리를 확보해야 한다. 회수 방법은 <strong>① Page Cache(clean page)를 버리기 ② Anonymous page를 swap으로 보내기 ③ Slab 캐시 shrink</strong>가 있다.<br><br>이 과정이 성능에 미치는 영향이 크다. 특히 <strong>direct reclaim</strong>은 메모리 할당을 요청한 프로세스가 직접 회수를 수행하므로 <strong>응답 지연 급증</strong>의 주범이 된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">회수 경로</div><div class="v"><strong>kswapd (백그라운드):</strong> free가 low 워터마크 아래로 떨어지면 커널 스레드가 자동 기동. 비동기로 페이지 회수<br><strong>Direct Reclaim (동기):</strong> free가 min 워터마크에 도달하면 할당 요청 프로세스가 직접 회수. <strong>이 순간 응답 지연이 급격히 늘 수 있다</strong><br><strong>OOM Killer:</strong> 모든 회수 시도 실패 시 최후 수단</div></div>
+          <div class="db"><div class="l">LRU Lists</div><div class="v">커널은 페이지를 <strong>Active/Inactive × Anonymous/File</strong> 4개 LRU 리스트로 관리:<br><strong>Active Anon:</strong> 최근 접근된 프로세스 메모리<br><strong>Inactive Anon:</strong> 오래된 프로세스 메모리 → swap 후보<br><strong>Active File:</strong> 최근 접근된 Page Cache<br><strong>Inactive File:</strong> 오래된 Page Cache → 회수 1순위<br><code>cat /proc/meminfo | grep -E 'Active|Inactive'</code></div></div>
+          <div class="db df"><div class="l">Memory Compaction</div><div class="v">페이지를 <strong>물리적으로 재배치</strong>하여 연속된 free 블록을 만드는 과정. Buddy System의 fragmentation 문제를 해결하기 위해 필요하다.<br><strong>Movable page</strong>(LRU, Page Cache)는 이동 가능하지만, <strong>Unmovable page</strong>(커널 자료구조)는 이동 불가.<br>Compaction은 CPU를 소모하고 latency를 유발할 수 있다. <code>cat /proc/vmstat | grep compact</code>로 발생 빈도 확인.<br><strong>K8s 영향:</strong> 노드에서 대량 Pod 생성/삭제 반복 시 fragmentation → compaction 빈번 → 노드 전체 latency 증가 가능</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="psi">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Observability</div>
+        <h3>PSI — Pressure Stall Information</h3>
+        <div class="cs">CPU, 메모리, I/O 리소스 압박을 정량적으로 측정하는 커널 메트릭 (Linux 4.20+)</div>
+        <div class="cp">기존 메트릭(load average, free memory 등)은 <strong>"리소스 부족이 실제로 워크로드를 지연시키고 있는가?"</strong>에 직접 답하지 못한다. PSI는 <strong>"태스크가 리소스 부족으로 실행을 못 하고 대기한 시간의 비율"</strong>을 직접 측정한다.<br><br><strong>some</strong>은 일부 태스크가 대기 중인 시간, <strong>full</strong>은 모든 태스크가 대기 중(= 생산적 작업 0%)인 시간의 비율이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">확인 방법</div><div class="v"><code>cat /proc/pressure/cpu</code><br><code>cat /proc/pressure/memory</code><br><code>cat /proc/pressure/io</code><br>출력 예: <code>some avg10=2.50 avg60=1.30 avg300=0.80 total=123456</code><br>cgroup별: <code>/sys/fs/cgroup/&lt;path&gt;/cpu.pressure</code></div></div>
+          <div class="db"><div class="l">SRE 활용</div><div class="v"><strong>memory some > 10%:</strong> Page Cache thrashing 시작<br><strong>memory full > 5%:</strong> direct reclaim 빈번, 심각한 메모리 부족<br><strong>io some > 20%:</strong> 디스크 I/O 대기 발생<br>Prometheus: <code>node_pressure_memory_stalled_seconds_total</code><br><strong>K8s Pod eviction:</strong> cgroup PSI를 기반으로 eviction 결정 가능 (KEP-2837)</div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 PSI vs Load Average</strong><br>Load Average는 running + uninterruptible sleep 태스크 수로, 원인(CPU? I/O?)을 구분 못 한다. PSI는 CPU/Memory/IO를 분리하여 <strong>정확히 어떤 리소스가 병목인지</strong> 알려준다.</div>
+    </div>
+
+    <div class="sec" id="thp">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Performance</div>
+        <h3>Transparent Huge Pages (THP)</h3>
+        <div class="cs">4KB 대신 2MB 페이지를 자동으로 사용하여 TLB 미스를 줄이는 메커니즘</div>
+        <div class="cp">TLB 엔트리 수는 제한적이다(보통 수백~수천 개). 4KB 페이지로는 TLB가 커버하는 메모리 범위가 좁아 <strong>TLB miss → Page Table Walk</strong>가 빈번하다. THP는 <strong>2MB(또는 1GB) 페이지</strong>를 사용하여 하나의 TLB 엔트리로 더 넓은 범위를 커버한다.<br><br><strong>그러나 THP는 양날의 검이다.</strong> 커널이 2MB 연속 메모리를 확보하기 위해 <strong>compaction을 트리거</strong>하고, 이 과정에서 latency spike가 발생한다. 특히 <strong>Redis, MongoDB, DB 워크로드</strong>에서 문제가 심각하다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">상태 확인 & 제어</div><div class="v"><code>cat /sys/kernel/mm/transparent_hugepage/enabled</code><br>값: <strong>always</strong> | <strong>madvise</strong> | <strong>never</strong><br><code>cat /sys/kernel/mm/transparent_hugepage/defrag</code><br>값: always | defer | defer+madvise | madvise | never</div></div>
+          <div class="db"><div class="l">워크로드별 권장</div><div class="v"><strong>Redis / MongoDB:</strong> <code>never</code> (공식 문서에서 명시적 비활성 권고)<br><strong>PostgreSQL / MySQL:</strong> <code>never</code> 또는 <code>madvise</code><br><strong>JVM (대용량 힙):</strong> <code>madvise</code> + <code>-XX:+UseTransparentHugePages</code><br><strong>범용 서버:</strong> <code>madvise</code> (앱이 명시적으로 요청할 때만)<br><strong>HPC/ML:</strong> <code>always</code> (큰 메모리 블록 접근 패턴)</div></div>
+          <div class="db df"><div class="l">THP 문제 진단</div><div class="v"><code>grep -i huge /proc/meminfo</code> — AnonHugePages, HugePages_Total 확인<br><code>cat /proc/vmstat | grep thp</code> — thp_fault_alloc, thp_collapse_alloc, <strong>thp_fault_fallback</strong>(실패)<br><code>perf stat -e dTLB-load-misses,dTLB-store-misses ./app</code> — TLB miss 측정<br>thp_fault_fallback가 높고 latency spike가 동반되면 THP compaction이 원인</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== I/O INTERNALS ==================== -->
+  <div class="P" id="p-kio">
+    <div class="PH"><div class="bg bg-b">● I/O Internals Deep Dive</div><h2>I/O 서브시스템 내부 동작</h2><p>blk-mq, io_uring, writeback 심화, NVMe — Block Layer 아래까지의 I/O 경로.</p></div>
+
+    <div class="sec" id="blkmq">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Architecture</div>
+        <h3>blk-mq (Multi-Queue Block Layer)</h3>
+        <div class="cs">NVMe 시대에 맞게 재설계된 멀티큐 블록 I/O 계층</div>
+        <div class="cp">기존 블록 레이어는 <strong>단일 요청 큐</strong>를 사용하여 모든 I/O가 하나의 lock을 경쟁했다. NVMe 디바이스는 <strong>수십만 IOPS</strong>를 제공하지만 단일 큐로는 이를 활용할 수 없었다.<br><br>blk-mq는 <strong>소프트웨어 큐(CPU당 하나) → 하드웨어 큐(디바이스 큐 수에 매핑)</strong> 2계층 구조로, <strong>lock contention을 제거</strong>하고 CPU별로 I/O를 병렬 처리한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">구조</div><div class="v"><strong>Software Staging Queue:</strong> per-CPU. 요청을 모아 배치 제출<br><strong>Hardware Dispatch Queue:</strong> 디바이스의 실제 큐에 1:1 매핑<br>매핑: CPU N → SW Queue N → HW Queue (N % hw_queue_count)<br><code>cat /sys/block/nvme0n1/queue/nr_requests</code></div></div>
+          <div class="db"><div class="l">SRE 영향</div><div class="v"><strong>I/O 스케줄러 선택:</strong> blk-mq에서 NVMe는 <code>none</code>이 최적 (디바이스가 자체 스케줄링)<br><strong>I/O 우선순위:</strong> <code>ionice -c 1 -n 0 ./app</code> (realtime 클래스)<br><strong>Queue depth:</strong> <code>nr_requests</code> 값이 높으면 throughput↑ latency↑<br><code>iostat -xz 1</code>의 aqu-sz(avg queue size)로 포화도 확인</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="iouring">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Next-Gen</div>
+        <h3>io_uring</h3>
+        <div class="cs">차세대 비동기 I/O 인터페이스. Syscall 오버헤드를 제거하는 공유 링 버퍼 기반</div>
+        <div class="cp">전통적 비동기 I/O(<code>aio</code>)는 syscall 오버헤드가 크고 기능이 제한적이었다. <code>io_uring</code>(Linux 5.1+)은 <strong>유저-커널 공유 메모리 링 버퍼</strong>를 사용하여 <strong>syscall 없이</strong> I/O 요청을 제출하고 완료를 확인할 수 있다.<br><br>핵심은 두 개의 링: <strong>Submission Queue (SQ)</strong>에 요청을 넣고, <strong>Completion Queue (CQ)</strong>에서 결과를 읽는다. 커널과 유저스페이스가 같은 메모리를 공유하므로 데이터 복사가 없다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">동작 구조</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">User Space           Kernel Space
+┌──────────┐        ┌──────────┐
+│  SQ Ring │───────→│ I/O 처리 │
+│ (제출)    │  mmap  │          │
+└──────────┘        └────┬─────┘
+                         │
+┌──────────┐        ┌────▼─────┐
+│  CQ Ring │←───────│ 완료 기록 │
+│ (완료)    │  mmap  │          │
+└──────────┘        └──────────┘</div></div></div>
+          <div class="db"><div class="l">성능 특성</div><div class="v"><strong>Syscall 제거:</strong> SQPOLL 모드 시 커널 폴링 스레드가 SQ 감시. 유저는 syscall 없이 SQ에 쓰기만<br><strong>Batching:</strong> 여러 I/O를 하나의 submit으로 제출<br><strong>Fixed buffers:</strong> 미리 등록된 버퍼로 매 I/O의 mapping 비용 제거<br><strong>지원 연산:</strong> read, write, fsync, poll, accept, connect, send, recv 등 거의 모든 I/O</div></div>
+          <div class="db df"><div class="l">SRE 관점</div><div class="v"><strong>활용처:</strong> 고성능 스토리지 엔진(RocksDB), 웹서버(Nginx 개발 중), DB, 네트워크 프록시<br><strong>보안 이슈:</strong> io_uring의 광범위한 커널 접근이 보안 취약점 경로가 됨. <strong>Google은 프로덕션에서 io_uring을 비활성화</strong>. 컨테이너 환경에서 seccomp으로 차단하는 경우 많음<br><code>cat /proc/config.gz | zgrep IO_URING</code> — 커널 빌드 여부 확인</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="wb-deep">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Write Path</div>
+        <h3>Writeback 심화 — cgroup writeback & I/O 우선순위</h3>
+        <div class="cs">컨테이너 환경에서의 writeback 격리와 blkio 컨트롤러</div>
+        <div class="cp">이전 문서에서 dirty page writeback의 기본을 다뤘다면, 여기선 <strong>컨테이너 간 I/O 간섭</strong> 문제를 다룬다. 한 Pod의 대량 쓰기가 다른 Pod의 I/O latency를 높이는 <strong>Noisy Neighbor</strong> 문제는 cgroup writeback과 blkio로 완화할 수 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">cgroup v2 writeback</div><div class="v">cgroups v2에서는 dirty page가 <strong>어느 cgroup에 속하는지 추적</strong>하여 cgroup별로 writeback을 제어할 수 있다.<br><code>memory.current</code>에 dirty page 포함<br>cgroup의 memory.high 도달 시 해당 cgroup의 dirty page만 먼저 writeback → 격리 효과</div></div>
+          <div class="db"><div class="l">blkio 컨트롤러</div><div class="v"><code>io.max</code> — 디바이스별 BPS/IOPS 하드 리밋<br><code>io.weight</code> — 비례 분배 (1~10000, 기본 100)<br><code>io.latency</code> — 타겟 latency. 초과 시 해당 cgroup의 I/O를 throttle<br>K8s에서 직접 지원하지 않지만, init container 또는 device plugin으로 설정 가능</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="io-paths">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Comparison</div>
+        <h3>I/O 경로 비교: Buffered vs Direct vs mmap</h3>
+        <div class="cs">세 가지 I/O 경로의 커널 내부 차이와 워크로드별 선택</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;margin-top:12px;">
+        <table class="tb">
+          <thead><tr><th>항목</th><th>Buffered I/O</th><th>Direct I/O (O_DIRECT)</th><th>mmap</th></tr></thead>
+          <tbody>
+            <tr><td>Page Cache</td><td>경유 (캐싱됨)</td><td>우회 (bypass)</td><td>Page Cache에 매핑</td></tr>
+            <tr><td>커널 복사</td><td>user↔kernel 복사 발생</td><td>DMA로 직접 user buffer</td><td>복사 없음 (공유 매핑)</td></tr>
+            <tr><td>정렬 제약</td><td>없음</td><td>블록 크기 정렬 필수 (512B/4KB)</td><td>페이지 정렬</td></tr>
+            <tr><td>장점</td><td>범용, 커널 최적화 혜택</td><td>이중 캐싱 방지, 예측 가능한 latency</td><td>zero-copy, 랜덤 접근 효율적</td></tr>
+            <tr><td>단점</td><td>대용량 쓰기 시 dirty page 축적</td><td>소량 랜덤 읽기 시 비효율</td><td>page fault 비용, truncate 위험</td></tr>
+            <tr><td>대표 사용처</td><td>일반 앱, 로그 쓰기</td><td>MySQL InnoDB, PostgreSQL</td><td>RocksDB, MongoDB WiredTiger, LMDB</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sec" id="nvme">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Hardware</div>
+        <h3>NVMe 내부 구조</h3>
+        <div class="cs">NVMe 프로토콜의 커맨드 큐, 인터럽트 처리, polling 모드</div>
+        <div class="cp">NVMe는 AHCI(SATA)를 대체하는 <strong>PCIe 네이티브 스토리지 프로토콜</strong>이다. AHCI의 단일 큐(depth 32) 한계를 넘어 <strong>최대 65535개 큐, 큐당 64K 엔트리</strong>를 지원한다. 이것이 수백만 IOPS가 가능한 이유다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 구조</div><div class="v"><strong>Submission Queue (SQ):</strong> 호스트→디바이스 커맨드 제출<br><strong>Completion Queue (CQ):</strong> 디바이스→호스트 완료 통지<br>SQ/CQ 쌍을 <strong>CPU 코어별로 생성</strong> → lock-free 병렬 I/O<br>Admin Queue(설정용) + I/O Queue(데이터용) 분리</div></div>
+          <div class="db"><div class="l">Polling Mode (io_poll)</div><div class="v">인터럽트 대신 <strong>CPU가 CQ를 직접 폴링</strong>하여 완료 감지<br>장점: 인터럽트 latency(수 μs) 제거, ultra-low latency 달성<br>단점: CPU 사이클 소모 (유휴 시에도 폴링)<br><code>mount -o io_poll /dev/nvme0n1p1 /data</code><br>io_uring의 IORING_SETUP_IOPOLL과 결합</div></div>
+          <div class="db df"><div class="l">SRE 관점: NVMe 모니터링</div><div class="v"><code>nvme smart-log /dev/nvme0n1</code> — 온도, 수명(percentage_used), 에러 카운트<br><code>nvme error-log /dev/nvme0n1</code> — 에러 로그<br><strong>SMART 경고 알림:</strong> percentage_used > 80%, critical_warning ≠ 0, media_errors 증가 추이<br><code>iostat -xz 1</code> — await(평균 I/O latency)가 NVMe에서 0.1ms 이하가 정상. 1ms 이상이면 문제 의심</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== IRQ ==================== -->
+  <div class="P" id="p-irq">
+    <div class="PH"><div class="bg bg-o">● Interrupt & Softirq</div><h2>인터럽트 처리 내부 동작</h2><p>Hardware IRQ, softirq, NAPI, IRQ affinity, RPS/RFS/XPS — 네트워크 성능의 숨은 병목 계층.</p></div>
+
+    <div class="sec" id="irq-model">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Architecture</div>
+        <h3>IRQ 처리 모델: Top-Half / Bottom-Half</h3>
+        <div class="cs">하드웨어 인터럽트를 최소한으로 처리하고, 나머지를 지연 실행하는 2단계 구조</div>
+        <div class="cp">디바이스(NIC, 디스크 등)가 이벤트를 알리면 CPU는 <strong>현재 작업을 중단</strong>하고 인터럽트 핸들러를 실행한다. 이 핸들러가 오래 걸리면 다른 인터럽트도 처리 못 하고 시스템이 멈춘다.<br><br>해결: <strong>Top-Half(하드웨어 IRQ)</strong>에서는 최소한의 작업(ACK, 상태 저장)만 하고, 나머지는 <strong>Bottom-Half(softirq, tasklet, workqueue)</strong>로 지연 처리한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Top-Half (Hard IRQ)</div><div class="v">• 인터럽트 비활성 상태에서 실행 (preemption 불가)<br>• 최소한의 작업만: 디바이스 ACK, 데이터 DMA 확인<br>• softirq 스케줄링 (<code>raise_softirq(NET_RX_SOFTIRQ)</code>)<br>• 수 μs 이내 완료 필수<br><code>/proc/interrupts</code> — CPU별 인터럽트 카운트</div></div>
+          <div class="db"><div class="l">Bottom-Half (Softirq)</div><div class="v">• 인터럽트 활성 상태에서 실행 (다른 인터럽트 처리 가능)<br>• 네트워크 패킷 처리, 블록 I/O 완료 등 실제 작업 수행<br>• 우선순위: HI_SOFTIRQ > TIMER > NET_TX > NET_RX > BLOCK > ...<br>• budget 소진 시 <strong>ksoftirqd</strong> 커널 스레드로 위임<br><code>cat /proc/softirqs</code> — softirq 유형별 카운트</div></div>
+          <div class="db df"><div class="l">ksoftirqd</div><div class="v">softirq가 한 번에 처리할 수 있는 양(<code>netdev_budget=300</code>, <code>time_squeeze</code>)을 초과하면, <strong>ksoftirqd/N</strong> 커널 스레드에서 이어서 처리한다. <code>top</code>에서 ksoftirqd가 높은 CPU를 사용하면 <strong>네트워크 또는 블록 I/O 처리량이 인터럽트 처리 능력을 초과</strong>한 것.<br><code>cat /proc/net/softnet_stat</code> — 2번째 열(time_squeeze)이 증가하면 budget 부족. <code>net.core.netdev_budget</code> 증가로 대응.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="napi">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Network</div>
+        <h3>NAPI (New API) — 네트워크 패킷 고속 처리</h3>
+        <div class="cs">인터럽트와 폴링을 혼합하여 고트래픽에서 인터럽트 폭풍을 방지</div>
+        <div class="cp">패킷이 한 개 올 때마다 인터럽트를 발생시키면, 고트래픽에서 <strong>초당 수십만 인터럽트</strong>가 발생하여 CPU가 인터럽트 처리에만 시간을 소모한다(livelock). NAPI는 <strong>첫 패킷에만 인터럽트를 발생</strong>시키고, 이후는 <strong>폴링 모드</strong>로 전환하여 연속된 패킷을 batch 처리한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">동작 흐름</div><div class="v"><strong>1)</strong> 첫 패킷 도착 → 하드웨어 인터럽트<br><strong>2)</strong> Top-half에서 NAPI 스케줄링, <strong>인터럽트 비활성</strong><br><strong>3)</strong> softirq에서 poll 함수 호출, <strong>ring buffer에서 패킷 batch 수거</strong><br><strong>4)</strong> budget(기본 64개) 소진하거나 ring 빌 때까지 반복<br><strong>5)</strong> 처리 완료 → 인터럽트 재활성, 다음 패킷 대기<br>고트래픽: 2→5가 반복되어 <strong>순수 폴링</strong>에 가까워짐</div></div>
+          <div class="db"><div class="l">Interrupt Coalescing</div><div class="v">NIC 하드웨어 레벨에서 여러 패킷을 모아 인터럽트를 줄이는 기법:<br><code>ethtool -c eth0</code> — 현재 coalescing 설정<br><code>ethtool -C eth0 rx-usecs 50 rx-frames 64</code><br>latency ↔ throughput 트레이드오프:<br>• rx-usecs 낮으면: 즉시 인터럽트, 낮은 latency<br>• rx-usecs 높으면: 모아서 인터럽트, 높은 throughput</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="irq-aff">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Tuning</div>
+        <h3>IRQ Affinity & Balancing</h3>
+        <div class="cs">인터럽트를 어느 CPU에서 처리할지 제어하여 성능을 최적화</div>
+        <div class="cp">기본적으로 <strong>irqbalance</strong> 데몬이 인터럽트를 CPU에 분산한다. 하지만 고성능 환경에서는 <strong>수동으로 NIC 인터럽트를 특정 CPU에 바인딩</strong>하여 cache locality를 높이는 것이 효과적이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">확인 & 설정</div><div class="v"><code>cat /proc/interrupts</code> — 인터럽트별 CPU 카운트<br><code>cat /proc/irq/&lt;N&gt;/smp_affinity</code> — CPU 비트마스크<br><code>echo 2 > /proc/irq/&lt;N&gt;/smp_affinity</code> — CPU 1에 바인딩<br><code>cat /proc/irq/&lt;N&gt;/smp_affinity_list</code> — 읽기 쉬운 형식<br><code>systemctl stop irqbalance</code> — 수동 관리 시 비활성</div></div>
+          <div class="db"><div class="l">전략</div><div class="v"><strong>RSS(Receive-Side Scaling):</strong> 멀티큐 NIC의 각 큐를 다른 CPU에 바인딩<br>NIC 큐 수 = CPU 코어 수로 맞추는 것이 이상적<br><code>ethtool -l eth0</code> — 큐 수 확인<br><code>ethtool -L eth0 combined 8</code> — 8개 큐 설정<br>각 큐의 IRQ를 다른 CPU에 배치하면 패킷 처리가 완전 병렬화</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="rps">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Software Scaling</div>
+        <h3>RPS / RFS / XPS</h3>
+        <div class="cs">소프트웨어 레벨에서 네트워크 처리를 멀티코어로 분산하는 기법</div>
+        <div class="cp">RSS가 <strong>하드웨어(NIC)</strong> 레벨의 멀티큐 분산이라면, RPS/RFS/XPS는 <strong>소프트웨어(커널)</strong> 레벨의 분산이다. 단일 큐 NIC나 가상환경(virtio)에서 유용하다.</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;margin-top:12px;">
+        <table class="tb">
+          <thead><tr><th>기법</th><th>방향</th><th>원리</th><th>설정</th></tr></thead>
+          <tbody>
+            <tr><td><strong>RPS</strong><br>(Receive Packet Steering)</td><td>RX (수신)</td><td>softirq에서 패킷의 해시를 계산, 다른 CPU의 backlog에 전달. RSS의 소프트웨어 버전</td><td><code>echo ff > /sys/class/net/eth0/queues/rx-0/rps_cpus</code></td></tr>
+            <tr><td><strong>RFS</strong><br>(Receive Flow Steering)</td><td>RX (수신)</td><td>패킷을 해당 소켓을 처리하는 <strong>애플리케이션의 CPU</strong>로 전달. Cache locality 극대화</td><td><code>echo 32768 > /proc/sys/net/core/rps_sock_flow_entries</code><br><code>echo 2048 > /sys/.../rps_flow_cnt</code></td></tr>
+            <tr><td><strong>XPS</strong><br>(Transmit Packet Steering)</td><td>TX (송신)</td><td>송신 시 CPU→TX 큐 매핑을 최적화. 같은 CPU의 패킷을 같은 큐로 보내 lock 감소</td><td><code>echo 1 > /sys/class/net/eth0/queues/tx-0/xps_cpus</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt o"><strong>⚠ 가상환경(K8s 노드) 주의</strong><br>클라우드 VM의 virtio-net은 보통 큐 수가 제한적(1~4개). <strong>RPS를 활성화하면 단일 큐의 소프트 인터럽트 처리를 멀티코어로 분산</strong>하여 네트워크 성능이 크게 향상될 수 있다. EKS/NHN Cloud VM에서 network intensive Pod 운영 시 고려.</div>
+    </div>
+  </div>
+
+  <!-- ==================== FD & EPOLL ==================== -->
+  <div class="P" id="p-fd">
+    <div class="PH"><div class="bg bg-p">● FD & epoll Internals</div><h2>File Descriptor와 I/O 멀티플렉싱</h2><p>FD 테이블 3계층, epoll 내부 자료구조, select/poll/epoll 비교, Unix Domain Socket.</p></div>
+
+    <div class="sec" id="fd-table">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Structure</div>
+        <h3>File Descriptor 테이블 3계층 구조</h3>
+        <div class="cs">프로세스별 FD → 시스템 File Table → inode — "모든 것은 파일"의 실체</div>
+        <div class="cp">FD(0, 1, 2, 3...)는 단순한 정수다. 이 정수가 실제 파일/소켓/파이프에 연결되는 과정에 <strong>3개의 테이블</strong>이 관여한다. 이 구조를 이해해야 FD 누수, 리밋 설정, fork 시 FD 상속 등을 정확히 이해할 수 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">3계층 구조</div><div class="v"><strong>1. Process FD Table</strong> (per-process)<br>→ FD 번호 → file 구조체 포인터 배열<br><strong>2. System Open File Table</strong> (global)<br>→ file 구조체: 현재 offset, 접근 모드, f_op(연산 함수 포인터)<br><strong>3. inode Table</strong> (global)<br>→ 파일의 실체: 크기, 권한, 디스크 위치, 타입</div></div>
+          <div class="db"><div class="l">리밋 설정</div><div class="v"><strong>프로세스별:</strong> <code>ulimit -n</code> (기본 1024, 부족!)<br><code>/etc/security/limits.conf</code> 또는 systemd <code>LimitNOFILE=</code><br><strong>시스템 전체:</strong> <code>fs.file-max</code> (sysctl)<br><code>cat /proc/sys/fs/file-nr</code> → 사용중 / 0 / 최대<br><strong>K8s:</strong> Pod spec에서 <code>ulimit</code> 직접 설정 불가. 노드 레벨 조정 필요</div></div>
+          <div class="db df"><div class="l">fork() 시 FD 상속</div><div class="v"><code>fork()</code> 시 부모의 FD 테이블이 <strong>복제</strong>된다. 하지만 File Table 엔트리는 <strong>공유</strong>된다. 즉, 부모와 자식이 같은 파일 offset을 공유.<br><code>O_CLOEXEC</code> 플래그: exec() 시 자동으로 FD를 닫음. 보안상 항상 설정 권장.<br><strong>FD 누수:</strong> close()하지 않은 FD가 누적 → EMFILE(Too many open files) 에러. <code>ls /proc/[pid]/fd | wc -l</code>로 현재 FD 수 확인</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="epoll">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Core</div>
+        <h3>epoll 내부 동작</h3>
+        <div class="cs">Red-Black Tree + Ready List로 O(1) 이벤트 감지를 달성하는 I/O 멀티플렉싱</div>
+        <div class="cp">epoll은 Linux의 고성능 I/O 이벤트 통지 메커니즘이다. Nginx, Node.js, Go 런타임, Redis 등 <strong>거의 모든 고동시성 서버</strong>가 epoll 기반이다.<br><br>핵심 자료구조: <strong>Red-Black Tree</strong>(관심 FD 관리)와 <strong>Ready List</strong>(이벤트 발생한 FD 목록). FD에 이벤트가 발생하면 커널이 <strong>callback</strong>으로 Ready List에 추가하므로, 전체 FD를 스캔할 필요가 없다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">API</div><div class="v"><code>epoll_create1()</code> — epoll 인스턴스 생성 (RB-tree + ready list 초기화)<br><code>epoll_ctl(ADD/MOD/DEL)</code> — FD를 RB-tree에 등록/수정/삭제. 각 FD에 callback 등록<br><code>epoll_wait()</code> — ready list에서 이벤트 발생 FD를 꺼냄. 없으면 sleep</div></div>
+          <div class="db"><div class="l">Level vs Edge Triggered</div><div class="v"><strong>Level-Triggered (LT, 기본):</strong> 데이터가 있는 한 반복 통지. 안전하지만 epoll_wait 호출 빈번<br><strong>Edge-Triggered (ET):</strong> 상태 <strong>변경</strong> 시에만 통지. 놓치면 영원히 통지 안 됨. non-blocking I/O 필수<br>Nginx: ET 모드 사용 (성능 최적화)<br>Go runtime: LT 모드 (안전성 우선)</div></div>
+          <div class="db df"><div class="l">내부 동작 상세</div><div class="v"><div class="fm" style="text-align:left;font-size:10px">epoll_ctl(ADD, fd=5, EPOLLIN):
+  → RB-tree에 fd=5 노드 삽입 (O(log n))
+  → fd=5의 wait queue에 callback 등록
+
+fd=5에 데이터 도착 (NIC → socket buffer):
+  → 커널이 fd=5의 callback 호출
+  → callback이 fd=5를 ready list에 추가 (O(1))
+
+epoll_wait():
+  → ready list에서 이벤트를 복사하여 반환 (O(ready count))
+  → ready list가 비어있으면 sleep</div><br><strong>핵심:</strong> 10만 FD를 모니터링해도 이벤트가 10개면 10개만 처리. O(active events) 성능.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="mux-cmp">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Comparison</div>
+        <h3>I/O 멀티플렉싱 성능 비교</h3>
+        <div class="cs">select → poll → epoll 진화 과정과 성능 특성 차이</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;margin-top:12px;">
+        <table class="tb">
+          <thead><tr><th>항목</th><th>select</th><th>poll</th><th>epoll</th></tr></thead>
+          <tbody>
+            <tr><td>FD 제한</td><td>FD_SETSIZE(1024) 하드코딩</td><td>제한 없음 (배열 기반)</td><td>제한 없음</td></tr>
+            <tr><td>FD 전달</td><td>매 호출마다 전체 fd_set 복사</td><td>매 호출마다 pollfd 배열 복사</td><td>epoll_ctl로 한 번만 등록</td></tr>
+            <tr><td>커널 스캔</td><td>전체 FD 순회 O(n)</td><td>전체 FD 순회 O(n)</td><td>이벤트 발생 FD만 O(1)</td></tr>
+            <tr><td>10K FD 성능</td><td>매우 느림</td><td>느림</td><td>빠름 (C10K 해결)</td></tr>
+            <tr><td>메모리 효율</td><td>비트마스크 (비효율)</td><td>구조체 배열</td><td>커널 내 RB-tree</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sec" id="uds">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">IPC</div>
+        <h3>Unix Domain Socket & Zero-Copy</h3>
+        <div class="cs">같은 호스트 내 프로세스 간 고속 통신과 zero-copy 데이터 전달</div>
+        <div class="cp"><strong>Unix Domain Socket(UDS)</strong>은 같은 머신의 프로세스 간 통신에서 TCP보다 <strong>훨씬 빠르다</strong>. TCP는 전체 네트워크 스택(IP, TCP, checksum, segmentation)을 통과하지만, UDS는 <strong>커널 내 메모리 복사만</strong>으로 데이터를 전달한다.<br><br>Docker/containerd 소켓(<code>/var/run/docker.sock</code>), kubelet→CRI 통신 등 K8s 인프라에서 핵심적으로 사용된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">UDS vs TCP loopback 차이</div><div class="v"><strong>UDS:</strong> socket layer → 커널 메모리 복사 → 대상 소켓 버퍼. Netfilter, TCP 스택 모두 우회<br><strong>TCP 127.0.0.1:</strong> socket → TCP → IP → loopback → IP → TCP → socket. 전체 스택 통과<br>UDS가 <strong>1.5~3배 빠르고 CPU 사용 50% 적음</strong><br>Latency: UDS ~2μs vs TCP loopback ~8μs</div></div>
+          <div class="db"><div class="l">Zero-Copy 기법들</div><div class="v"><strong>splice():</strong> 파이프를 매개로 FD 간 데이터 전달. user↔kernel 복사 제거<br><strong>sendfile():</strong> 파일→소켓 직접 전송. 웹서버 정적 파일 서빙에 최적<br><strong>MSG_ZEROCOPY:</strong> TCP/UDP send에서 커널 복사 제거 (4.14+)<br><strong>io_uring:</strong> 공유 메모리 링으로 syscall + 복사 모두 제거<br><strong>mmap:</strong> 파일을 가상 주소에 매핑하여 복사 없이 접근</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SECURITY ==================== -->
+  <div class="P" id="p-sec">
+    <div class="PH"><div class="bg bg-r">● Security Internals</div><h2>커널 보안 메커니즘</h2><p>Capabilities, seccomp-BPF, MAC, Kernel Hardening — 컨테이너 보안과 커널 하드닝의 기반.</p></div>
+
+    <div class="sec" id="caps">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Privilege</div>
+        <h3>Linux Capabilities</h3>
+        <div class="cs">root 권한을 세분화하여 최소 권한 원칙을 적용하는 POSIX 모델</div>
+        <div class="cp">전통적으로 Linux는 <strong>root(UID 0) = 모든 권한, non-root = 제한된 권한</strong>의 이분법이었다. Capabilities는 root의 권한을 <strong>약 40개의 세분화된 capability</strong>로 분해한다. 프로세스에 필요한 capability만 부여하면 보안 위험을 최소화할 수 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 Capabilities</div><div class="v"><code>CAP_NET_ADMIN</code> — 네트워크 설정 변경 (iptables 등)<br><code>CAP_NET_BIND_SERVICE</code> — 1024 이하 포트 바인딩<br><code>CAP_NET_RAW</code> — raw 소켓 (ping, tcpdump)<br><code>CAP_SYS_ADMIN</code> — mount, cgroups 등. <strong>사실상 root 수준</strong><br><code>CAP_SYS_PTRACE</code> — 다른 프로세스 디버깅<br><code>CAP_DAC_OVERRIDE</code> — 파일 권한 무시</div></div>
+          <div class="db"><div class="l">K8s securityContext</div><div class="v"><code>securityContext.capabilities.drop: ["ALL"]</code><br><code>securityContext.capabilities.add: ["NET_BIND_SERVICE"]</code><br><strong>Best Practice:</strong> 모든 capability를 drop하고 필요한 것만 add<br>Docker 기본: 14개 capability 부여 (CAP_CHOWN, CAP_SETUID 등)<br><code>getpcaps [pid]</code> — 프로세스의 현재 capability 확인</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="seccomp">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Syscall Filter</div>
+        <h3>seccomp-BPF</h3>
+        <div class="cs">프로세스가 호출할 수 있는 system call을 BPF 프로그램으로 필터링</div>
+        <div class="cp">Capabilities가 <strong>"어떤 종류의 작업"</strong>을 제어한다면, seccomp은 <strong>"어떤 syscall을 호출할 수 있는가"</strong>를 제어한다. 불필요한 syscall을 차단하면 커널 취약점의 공격 표면(attack surface)을 크게 줄일 수 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">동작 모드</div><div class="v"><strong>Strict:</strong> read, write, _exit, sigreturn만 허용 (너무 제한적)<br><strong>Filter (BPF):</strong> BPF 프로그램으로 세밀한 필터링. 각 syscall에 대해 ALLOW, KILL, ERRNO, TRACE 등 결정<br>필터는 <strong>fork/clone 시 자식에 상속</strong><br>컨테이너 런타임(containerd, CRI-O)이 기본 seccomp 프로파일 적용</div></div>
+          <div class="db"><div class="l">K8s 적용</div><div class="v"><code>securityContext.seccompProfile.type: RuntimeDefault</code><br>→ 컨테이너 런타임의 기본 프로파일 적용<br><code>type: Localhost</code> → 커스텀 프로파일 (JSON)<br><strong>차단되는 대표 syscall:</strong> mount, reboot, kexec_load, bpf(일부), io_uring_setup<br><code>grep Seccomp /proc/[pid]/status</code> — 현재 모드 확인</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="mac">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">MAC</div>
+        <h3>AppArmor / SELinux</h3>
+        <div class="cs">DAC(파일 퍼미션) 위에 추가되는 Mandatory Access Control 계층</div>
+        <div class="cp">일반 파일 퍼미션(DAC)은 <strong>소유자가 권한을 결정</strong>한다. MAC은 <strong>시스템 정책이 강제</strong>하여 root라도 정책이 금지하면 접근 불가. 컨테이너 탈출 공격 방어에 중요.</div>
+        <div class="dt">
+          <div class="db"><div class="l">AppArmor</div><div class="v">• 경로(path) 기반 접근 제어. 프로파일이 파일 경로별 규칙 정의<br>• Ubuntu/Debian 기본. K8s 컨테이너에 프로파일 적용 가능<br>• <code>aa-status</code> — 로드된 프로파일 확인<br>• <code>aa-logprof</code> — 위반 로그 기반 프로파일 자동 생성<br>• enforce(차단) / complain(로그만) 모드</div></div>
+          <div class="db"><div class="l">SELinux</div><div class="v">• 레이블(label) 기반 접근 제어. 모든 객체에 보안 컨텍스트 부여<br>• RHEL/CentOS 기본. 더 강력하지만 더 복잡<br>• <code>getenforce</code> — 현재 모드 (Enforcing/Permissive/Disabled)<br>• <code>semanage</code>, <code>restorecon</code>으로 정책 관리<br>• K8s: <code>seLinuxOptions</code>로 Pod 레이블 설정 가능</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="harden">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Hardening</div>
+        <h3>Kernel Hardening</h3>
+        <div class="cs">메모리 공격, 권한 상승, 정보 유출을 방어하는 커널 보호 메커니즘</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;margin-top:12px;">
+        <table class="tb">
+          <thead><tr><th>메커니즘</th><th>보호 대상</th><th>원리</th><th>확인/설정</th></tr></thead>
+          <tbody>
+            <tr><td><strong>ASLR</strong></td><td>스택/힙/라이브러리 주소</td><td>메모리 레이아웃 랜덤화로 공격자가 주소 예측 불가</td><td><code>cat /proc/sys/kernel/randomize_va_space</code> (2=full)</td></tr>
+            <tr><td><strong>KASLR</strong></td><td>커널 코드 주소</td><td>커널 이미지 로드 주소를 부팅 시 랜덤화</td><td>부트 파라미터 <code>kaslr</code> (대부분 기본 활성)</td></tr>
+            <tr><td><strong>Stack Protector</strong></td><td>스택 버퍼 오버플로우</td><td>스택에 canary 값을 배치, 함수 복귀 전 검증</td><td><code>CONFIG_STACKPROTECTOR_STRONG</code></td></tr>
+            <tr><td><strong>KPTI</strong></td><td>Meltdown 취약점</td><td>유저/커널 페이지 테이블 분리. 커널 메모리 유출 방지</td><td><code>cat /sys/devices/system/cpu/vulnerabilities/meltdown</code></td></tr>
+            <tr><td><strong>SMEP/SMAP</strong></td><td>커널→유저 실행/접근</td><td>CPU가 커널 모드에서 유저 메모리 실행/접근 차단</td><td><code>grep -E 'smep|smap' /proc/cpuinfo</code></td></tr>
+            <tr><td><strong>Lockdown</strong></td><td>커널 무결성</td><td>커널 수정 가능 인터페이스(/dev/mem, kexec 등) 제한</td><td><code>cat /sys/kernel/security/lockdown</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt r"><strong>⚠ Spectre/Meltdown 영향</strong><br>CPU 취약점 완화(KPTI, retpoline 등)는 <strong>syscall 오버헤드를 5~30% 증가</strong>시킬 수 있다. 특히 syscall-heavy 워크로드(DB, 네트워크)에서 영향이 크다.<br><code>cat /sys/devices/system/cpu/vulnerabilities/*</code> — 각 취약점별 완화 상태 확인</div>
+    </div>
+  </div>
+
+  <!-- ==================== TRACING ==================== -->
+  <div class="P" id="p-trace">
+    <div class="PH"><div class="bg bg-g">● Kernel Tracing & Profiling</div><h2>커널 추적과 프로파일링 심화</h2><p>ftrace, kprobes, perf, bpftrace — 커널 내부 동작을 관찰하는 도구의 원리와 고급 활용.</p></div>
+
+    <div class="sec" id="ftrace">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Kernel Built-in</div>
+        <h3>ftrace — 커널 내장 함수 추적기</h3>
+        <div class="cs">커널 빌드 시 포함되는 추적 프레임워크. tracefs를 통해 제어</div>
+        <div class="cp">ftrace는 <strong>추가 도구 설치 없이</strong> 커널 함수 호출을 추적할 수 있는 내장 프레임워크다. <code>/sys/kernel/debug/tracing/</code>(또는 <code>/sys/kernel/tracing/</code>)에서 파일 읽기/쓰기로 제어한다. 가장 기본적이면서도 강력한 커널 디버깅 도구.</div>
+        <div class="dt">
+          <div class="db"><div class="l">주요 Tracer</div><div class="v"><strong>function:</strong> 커널 함수 호출 추적<br><strong>function_graph:</strong> 함수 진입/종료 + 실행 시간 (콜 트리 시각화)<br><strong>nop:</strong> 추적 비활성 (이벤트만 사용할 때)<br>사용 가능: <code>cat available_tracers</code></div></div>
+          <div class="db"><div class="l">핵심 사용법</div><div class="v">
+<code>cd /sys/kernel/tracing</code><br>
+<code>echo function_graph > current_tracer</code><br>
+<code>echo tcp_v4_connect > set_graph_function</code><br>
+<code>cat trace</code><br>
+<code>echo 0 > tracing_on</code> (중지)<br>
+<code>echo > trace</code> (버퍼 클리어)</div></div>
+          <div class="db df"><div class="l">trace-cmd (편의 도구)</div><div class="v"><code>trace-cmd record -p function_graph -g tcp_sendmsg -F curl example.com</code><br><code>trace-cmd report</code><br>ftrace의 tracefs 조작을 CLI로 감싸서 편리하게 사용. flamegraph 생성도 가능.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="kprobe">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Dynamic</div>
+        <h3>kprobes / uprobes</h3>
+        <div class="cs">커널 함수(kprobe) 또는 유저 함수(uprobe)에 동적으로 프로브를 삽입</div>
+        <div class="cp"><strong>kprobe:</strong> 거의 모든 커널 함수의 진입(entry)이나 반환(return)에 <strong>동적으로 훅</strong>을 걸 수 있다. 커널을 재컴파일하거나 재부팅할 필요 없이, 실행 중인 시스템에서 함수 인자, 반환값, 실행 시간을 관찰할 수 있다.<br><br><strong>uprobe:</strong> 유저스페이스 바이너리의 함수에 프로브를 거는 것. Go, Python, Java 앱의 함수 호출을 커널 레벨에서 추적 가능.</div>
+        <div class="dt">
+          <div class="db"><div class="l">kprobe 예시</div><div class="v"><code>bpftrace -e 'kprobe:tcp_retransmit_skb { printf("retrans: %s pid=%d\n", comm, pid); }'</code><br>→ TCP 재전송 발생 시 프로세스 정보 출력<br><br><code>bpftrace -e 'kretprobe:vfs_read /retval > 1048576/ { printf("large read: %s %d bytes\n", comm, retval); }'</code><br>→ 1MB 이상 파일 읽기 감지</div></div>
+          <div class="db"><div class="l">uprobe 예시</div><div class="v"><code>bpftrace -e 'uprobe:/usr/bin/bash:readline { printf("bash cmd: pid=%d\n", pid); }'</code><br>→ bash에서 명령 입력 시마다 추적<br><br>Go 앱: <code>uprobe:/path/to/binary:"main.handleRequest"</code><br>USDT(User Statically-Defined Tracing): 앱이 미리 정의한 트레이스포인트</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="perf-deep">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Hardware</div>
+        <h3>perf 심화 — PMU 하드웨어 카운터</h3>
+        <div class="cs">CPU Performance Monitoring Unit을 활용한 마이크로아키텍처 레벨 성능 분석</div>
+        <div class="cp"><code>perf</code>는 소프트웨어 이벤트(context switch, page fault)뿐 아니라 <strong>하드웨어 이벤트(CPU 사이클, 캐시 미스, 브랜치 예측 실패)</strong>를 측정할 수 있다. CPU의 PMU(Performance Monitoring Unit) 레지스터를 직접 읽어 <strong>커널/앱 코드의 마이크로아키텍처 병목</strong>을 찾는다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 명령</div><div class="v"><code>perf stat ./app</code> — 전체 실행의 HW 카운터 요약<br><code>perf record -g -F 99 -p PID -- sleep 30</code> — 99Hz 샘플링, 콜스택 포함<br><code>perf report</code> — 핫스팟 함수 분석<br><code>perf script | ./stackcollapse-perf.pl | ./flamegraph.pl > out.svg</code><br>→ <strong>Flame Graph</strong> 생성 (Brendan Gregg)</div></div>
+          <div class="db"><div class="l">주요 HW 이벤트</div><div class="v"><code>cycles</code> — CPU 사이클 수<br><code>instructions</code> — 실행된 명령 수. IPC = instructions/cycles<br><code>cache-misses</code> / <code>cache-references</code> — L1/L2/LLC 캐시 미스율<br><code>branch-misses</code> — 분기 예측 실패 (파이프라인 스톨)<br><code>dTLB-load-misses</code> — TLB 미스 (THP 효과 측정에 유용)<br><code>perf stat -e cycles,instructions,cache-misses ./app</code></div></div>
+          <div class="db df"><div class="l">Flame Graph 해석</div><div class="v"><strong>X축:</strong> 스택 프레임의 알파벳 순서 (시간 순서 아님!)<br><strong>Y축:</strong> 콜 스택 깊이. 위로 갈수록 호출된 함수<br><strong>너비:</strong> 해당 함수가 CPU를 점유한 비율. <strong>넓으면 핫스팟</strong><br><strong>색상:</strong> 의미 없음 (구분용). 단, differential flame graph에서는 빨강=증가, 파랑=감소<br>Off-CPU flame graph: CPU를 기다리는(sleep, I/O 대기) 시간 분석. <strong>latency 원인 추적에 핵심</strong></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="bpf-deep">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">eBPF</div>
+        <h3>bpftrace 심화</h3>
+        <div class="cs">프로브 타입별 활용 패턴, 맵, 히스토그램, 스택 트레이스</div>
+        <div class="cp">bpftrace는 <strong>awk-like 문법</strong>으로 eBPF 프로그램을 작성하는 고급 추적 도구다. 원라이너로 커널/앱의 거의 모든 동작을 관찰할 수 있다.</div>
+      </div>
+      <div class="bx">
+        <div class="bx-t">▼ 실무 bpftrace 레시피</div>
+        <div class="co"><span class="c"># ① 프로세스별 syscall 빈도</span>
+<span class="k">bpftrace</span> -e '<span class="f">tracepoint:raw_syscalls:sys_enter</span> { <span class="g">@[comm] = count();</span> }'
+
+<span class="c"># ② 블록 I/O latency 히스토그램 (μs)</span>
+<span class="k">bpftrace</span> -e '<span class="f">tracepoint:block:block_rq_issue</span> { <span class="g">@start[args->dev, args->sector] = nsecs;</span> }
+<span class="f">tracepoint:block:block_rq_complete</span> /@start[args->dev, args->sector]/ {
+  <span class="g">@usecs = hist((nsecs - @start[args->dev, args->sector]) / 1000);</span>
+  delete(@start[args->dev, args->sector]); }'
+
+<span class="c"># ③ TCP 연결 설정 latency (connect → established)</span>
+<span class="k">bpftrace</span> -e '<span class="f">kprobe:tcp_v4_connect</span> { <span class="g">@start[tid] = nsecs;</span> }
+<span class="f">kretprobe:tcp_v4_connect</span> /@start[tid]/ {
+  <span class="g">@ms = hist((nsecs - @start[tid]) / 1000000);</span>
+  delete(@start[tid]); }'
+
+<span class="c"># ④ 특정 PID의 파일 읽기 크기 분포</span>
+<span class="k">bpftrace</span> -e '<span class="f">tracepoint:syscalls:sys_exit_read</span> /pid == <span class="n">1234</span> && args->ret > 0/ {
+  <span class="g">@bytes = hist(args->ret);</span> }'
+
+<span class="c"># ⑤ Page Fault 발생 위치 스택 트레이스</span>
+<span class="k">bpftrace</span> -e '<span class="f">software:page-faults:1</span> { <span class="g">@[ustack, comm] = count();</span> }'
+
+<span class="c"># ⑥ CPU runqueue length 프로파일링</span>
+<span class="k">bpftrace</span> -e '<span class="f">profile:hz:99</span> { <span class="g">@runqlen = lhist(curtask->se.cfs_rq->nr_running, 0, 100, 1);</span> }'</div>
+      </div>
+    </div>
+
+    <div class="sec" id="contprof">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Always-On</div>
+        <h3>Continuous Profiling</h3>
+        <div class="cs">CPU/메모리 프로파일링을 상시 수집하여 과거 시점의 성능을 소급 분석</div>
+        <div class="cp">기존 프로파일링은 <strong>"문제가 발생한 후"</strong> 도구를 붙여서 재현해야 했다. Continuous Profiling은 <strong>항상 낮은 오버헤드로 프로파일링 데이터를 수집</strong>하여, 과거 시점의 CPU/메모리 사용 패턴을 flame graph로 볼 수 있다.<br><br>Observability의 제4 필러(Metrics, Logs, Traces + <strong>Profiles</strong>)로 불리기도 한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">도구</div><div class="v"><strong>Pyroscope:</strong> Grafana Labs 인수. LGTM 스택과 통합. Go/Python/Java/eBPF 지원<br><strong>Parca:</strong> Polar Signals. eBPF 기반 zero-instrumentation. Kubernetes 네이티브<br><strong>Google Cloud Profiler:</strong> GKE 환경 기본 지원<br>데이터 수집: eBPF(perf_event_open) 또는 언어 런타임 프로파일러</div></div>
+          <div class="db"><div class="l">SRE 활용</div><div class="v"><strong>인시던트 사후 분석:</strong> "2시간 전 CPU spike 때 어떤 함수가 핫스팟이었나?" 소급 확인<br><strong>리소스 최적화:</strong> 어떤 함수가 전체 CPU의 몇 %를 차지하는지 상시 파악<br><strong>회귀 감지:</strong> 배포 전후 flame graph diff로 성능 회귀 자동 감지<br><strong>오버헤드:</strong> 보통 CPU 1~3% 미만. 프로덕션 상시 수집 가능</div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 LGTM + Pyroscope = Observability 4 Pillars</strong><br>Loki(Logs) + Grafana(Viz) + Tempo(Traces) + Mimir/Prometheus(Metrics) + <strong>Pyroscope(Profiles)</strong>. Grafana에서 metric spike → trace → profile drill-down이 가능해져 "왜 느린가"에 대한 완전한 답을 얻을 수 있다.</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

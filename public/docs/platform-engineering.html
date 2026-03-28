@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platform Engineering — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--indigo);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--indigo)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="what"].on{color:var(--indigo)}.T[data-t="what"].on::after{background:var(--indigo);left:8%;right:8%}
+.T[data-t="idp"].on{color:var(--blue)}.T[data-t="idp"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="dx"].on{color:var(--green)}.T[data-t="dx"].on::after{background:var(--green);left:8%;right:8%}
+.T[data-t="toil"].on{color:var(--orange)}.T[data-t="toil"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="scale"].on{color:var(--purple)}.T[data-t="scale"].on::after{background:var(--purple);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-i{color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Evolution</div><h1><em>Platform</em><br>Engineering</h1></div>
+  <div class="sl">개념</div>
+  <ul class="sn">
+    <li><a data-t="what" data-s="pe-what" class="on"><span class="d" style="background:var(--indigo)"></span>Platform Engineering이란</a></li>
+    <li><a data-t="what" data-s="pe-vs"><span class="d" style="background:var(--indigo)"></span>DevOps vs SRE vs PE</a></li>
+    <li><a data-t="what" data-s="pe-maturity"><span class="d" style="background:var(--indigo)"></span>성숙도 모델</a></li>
+  </ul>
+  <div class="sl">Internal Developer Platform</div>
+  <ul class="sn">
+    <li><a data-t="idp" data-s="idp-design"><span class="d" style="background:var(--blue)"></span>IDP 설계</a></li>
+    <li><a data-t="idp" data-s="backstage"><span class="d" style="background:var(--blue)"></span>Backstage</a></li>
+    <li><a data-t="idp" data-s="self-service"><span class="d" style="background:var(--blue)"></span>Self-Service 인프라</a></li>
+  </ul>
+  <div class="sl">Developer Experience</div>
+  <ul class="sn">
+    <li><a data-t="dx" data-s="golden-path"><span class="d" style="background:var(--green)"></span>Golden Path</a></li>
+    <li><a data-t="dx" data-s="template"><span class="d" style="background:var(--green)"></span>서비스 템플릿</a></li>
+    <li><a data-t="dx" data-s="dx-metrics"><span class="d" style="background:var(--green)"></span>DX 메트릭</a></li>
+  </ul>
+  <div class="sl">Toil 자동화</div>
+  <ul class="sn">
+    <li><a data-t="toil" data-s="toil-measure"><span class="d" style="background:var(--orange)"></span>Toil 측정</a></li>
+    <li><a data-t="toil" data-s="toil-eliminate"><span class="d" style="background:var(--orange)"></span>자동화 우선순위</a></li>
+    <li><a data-t="toil" data-s="ops-platform"><span class="d" style="background:var(--orange)"></span>운영 플랫폼</a></li>
+  </ul>
+  <div class="sl">Solo → Scale</div>
+  <ul class="sn">
+    <li><a data-t="scale" data-s="solo-strat"><span class="d" style="background:var(--purple)"></span>Solo DevOps 전략</a></li>
+    <li><a data-t="scale" data-s="team-grow"><span class="d" style="background:var(--purple)"></span>팀 성장 로드맵</a></li>
+    <li><a data-t="scale" data-s="product-mindset"><span class="d" style="background:var(--purple)"></span>플랫폼 as 프로덕트</a></li>
+  </ul>
+  <div class="S-f"><p>Pave the road,<br>don't build fences.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="what" onclick="sw('what')">● 개념</button>
+    <button class="T" data-t="idp" onclick="sw('idp')">● IDP</button>
+    <button class="T" data-t="dx" onclick="sw('dx')">● DX</button>
+    <button class="T" data-t="toil" onclick="sw('toil')">● Toil</button>
+    <button class="T" data-t="scale" onclick="sw('scale')">● Solo→Scale</button>
+  </div>
+
+  <!-- ===== CONCEPT ===== -->
+  <div class="P on" id="p-what">
+    <div class="PH"><div class="bg bg-i">● Platform Engineering</div><h2>Platform Engineering이란</h2><p>개발자가 인프라를 몰라도 제품을 빠르게 배포할 수 있게 만드는 — DevOps/SRE의 다음 진화.</p></div>
+
+    <div class="sec" id="pe-what">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Definition</div>
+        <h3>Platform Engineering 정의</h3>
+        <div class="cs">"개발 팀의 인지 부하를 줄이고 셀프서비스를 제공하는 내부 플랫폼을 설계·운영하는 분야"</div>
+        <div class="cp">DevOps가 <strong>"개발자도 운영을 해야 한다(You build it, you run it)"</strong>를 주장했지만, 현실에서 개발자에게 K8s, Terraform, 모니터링, 보안을 모두 알아야 한다고 강요하는 것은 <strong>인지 부하(Cognitive Load) 과부하</strong>를 일으킨다.<br><br>Platform Engineering은 <strong>복잡성을 추상화한 Self-Service 플랫폼</strong>을 제공하여, 개발자가 인프라 세부사항 없이도 안전하고 빠르게 배포할 수 있게 한다. "도로를 포장하되 울타리를 치지 마라(Pave the road, don't build fences)"가 핵심 철학.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 가치</div><div class="v"><strong>1) 인지 부하 감소:</strong> 개발자가 K8s YAML을 몰라도 배포 가능<br><strong>2) Self-Service:</strong> 티켓/요청 없이 개발자가 직접 인프라 프로비저닝<br><strong>3) Golden Path:</strong> 모범 사례를 기본으로 제공하되 강제하지 않음<br><strong>4) 추상화:</strong> 복잡성은 플랫폼이 흡수, 개발자에게는 단순한 인터페이스<br><strong>5) 프로덕트 사고:</strong> 내부 플랫폼을 "제품"으로 다루고, 개발자를 "고객"으로 대응</div></div>
+          <div class="db"><div class="l">실무 예시</div><div class="v"><strong>Before (티켓 기반):</strong><br>"DB가 필요합니다" → DevOps에 Jira 티켓 → 3일 대기 → DevOps가 Terraform 실행 → 개발자에게 연결 정보 전달<br><br><strong>After (Self-Service):</strong><br>개발자가 플랫폼 UI에서 "PostgreSQL 생성" 클릭 → 서비스 이름, 크기, 환경 선택 → 5분 후 자동 프로비저닝 + 연결 정보 자동 주입<br><br><strong>Solo DevOps 관점:</strong> 자동화가 곧 Self-Service. "나 대신 자동화가 응답"하는 것이 Solo 환경에서의 Platform Engineering</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="pe-vs">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Comparison</div>
+        <h3>DevOps vs SRE vs Platform Engineering</h3>
+        <div class="cs">세 가지 역할의 관계 — 적대적이 아니라 진화적</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>항목</th><th>DevOps</th><th>SRE</th><th>Platform Engineering</th></tr></thead>
+          <tbody>
+            <tr><td>핵심 질문</td><td>"어떻게 더 빨리 배포?"</td><td>"어떻게 안정적으로 운영?"</td><td>"어떻게 개발자가 스스로?"</td></tr>
+            <tr><td>초점</td><td>CI/CD, 자동화, 문화</td><td>SLO, 인시던트, 운영 부하</td><td>Self-Service, 추상화, DX</td></tr>
+            <tr><td>핵심 메트릭</td><td>DORA 4 Metrics</td><td>SLI/SLO, MTTR, Error Budget</td><td>개발자 만족도, 온보딩 시간, 티켓 수</td></tr>
+            <tr><td>고객</td><td>비즈니스 (더 빠른 딜리버리)</td><td>사용자 (안정적 서비스)</td><td>개발자 (쉬운 인프라 접근)</td></tr>
+            <tr><td>산출물</td><td>파이프라인, 자동화 스크립트</td><td>SLO, Runbook, Postmortem</td><td>IDP, 템플릿, Self-Service 포탈</td></tr>
+            <tr><td>관계</td><td>문화 + 프랙티스</td><td>DevOps의 구체적 구현</td><td>DevOps/SRE 위에 추상화 계층</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 세 역할의 관계</strong><br><strong>DevOps</strong>가 문화와 자동화의 기반을 놓고, <strong>SRE</strong>가 신뢰성 엔지니어링을 체계화하고, <strong>Platform Engineering</strong>이 이 모든 것을 개발자에게 쉽게 제공하는 인터페이스를 만든다. 순서대로 진화하는 것이 아니라 <strong>동시에 공존하면서 각자의 관점으로 기여</strong>한다.</div>
+    </div>
+
+    <div class="sec" id="pe-maturity">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Maturity</div>
+        <h3>플랫폼 성숙도 모델</h3>
+        <div class="cs">현재 어디에 있고, 다음 단계는 무엇인가</div>
+        <div class="dt">
+          <div class="db df"><div class="l">5단계 성숙도</div><div class="v">
+<strong style="color:var(--red)">Level 0 — Ad-hoc:</strong> 자동화 없음. 모든 것을 수동으로, 담당자에게 요청. 티켓 기반 운영<br><br>
+<strong style="color:var(--orange)">Level 1 — Scripts:</strong> 반복 작업을 셸 스크립트/Ansible로 자동화. 하지만 여전히 "스크립트를 아는 사람"이 실행. binbox CLI collection이 이 수준<br><br>
+<strong style="color:var(--blue)">Level 2 — Self-Service Basics:</strong> Terraform/ArgoCD로 선언적 인프라. GitOps 기반 배포. 개발자가 PR로 변경 요청 가능. 현재 환경의 대부분이 여기<br><br>
+<strong style="color:var(--green)">Level 3 — Internal Platform:</strong> 통합된 포탈/CLI에서 서비스 생성, 환경 프로비저닝, 모니터링 조회가 가능. 템플릿 기반. OpsGate가 이 방향<br><br>
+<strong style="color:var(--purple)">Level 4 — Product Platform:</strong> 플랫폼이 제품으로 운영됨. 내부 SLO, 로드맵, 사용자 피드백, 지속적 개선. 대규모 조직의 목표
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== IDP ===== -->
+  <div class="P" id="p-idp">
+    <div class="PH"><div class="bg bg-b">● Internal Developer Platform</div><h2>IDP 설계</h2><p>개발자에게 인프라를 Self-Service로 제공하는 내부 플랫폼의 설계와 도구.</p></div>
+
+    <div class="sec" id="idp-design">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Architecture</div>
+        <h3>IDP 아키텍처 설계</h3>
+        <div class="cs">IDP = 개발자 포탈(UI) + 추상화 계층(API) + 인프라 오케스트레이션(실행)</div>
+        <div class="cp">IDP는 단일 도구가 아니라 <strong>여러 도구의 조합</strong>이다. 중요한 것은 도구 선택이 아니라 <strong>개발자에게 제공하는 인터페이스의 단순성</strong>이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">3계층 구조</div><div class="v"><strong>Layer 1 — Developer Portal (UI):</strong><br>서비스 카탈로그, 문서, 대시보드, Self-Service UI<br>도구: Backstage, Port, Cortex<br><br><strong>Layer 2 — Abstraction (API):</strong><br>개발자의 "서비스 생성" 요청을 인프라 리소스로 번역<br>도구: Crossplane, Terraform, ArgoCD ApplicationSet<br><br><strong>Layer 3 — Infrastructure (실행):</strong><br>실제 리소스 프로비저닝<br>도구: Terraform, Helm, K8s Operator, 클라우드 API</div></div>
+          <div class="db"><div class="l">Solo DevOps의 IDP</div><div class="v"><strong>풀 스택 IDP는 부담.</strong> 소규모 환경에서는 이미 가지고 있는 도구를 IDP처럼 조합:<br><br><strong>포탈:</strong> Git 리포의 README + Grafana 대시보드<br><strong>추상화:</strong> Helm 차트 + ArgoCD App-of-Apps<br><strong>Self-Service:</strong> PR 기반 변경 (개발자가 values.yaml 수정 → PR → ArgoCD Sync)<br><strong>자동화:</strong> Jenkins Shared Library + OpsGate CLI<br><br><strong>핵심:</strong> Backstage를 도입하지 않아도 <strong>PR 기반 Self-Service + 잘 설계된 Helm 차트</strong>만으로 Level 2 플랫폼이 가능</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="backstage">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Portal</div>
+        <h3>Backstage (Spotify)</h3>
+        <div class="cs">CNCF 프로젝트. 서비스 카탈로그, 템플릿, 플러그인 기반 개발자 포탈</div>
+        <div class="cp">Backstage는 <strong>서비스 카탈로그(누가 뭘 소유하는가) + 소프트웨어 템플릿(새 서비스 생성) + TechDocs(문서 통합) + 플러그인(K8s, CI/CD, 모니터링 연동)</strong>을 하나의 UI에 통합한 개발자 포탈이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 기능</div><div class="v"><strong>Software Catalog:</strong> 모든 서비스/라이브러리/인프라를 등록. 소유자, 의존성, SLO, 문서 링크를 한곳에<br><code>catalog-info.yaml</code>을 각 리포에 추가하면 자동 등록<br><br><strong>Software Templates:</strong> 새 서비스를 템플릿에서 생성. 리포 생성 + CI 설정 + Helm 차트 + ArgoCD 등록을 한 번에<br><br><strong>TechDocs:</strong> MkDocs 기반. 코드 옆에 문서를 두고 Backstage에서 통합 조회<br><br><strong>Plugins:</strong> K8s 상태, Grafana 대시보드, PagerDuty 온콜, ArgoCD Sync 상태, GitHub Actions 등을 플러그인으로 포탈에 통합</div></div>
+          <div class="db"><div class="l">도입 판단</div><div class="v"><strong>도입 추천:</strong><br>• 서비스 15개+, 개발팀 3팀+<br>• "이 서비스는 누가 담당이지?" 질문이 자주 나옴<br>• 새 서비스 온보딩에 1주일+<br>• 문서가 Confluence, Wiki, README에 분산<br><br><strong>도입 보류:</strong><br>• 서비스 10개 미만, 1~2팀<br>• 팀원이 모든 서비스를 알고 있음<br>• Backstage 운영 자체가 추가 부담<br><br><strong>대안:</strong> Git 리포의 잘 구조화된 README + Grafana 대시보드 + ArgoCD UI로도 카탈로그 역할 가능. "Backstage 없는 Platform Engineering"은 충분히 가능</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="self-service">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Self-Service</div>
+        <h3>Self-Service 인프라 패턴</h3>
+        <div class="cs">개발자가 직접 인프라를 프로비저닝하되, 가드레일 안에서 안전하게</div>
+        <div class="dt">
+          <div class="db"><div class="l">PR 기반 Self-Service (가장 실용적)</div><div class="v"><strong>개발자가 GitOps 리포에 PR을 올려 인프라를 요청:</strong><br><br><strong>1)</strong> 개발자가 <code>apps/my-new-service.yaml</code> 추가 (템플릿에서 복사)<br><strong>2)</strong> values 파일에서 도메인, replica, 리소스 설정<br><strong>3)</strong> PR 생성 → CI에서 자동 검증 (lint, kubeconform, policy check)<br><strong>4)</strong> DevOps/SRE가 리뷰 → Approve<br><strong>5)</strong> Merge → ArgoCD가 자동 배포<br><br><strong>장점:</strong> 추가 도구 불필요. Git이 감사 로그. 리뷰로 가드레일<br><strong>가드레일:</strong> OPA/Kyverno가 PR에서 정책 위반 자동 감지</div></div>
+          <div class="db"><div class="l">Crossplane (고급)</div><div class="v"><strong>K8s CRD로 클라우드 리소스를 선언적으로 관리:</strong><br><br>개발자가 <code>Database</code> CRD를 생성하면 Crossplane이 실제 RDS를 프로비저닝:<br><code>kind: Database</code><br><code>spec: { engine: postgresql, size: small, environment: prod }</code><br><br>→ Crossplane Composition이 이를 <code>aws_db_instance</code> + <code>SecurityGroup</code> + <code>Secret</code>으로 변환<br><br><strong>장점:</strong> K8s 네이티브. Terraform 없이 클라우드 리소스 관리<br><strong>복잡도:</strong> Composition 설계가 까다로움. Provider 유지보수 부담<br><strong>적합:</strong> 이미 K8s 중심 환경이고, Terraform을 K8s에 통합하고 싶을 때</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DX ===== -->
+  <div class="P" id="p-dx">
+    <div class="PH"><div class="bg bg-g">● Developer Experience</div><h2>Developer Experience (DX)</h2><p>Golden Path, 서비스 템플릿, DX 메트릭 — 개발자가 "인프라 때문에 막히지 않는" 환경.</p></div>
+
+    <div class="sec" id="golden-path">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Practice</div>
+        <h3>Golden Path — 포장된 길</h3>
+        <div class="cs">모범 사례를 기본값으로 제공하되, 벗어나는 것도 허용하는 "추천 경로"</div>
+        <div class="cp"><strong>"Golden Path ≠ Golden Gate(강제)"</strong>. 이 차이가 핵심이다. Golden Path는 "이렇게 하면 가장 쉽고 안전해요"라는 추천 경로이지, "이렇게 안 하면 안 돼요"가 아니다. 개발자가 필요하면 벗어날 수 있되, <strong>벗어나는 비용</strong>을 스스로 감수하는 구조.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Golden Path 예시</div><div class="v"><strong>새 Go 서비스 생성:</strong><br>1. 서비스 템플릿에서 리포 생성 → 표준 디렉토리 구조, Dockerfile, Helm 차트, CI 파이프라인이 이미 포함<br>2. <code>make dev</code> → 로컬 개발 환경 자동 구성<br>3. PR 생성 → 자동 lint, test, 이미지 빌드<br>4. Merge → ArgoCD가 staging에 자동 배포<br>5. Canary 검증 → production 승격<br><br><strong>개발자는 "코드 작성 → PR → 배포됨"만 경험.</strong> 나머지는 Golden Path가 처리</div></div>
+          <div class="db"><div class="l">Golden Path의 범위</div><div class="v"><strong>언어/프레임워크:</strong> Go (표준) → 템플릿, CI 파이프라인, 모니터링이 자동<br><strong>데이터 저장소:</strong> PostgreSQL (표준) → PgBouncer, 모니터링, 백업이 포함<br><strong>메시징:</strong> Kafka (표준) → 파티션 설계, 모니터링 가이드 포함<br><strong>모니터링:</strong> Prometheus 메트릭 노출 (표준) → Grafana 대시보드 자동 생성<br><strong>배포:</strong> Helm + ArgoCD (표준) → 표준 차트 구조<br><br><strong>벗어나야 할 때:</strong> Python ML 서비스, 특수한 프로토콜 → 기본 템플릿에서 확장하되 추가 설정은 개발팀이 책임</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="template">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Scaffold</div>
+        <h3>서비스 템플릿 설계</h3>
+        <div class="cs">새 서비스를 5분 만에 시작할 수 있는 스캐폴딩</div>
+      </div>
+      <div class="co"><span class="c"># 서비스 템플릿 구조 (Go API 서버)</span>
+template-go-api/
+├── <span class="g">cmd/</span>
+│   └── server/
+│       └── main.go              <span class="c"># 서버 진입점</span>
+├── <span class="g">internal/</span>
+│   ├── handler/                  <span class="c"># HTTP 핸들러</span>
+│   ├── service/                  <span class="c"># 비즈니스 로직</span>
+│   └── repository/               <span class="c"># 데이터 접근</span>
+├── <span class="g">deploy/</span>
+│   ├── helm/                     <span class="c"># Helm 차트 (표준 구조)</span>
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml           <span class="c"># 기본값 (라이트사이징됨)</span>
+│   │   └── templates/
+│   ├── argocd/
+│   │   └── application.yaml     <span class="c"># ArgoCD Application</span>
+│   └── k8s/
+│       └── networkpolicy.yaml   <span class="c"># 기본 NetworkPolicy</span>
+├── <span class="g">Dockerfile</span>                    <span class="c"># Multi-stage, distroless</span>
+├── <span class="g">Makefile</span>                      <span class="c"># dev, test, build, deploy</span>
+├── <span class="g">Jenkinsfile</span>                   <span class="c"># CI 파이프라인 (Shared Library)</span>
+├── <span class="g">.golangci.yml</span>                 <span class="c"># 린터 설정</span>
+├── <span class="g">monitoring/</span>
+│   ├── dashboards/
+│   │   └── service.json         <span class="c"># Grafana 대시보드</span>
+│   ├── alerts/
+│   │   └── slo-alerts.yaml      <span class="c"># SLO Burn Rate 알림</span>
+│   └── runbook.md               <span class="c"># 기본 Runbook</span>
+└── <span class="g">docs/</span>
+    ├── README.md                <span class="c"># 서비스 개요</span>
+    └── API.md                   <span class="c"># API 문서</span></div>
+      <div class="nt g"><strong>💡 템플릿에 기본 포함되어야 할 것</strong><br><strong>Observability:</strong> Prometheus 메트릭 노출, 구조화 로그, trace context 전파 — 코드에 이미 포함<br><strong>Security:</strong> non-root Dockerfile, capabilities drop ALL, readOnlyRootFilesystem — Helm 기본값<br><strong>Resilience:</strong> health check 엔드포인트, graceful shutdown, PDB — 코드 + Helm<br><strong>CI/CD:</strong> Jenkinsfile, ArgoCD Application — 복사해서 바로 사용 가능</div>
+    </div>
+
+    <div class="sec" id="dx-metrics">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Measurement</div>
+        <h3>DX 메트릭 — 플랫폼의 성공을 어떻게 측정하는가</h3>
+        <div class="cs">개발자 생산성과 만족도를 정량적으로 측정하는 지표</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 DX 메트릭</div><div class="v"><strong>온보딩 시간:</strong> 새 개발자가 첫 PR을 머지하기까지 걸리는 시간. 목표: 1일 이내<br><strong>서비스 생성 시간:</strong> 새 서비스를 생성~프로덕션 배포까지. 목표: 1시간 이내<br><strong>배포 리드타임:</strong> 코드 커밋 → 프로덕션 배포. DORA Lead Time for Changes<br><strong>인프라 티켓 수:</strong> 개발자가 DevOps에 요청하는 티켓 수. 감소 추세가 목표<br><strong>Self-Service 비율:</strong> 전체 인프라 변경 중 개발자가 직접 수행한 비율<br><strong>개발자 만족도:</strong> 분기별 설문. "인프라 때문에 업무가 막힌 적이 있는가?"</div></div>
+          <div class="db"><div class="l">SPACE 프레임워크</div><div class="v"><strong>Google/GitHub 연구 기반 개발자 생산성 프레임워크:</strong><br><br><strong>S</strong>atisfaction: 개발자 만족도 설문<br><strong>P</strong>erformance: 코드 품질, 서비스 안정성 (SLO)<br><strong>A</strong>ctivity: 커밋 수, PR 수, 배포 빈도 (주의: 단독 사용 금지)<br><strong>C</strong>ommunication: 코드 리뷰 응답 시간, 문서 활용도<br><strong>E</strong>fficiency: 빌드 시간, CI 대기 시간, 환경 프로비저닝 시간<br><br><strong>주의:</strong> Activity 메트릭(커밋 수 등)만으로 생산성을 측정하면 Goodhart's Law("측정 대상이 된 지표는 좋은 지표가 되지 못한다")에 빠진다. 여러 차원을 함께 봐야 한다</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOIL ===== -->
+  <div class="P" id="p-toil">
+    <div class="PH"><div class="bg bg-o">● Toil Automation</div><h2>Toil 측정과 자동화</h2><p>반복적이고 수동적이며 자동화 가능한 운영 작업을 체계적으로 제거하는 방법론.</p></div>
+
+    <div class="sec" id="toil-measure">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Definition</div>
+        <h3>Toil 정의와 측정</h3>
+        <div class="cs">Google SRE의 Toil 정의 — "수동적, 반복적, 자동화 가능, 전술적, 서비스 성장에 비례"</div>
+        <div class="cp">모든 운영 작업이 Toil은 아니다. <strong>Toil의 5가지 특성</strong>을 모두 만족해야 한다. 전략적 판단이 필요한 작업(아키텍처 설계, SLO 리뷰)은 Toil이 아니다. Google SRE는 <strong>엔지니어 업무의 50% 이상이 Toil이면 위험</strong>하다고 본다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Toil의 5가지 특성</div><div class="v"><strong>1) 수동적(Manual):</strong> 사람이 직접 실행해야 함<br><strong>2) 반복적(Repetitive):</strong> 같은 작업을 여러 번 수행<br><strong>3) 자동화 가능(Automatable):</strong> 기계가 대신할 수 있음<br><strong>4) 전술적(Tactical):</strong> 전략적 가치 없음. 현상 유지<br><strong>5) 서비스 성장에 비례(O(n) with service growth):</strong> 서비스가 늘면 작업도 비례 증가<br><br><strong>Toil 예시:</strong> 인증서 수동 갱신, 수동 스케일링, 로그 파일 수동 정리, 반복적인 배포 절차, 수동 DR 테스트</div></div>
+          <div class="db"><div class="l">측정 방법</div><div class="v"><strong>시간 추적:</strong> 1~2주간 업무 분류 기록<br>• Engineering (프로젝트, 설계, 코딩): __시간<br>• Toil (반복 운영 작업): __시간<br>• Overhead (미팅, 이메일): __시간<br><br><strong>Toil 비율:</strong> Toil 시간 ÷ 총 업무 시간<br>• < 30%: 건강<br>• 30~50%: 주의. 자동화 투자 필요<br>• > 50%: 위험. 개선 작업이 불가능한 수준<br><br><strong>Solo DevOps 현실:</strong> Toil 비율이 높기 쉬움. 자동화에 투자할 시간이 Toil에 잡아먹히는 악순환. <strong>의식적으로 20%의 시간을 자동화에 투자</strong>해야 탈출</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="toil-eliminate">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Prioritization</div>
+        <h3>자동화 우선순위 결정</h3>
+        <div class="cs">모든 Toil을 한 번에 없앨 수 없다 — 투자 대비 효과가 가장 큰 것부터</div>
+        <div class="dt">
+          <div class="db"><div class="l">우선순위 매트릭스</div><div class="v"><div class="fm" style="text-align:left;font-size:10.5px">우선순위 = 빈도 × 소요 시간 × 위험도 ÷ 자동화 난이도
+
+① 주 5회 × 30분 × 위험 높음 ÷ 쉬움 = 최우선
+② 월 1회 × 2시간 × 위험 낮음 ÷ 어려움 = 후순위</div><br><strong>빈도:</strong> 하루에 여러 번? 주 1회? 월 1회?<br><strong>소요 시간:</strong> 한 번 실행에 얼마나 걸리는가?<br><strong>위험도:</strong> 수동 실행 시 실수 확률과 영향<br><strong>자동화 난이도:</strong> 구현에 얼마나 걸리는가?</div></div>
+          <div class="db"><div class="l">Quick Wins 목록</div><div class="v"><strong>1시간 이내 자동화 가능 + 높은 빈도:</strong><br>• 인증서 갱신 → cert-manager (이미 완료)<br>• 로그 파일 정리 → logrotate / Loki retention<br>• DNS 레코드 추가 → ExternalDNS<br>• 미사용 리소스 알림 → CronJob + kubectl<br><br><strong>1~2일 작업:</strong><br>• 새 서비스 온보딩 → 서비스 템플릿<br>• DB 백업 검증 → CronJob 자동화<br>• Runbook 실행 → 반자동 스크립트 (Level 1~2)<br><br><strong>1~2주 프로젝트:</strong><br>• Self-Service 인프라 프로비저닝<br>• 통합 운영 대시보드 (OpsGate 확장)<br>• HolmesGPT 인시던트 트리아지 자동화</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="ops-platform">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Platform</div>
+        <h3>운영 플랫폼 설계 (OpsGate 방향)</h3>
+        <div class="cs">반복적인 운영 작업을 통합하는 내부 운영 플랫폼 — Go로 구축</div>
+        <div class="cp">OpsGate 같은 운영 플랫폼은 <strong>Toil을 코드로 옮기는 허브</strong>다. 개별 스크립트가 흩어져 있는 대신, 하나의 도구에서 운영 작업을 실행하고 기록한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">운영 플랫폼 핵심 기능</div><div class="v"><strong>1) 작업 실행:</strong> kubectl, terraform, helm 작업을 래핑한 안전한 CLI/API<br><strong>2) 감사 로그:</strong> 누가, 언제, 무엇을 실행했는지 기록<br><strong>3) 권한 제어:</strong> RBAC으로 실행 가능한 작업 제한<br><strong>4) Runbook 연동:</strong> 알림 → 자동으로 관련 Runbook 작업 제안<br><strong>5) 실행 결과 알림:</strong> Slack으로 실행 결과 자동 게시</div></div>
+          <div class="db"><div class="l">설계 원칙 (Hexagonal Architecture)</div><div class="v"><strong>Core Domain:</strong> 작업 정의, 실행, 기록 로직<br><strong>Ports (인터페이스):</strong><br>• CLI (cobra) — 터미널에서 직접 실행<br>• HTTP API (gin/echo) — 웹 UI에서 실행<br>• Webhook — Grafana Alerting에서 자동 트리거<br><br><strong>Adapters (구현):</strong><br>• K8s client-go — kubectl 작업<br>• AWS SDK — 클라우드 리소스 조작<br>• Slack API — 알림 전송<br>• PostgreSQL — 감사 로그 저장<br><br>OpsGate의 hexagonal architecture 설계가 이 구조와 일치</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SOLO → SCALE ===== -->
+  <div class="P" id="p-scale">
+    <div class="PH"><div class="bg bg-p">● Solo DevOps → Scale</div><h2>Solo DevOps에서 팀으로 확장</h2><p>혼자서 모든 것을 하는 환경에서 조직이 성장할 때 어떻게 전환하는가.</p></div>
+
+    <div class="sec" id="solo-strat">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Strategy</div>
+        <h3>Solo DevOps 생존 전략</h3>
+        <div class="cs">1인이 전체 인프라를 운영할 때 번아웃 없이 가치를 극대화하는 전략</div>
+        <div class="dt">
+          <div class="db"><div class="l">우선순위 원칙</div><div class="v"><strong>1) 자동화 > 수동 대응:</strong> 같은 작업을 3번 하면 자동화. "지금 30분 vs 자동화에 2시간 → 앞으로 매주 30분 절약"이면 자동화가 이김<br><br><strong>2) 문서화 > 속도:</strong> 혼자만 아는 지식 = 버스 팩터 1. Runbook, 아키텍처 문서, 의사결정 기록(ADR). 누군가 합류했을 때 인수인계 시간을 최소화<br><br><strong>3) 구매 > 구축:</strong> 직접 만들 수 있어도 관리형 서비스가 TCO에서 유리한 경우 많음. Solo에서 Kafka를 직접 운영하는 것보다 MSK/Confluent Cloud가 낫다<br><br><strong>4) SLO 기반 우선순위:</strong> SLO에 영향이 없는 "개선"은 후순위. Error Budget이 충분하면 안정화보다 자동화에 투자</div></div>
+          <div class="db"><div class="l">시간 배분</div><div class="v"><strong>이상적 배분:</strong><br>• <strong>50%:</strong> 엔지니어링 (자동화, 도구 개선, 아키텍처)<br>• <strong>25%:</strong> 운영 (온콜 대응, 배포 지원, 요청 처리)<br>• <strong>15%:</strong> 학습 (SRE 학습, 새 기술 평가)<br>• <strong>10%:</strong> 문서화 (Runbook, ADR, 위키)<br><br><strong>현실:</strong> 운영이 50%+ 차지하는 경우가 많음<br><strong>탈출법:</strong> 매주 금요일 오후를 "자동화 시간"으로 고정. 이 시간에는 운영 요청을 받지 않음 (Slack 상태 변경). 이 습관이 장기적으로 Toil 비율을 줄임</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="team-grow">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Growth</div>
+        <h3>팀 성장 로드맵</h3>
+        <div class="cs">Solo → 2~3인 → Platform Team — 조직이 성장할 때의 전환 전략</div>
+        <div class="dt">
+          <div class="db"><div class="l">Phase 1: Solo (현재)</div><div class="v"><strong>모든 것을 혼자 담당.</strong><br>• 핵심: 자동화로 Toil 최소화<br>• 위험: 버스 팩터 1, 번아웃<br>• 대비: 문서화, IaC, GitOps로 "나 없이도 돌아가는" 시스템<br>• 채용 어필: "이 정도 규모를 혼자 운영할 수 있는 자동화 체계를 만들었다"</div></div>
+          <div class="db"><div class="l">Phase 2~3: 팀 성장</div><div class="v"><strong>Phase 2 — 2~3인 팀:</strong><br>• 역할 분리 시작: 인프라/앱 배포 또는 EKS/NHN Cloud<br>• 온콜 로테이션 가능 (번아웃 방지)<br>• 코드 리뷰 상호 수행<br>• 티켓 기반 → PR 기반 Self-Service 전환<br><br><strong>Phase 3 — Platform Team (5인+):</strong><br>• Platform Engineer + SRE + DevOps 역할 분화<br>• IDP 도입 (Backstage 등)<br>• 개발팀에 인프라 권한 위임 (Self-Service)<br>• 플랫폼 SLO 설정 ("배포 파이프라인의 SLO")<br>• 개발팀을 고객으로, 플랫폼을 제품으로</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="product-mindset">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Mindset</div>
+        <h3>Platform as a Product</h3>
+        <div class="cs">내부 플랫폼을 "제품"으로 다루는 사고방식 — 고객은 개발자, 제품은 플랫폼</div>
+        <div class="dt">
+          <div class="db"><div class="l">프로덕트 사고 적용</div><div class="v"><strong>고객 인터뷰:</strong> 개발자에게 "가장 불편한 점"을 정기적으로 물어보기. 설문 또는 1:1<br><strong>로드맵:</strong> 플랫폼 개선사항을 분기별 로드맵으로 관리. 개발팀에 공유<br><strong>릴리스 노트:</strong> 플랫폼 변경사항을 공지. "이번 주 변경: HPA 기본 타겟을 70%로 조정"<br><strong>독싱(Dogfooding):</strong> 플랫폼 팀도 자기 플랫폼을 사용. "먹어보지 않은 음식을 팔지 마라"<br><strong>피드백 루프:</strong> Slack 채널 #platform-feedback. 개발자의 불만이 개선 백로그가 됨</div></div>
+          <div class="db"><div class="l">플랫폼 SLO</div><div class="v"><strong>플랫폼 자체에도 SLO를 설정:</strong><br><br><strong>CI 파이프라인 SLO:</strong><br>• 빌드 시간 P95 < 10분<br>• 파이프라인 성공률 > 95%<br><br><strong>배포 SLO:</strong><br>• Merge → Production 배포 < 30분<br>• 배포 성공률 > 99%<br><br><strong>인프라 프로비저닝 SLO:</strong><br>• 요청 → 완료 < 1시간 (Self-Service)<br>• 요청 → 완료 < 1일 (티켓 기반)<br><br><strong>모니터링:</strong> DORA 메트릭과 동일한 프레임워크로 플랫폼 성과 추적</div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 Solo DevOps에서 Platform Engineer로의 진화</strong><br>현재 하는 일(자동화, IaC, GitOps, 모니터링)은 이미 Platform Engineering의 핵심이다. 차이는 <strong>관점의 전환</strong>: "인프라를 관리한다" → "개발자에게 플랫폼을 제공한다". 이 관점 전환이 Resume에서도 차별화 포인트가 되고, SRE/Platform Engineer 포지션에서도 핵심 역량으로 평가받는다.</div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

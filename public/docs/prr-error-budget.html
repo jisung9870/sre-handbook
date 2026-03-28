@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Production Readiness & Error Budget — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--green);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--green)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="eb"].on{color:var(--blue)}.T[data-t="eb"].on::after{background:var(--blue);left:6%;right:6%}
+.T[data-t="prr"].on{color:var(--green)}.T[data-t="prr"].on::after{background:var(--green);left:6%;right:6%}
+.T[data-t="change"].on{color:var(--orange)}.T[data-t="change"].on::after{background:var(--orange);left:6%;right:6%}
+.T[data-t="depend"].on{color:var(--purple)}.T[data-t="depend"].on::after{background:var(--purple);left:6%;right:6%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.dt{grid-template-columns:1fr!important}.T{font-size:8.5px;padding:10px 2px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">SRE Practice</div><h1><em>PRR</em> &<br>Error Budget</h1></div>
+  <div class="sl">Error Budget 실전</div>
+  <ul class="sn">
+    <li><a data-t="eb" data-s="eb-calc" class="on"><span class="d" style="background:var(--blue)"></span>Error Budget 산정</a></li>
+    <li><a data-t="eb" data-s="eb-consume"><span class="d" style="background:var(--blue)"></span>소비 추적</a></li>
+    <li><a data-t="eb" data-s="eb-policy"><span class="d" style="background:var(--blue)"></span>Error Budget 정책</a></li>
+    <li><a data-t="eb" data-s="eb-prometheus"><span class="d" style="background:var(--blue)"></span>Prometheus 구현</a></li>
+  </ul>
+  <div class="sl">Production Readiness</div>
+  <ul class="sn">
+    <li><a data-t="prr" data-s="prr-what"><span class="d" style="background:var(--green)"></span>PRR이란</a></li>
+    <li><a data-t="prr" data-s="prr-checklist"><span class="d" style="background:var(--green)"></span>PRR 체크리스트</a></li>
+    <li><a data-t="prr" data-s="prr-template"><span class="d" style="background:var(--green)"></span>PRR 문서 템플릿</a></li>
+  </ul>
+  <div class="sl">Change Management</div>
+  <ul class="sn">
+    <li><a data-t="change" data-s="change-risk"><span class="d" style="background:var(--orange)"></span>변경 리스크 등급</a></li>
+    <li><a data-t="change" data-s="change-freeze"><span class="d" style="background:var(--orange)"></span>Freeze & 배포 윈도우</a></li>
+  </ul>
+  <div class="sl">의존성 관리</div>
+  <ul class="sn">
+    <li><a data-t="depend" data-s="dep-map"><span class="d" style="background:var(--purple)"></span>의존성 매핑</a></li>
+    <li><a data-t="depend" data-s="dep-budget"><span class="d" style="background:var(--purple)"></span>의존성 SLO Budget</a></li>
+  </ul>
+  <div class="S-f"><p>Error Budget is<br>the currency of<br>reliability.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="eb" onclick="sw('eb')">● Error Budget</button>
+    <button class="T" data-t="prr" onclick="sw('prr')">● PRR</button>
+    <button class="T" data-t="change" onclick="sw('change')">● Change Mgmt</button>
+    <button class="T" data-t="depend" onclick="sw('depend')">● 의존성</button>
+  </div>
+
+  <!-- ===== ERROR BUDGET ===== -->
+  <div class="P on" id="p-eb">
+    <div class="PH"><div class="bg bg-b">● Error Budget 실전 산정</div><h2>Error Budget — 실전 계산부터 정책까지</h2><p>SLO에서 Error Budget을 산출하고, 소비를 추적하고, 정책으로 행동을 결정하는 전체 흐름.</p></div>
+
+    <div class="sec" id="eb-calc">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Calculation</div>
+        <h3>Error Budget 실전 산정</h3>
+        <div class="cs">SLO 목표에서 "허용 가능한 에러 양"을 구체적 숫자로 계산하는 방법</div>
+        <div class="cp"><strong>Error Budget = 1 - SLO 목표.</strong> 이것이 전부다. 하지만 "이 숫자가 실제로 뭘 의미하는가?"를 시간, 요청 수, 분 단위로 변환해야 실무에서 쓸 수 있다.</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>SLO 목표</th><th>Error Budget</th><th>30일 허용 다운타임</th><th>분기(90일)</th><th>연간(365일)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>99%</strong></td><td>1%</td><td>7시간 12분</td><td>21시간 36분</td><td>3일 15시간</td></tr>
+            <tr><td><strong>99.5%</strong></td><td>0.5%</td><td>3시간 36분</td><td>10시간 48분</td><td>1일 19시간</td></tr>
+            <tr><td><strong>99.9%</strong></td><td>0.1%</td><td>43분 12초</td><td>2시간 9분</td><td>8시간 46분</td></tr>
+            <tr><td><strong>99.95%</strong></td><td>0.05%</td><td>21분 36초</td><td>1시간 5분</td><td>4시간 23분</td></tr>
+            <tr><td><strong>99.99%</strong></td><td>0.01%</td><td>4분 19초</td><td>12분 58초</td><td>52분 36초</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="dt" style="margin-top:14px;">
+        <div class="db"><div class="l">시간 기반 Error Budget</div><div class="v"><strong>계산:</strong><br><div class="fm" style="text-align:left;font-size:10.5px">SLO 99.9% / 30일 윈도우
+
+Error Budget = 1 - 0.999 = 0.001
+30일 = 30 × 24 × 60 = 43,200분
+
+허용 다운타임 = 43,200 × 0.001
+             = 43.2분/월
+
+즉, 한 달에 총 43분까지 
+서비스가 다운되어도 SLO 위반이 아니다.</div><br><strong>실전 의미:</strong><br>• 43분 = 배포 롤백 시간 2번 정도<br>• 한 번의 P1 인시던트가 30분이면 → 나머지 13분만 남음<br>• 두 번째 인시던트가 15분이면 → <strong>SLO 위반</strong></div></div>
+        <div class="db"><div class="l">요청 기반 Error Budget</div><div class="v"><strong>계산:</strong><br><div class="fm" style="text-align:left;font-size:10.5px">SLO 99.9% / 30일 윈도우 / 월 1000만 요청
+
+Error Budget = 1 - 0.999 = 0.001
+허용 실패 요청 = 10,000,000 × 0.001
+              = 10,000 요청/월
+
+즉, 한 달에 10,000개의 요청이 
+실패(5xx 또는 timeout)해도 SLO 위반이 아니다.
+
+일 평균: 10,000 ÷ 30 ≈ 333 실패 요청/일
+시간 평균: 333 ÷ 24 ≈ 14 실패 요청/시간</div><br><strong>실전 의미:</strong><br>• 시간당 14개 에러까지 허용 → <strong>매우 적다!</strong><br>• 배포 실패로 5분간 50% 에러 발생 → 분당 ~500 에러 × 5분 = 2,500 에러 소비<br>• 월 Budget의 25%를 한 번의 배포 실패로 소진</div></div>
+      </div>
+      <div class="nt o"><strong>⚠ "우리 회사는 HTTP 500을 비즈니스 에러에도 사용한다"</strong><br>HTTP 500으로 비즈니스 로직 에러를 반환하면 <strong>SLI 계산이 불가능</strong>하다. "유효한 요청 중 성공 비율"을 측정할 수 없기 때문이다. 이 경우 <strong>Latency SLI</strong>(P99 < 500ms)를 기본 SLO로 사용하는 전략이 현실적이다. SLO Engineering 문서의 SLO starter kit이 이 제약을 반영하여 설계됨.</div>
+    </div>
+
+    <div class="sec" id="eb-consume">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Tracking</div>
+        <h3>Error Budget 소비 추적</h3>
+        <div class="cs">"지금 Error Budget을 얼마나 썼는가?" — 실시간 추적과 번다운 차트</div>
+        <div class="dt">
+          <div class="db"><div class="l">소비율 계산</div><div class="v"><div class="fm" style="text-align:left;font-size:10.5px">Error Budget 소비율 (%) 
+  = 실제 에러율 ÷ Error Budget × 100
+
+예시: SLO 99.9%, 현재 에러율 0.05%
+  Error Budget = 0.1%
+  소비율 = 0.05% ÷ 0.1% × 100 = 50%
+  → 50% 소비됨, 50% 남음
+
+남은 Budget (시간):
+  30일 윈도우, 43.2분 총 Budget
+  50% 소비 = 21.6분 사용 → 21.6분 남음</div><br><strong>Rolling Window:</strong> "지난 30일"의 슬라이딩 윈도우. 매일 하루치가 추가되고 31일 전 하루치가 빠짐. 한 달 전 인시던트가 윈도우에서 빠지면 Budget이 자동 회복</div></div>
+          <div class="db"><div class="l">Budget 번다운 차트</div><div class="v"><strong>시각화:</strong> Y축이 남은 Budget %, X축이 시간. 우하향 직선이 이상적<br><br><strong>패턴 분석:</strong><br>• <strong>완만한 하강:</strong> 건강. 작은 에러가 꾸준히 소비<br>• <strong>급격한 절벽:</strong> 인시던트 발생. 한 번에 대량 소비<br>• <strong>평탄:</strong> 에러 0. 좋지만 "너무 보수적인가?" 고민<br>• <strong>0% 도달:</strong> SLO 위반. Error Budget 정책 발동<br><br><strong>Grafana 대시보드:</strong><br>SLO Engineering 문서의 Multi-window Burn Rate 알림과 결합하여:<br>• Burn Rate > 14.4× → 1시간 내 Budget 소진 예측 → P1 알림<br>• Burn Rate > 6× → 6시간 내 소진 → P2 알림<br>• Burn Rate > 1× → 정상 소비 중<br>• Burn Rate < 1× → Budget 회복 중</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="eb-policy">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Policy</div>
+        <h3>Error Budget 정책 — Budget 상태에 따른 행동 결정</h3>
+        <div class="cs">"Error Budget이 X% 남았을 때 우리는 무엇을 하는가?" — 이것이 SRE의 핵심 거버넌스</div>
+        <div class="cp">Error Budget 정책이 없으면 SLO는 그냥 숫자다. <strong>Budget 상태에 따라 팀의 행동이 바뀌어야</strong> SLO가 의미를 가진다. Google SRE에서 Error Budget 정책은 <strong>SRE팀과 개발팀의 계약</strong>이다.</div>
+        <div class="dt">
+          <div class="db df"><div class="l">4단계 Error Budget 정책</div><div class="v">
+<div class="fm" style="text-align:left;font-size:10.5px"><span style="color:var(--green)">■</span> Budget > 75% 남음 — GREEN
+  → 정상 배포. 새 기능 개발 우선.
+  → Chaos 실험 적극 실행
+  → 공격적 변경(마이그레이션, 업그레이드) 가능
+
+<span style="color:var(--blue)">■</span> Budget 50~75% 남음 — BLUE  
+  → 정상 배포. 하지만 높은 리스크 변경은 주의
+  → 배포 전 Canary 필수
+  → 인시던트 RCA 완료 확인
+
+<span style="color:var(--orange)">■</span> Budget 25~50% 남음 — YELLOW
+  → 신규 기능 배포 속도 감소
+  → 안정화 작업 우선 (성능 개선, 버그 수정)
+  → 모든 배포에 rollback 계획 필수
+  → Chaos 실험 중단
+
+<span style="color:var(--red)">■</span> Budget < 25% 남음 — RED (Budget 거의 소진)
+  → 기능 배포 동결 (change freeze)
+  → 안정화 & 신뢰성 작업만 허용
+  → 인시던트가 추가 발생하면 SLO 위반
+  → 모든 변경에 SRE(본인) 승인 필수
+  → Budget이 50%까지 회복되면 YELLOW로 복귀</span></div></div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 Solo DevOps에서의 Error Budget 정책</strong><br>"개발팀과의 계약"이 아니라 <strong>자기 자신과의 계약</strong>이다. Budget RED일 때 "이 기능 오늘 꼭 배포해야 하는데..."라는 압박에 <strong>"Error Budget 정책에 따라 안정화 먼저"</strong>라고 근거를 댈 수 있다. 정책을 <strong>문서화하고 경영진과 공유</strong>해두면 더 강력한 방어가 된다.</div>
+    </div>
+
+    <div class="sec" id="eb-prometheus">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Implementation</div>
+        <h3>Prometheus로 Error Budget 구현</h3>
+        <div class="cs">PromQL로 Error Budget 잔량, 소비율, Burn Rate를 계산하는 실전 쿼리</div>
+        <div class="dt">
+          <div class="db"><div class="l">Availability SLI/SLO/Budget</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="c"># SLI: 성공 요청 비율 (30일 윈도우)</span>
+<span class="k">sli_availability</span> =
+  sum(rate(http_requests_total{
+    code!~"5.."}[30d]))
+  /
+  sum(rate(http_requests_total[30d]))
+
+<span class="c"># Error Budget 남은 비율 (%)</span>
+<span class="c"># SLO 목표: 0.999 (99.9%)</span>
+<span class="k">error_budget_remaining</span> =
+  1 - (
+    (1 - sli_availability)
+    /
+    (1 - 0.999)
+  )
+
+<span class="c"># 결과 해석:</span>
+<span class="c"># 1.0 = 100% 남음 (에러 0)</span>
+<span class="c"># 0.5 = 50% 남음</span>
+<span class="c"># 0.0 = 소진 (SLO 위반)</span>
+<span class="c"># -0.5 = 50% 초과 소진 (SLO 크게 위반)</span></div></div></div>
+          <div class="db"><div class="l">Latency SLI/SLO/Budget</div><div class="v"><div class="co" style="margin:4px 0;font-size:10px"><span class="c"># SLI: P99 < 500ms인 요청 비율 (30일)</span>
+<span class="k">sli_latency</span> =
+  sum(rate(http_request_duration_seconds_bucket{
+    le="0.5"}[30d]))
+  /
+  sum(rate(http_request_duration_seconds_count[30d]))
+
+<span class="c"># SLO 목표: 97% (요청의 97%가 500ms 이내)</span>
+<span class="k">error_budget_latency</span> =
+  1 - (
+    (1 - sli_latency)
+    /
+    (1 - 0.97)
+  )
+
+<span class="c"># 실전 제약: 회사가 500 에러를 비즈니스에 쓰면</span>
+<span class="c"># → Availability SLI가 무의미</span>
+<span class="c"># → Latency SLI를 기본 SLO로 사용</span>
+<span class="c"># → 이것이 SLO starter kit의 설계 이유</span></div></div></div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 Recording Rule로 비용 절감</strong><br>30일 range vector 쿼리는 매번 실행하면 매우 비싸다. <strong>Recording Rule</strong>로 미리 집계해두면 Grafana 대시보드 렌더링 속도와 Prometheus 부하를 대폭 줄인다. SLO Engineering 문서의 Recording Rules 설정과 직접 연결.</div>
+    </div>
+  </div>
+
+  <!-- ===== PRR ===== -->
+  <div class="P" id="p-prr">
+    <div class="PH"><div class="bg bg-g">● Production Readiness Review</div><h2>PRR — 프로덕션 준비 검증</h2><p>서비스를 프로덕션에 올리기 전 "이 서비스가 프로덕션에서 안전하게 운영될 수 있는가?"를 체계적으로 검증.</p></div>
+
+    <div class="sec" id="prr-what">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Concept</div>
+        <h3>PRR이란</h3>
+        <div class="cs">Google SRE의 Production Readiness Review — 서비스의 "운영 가능성"을 사전 평가</div>
+        <div class="cp">PRR은 <strong>"이 서비스가 프로덕션 장애를 견딜 수 있는가?"</strong>를 런칭 전에 평가하는 프로세스다. SLO가 정의되어 있는지, 모니터링이 충분한지, 장애 시 대응 계획이 있는지, 용량이 충분한지를 <strong>체계적으로 점검</strong>한다.<br><br>Solo DevOps에서도 새 서비스를 프로덕션에 올리기 전 <strong>PRR 체크리스트를 5분이라도 훑어보면</strong> 런칭 후 장애를 크게 줄일 수 있다.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="prr-checklist">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Checklist</div>
+        <h3>PRR 체크리스트</h3>
+        <div class="cs">6개 영역의 프로덕션 준비 항목 — 하나라도 빠지면 런칭 후 고생</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>영역</th><th>체크 항목</th><th>기준</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="3"><strong style="color:var(--blue)">SLO</strong></td><td>SLI가 정의되어 있는가?</td><td>최소 1개 SLI (Availability 또는 Latency)</td></tr>
+            <tr><td>SLO 목표가 설정되어 있는가?</td><td>비즈니스와 합의된 수치 (예: 99.9%)</td></tr>
+            <tr><td>Error Budget 정책이 문서화되어 있는가?</td><td>4단계 정책 + 관련자 공유</td></tr>
+            <tr><td rowspan="4"><strong style="color:var(--green)">관측</strong></td><td>Prometheus 메트릭 노출</td><td>RED 메트릭 최소 (Rate/Errors/Duration)</td></tr>
+            <tr><td>구조화 로그 (JSON)</td><td>Loki에서 파싱 가능</td></tr>
+            <tr><td>Trace context 전파</td><td>수신한 traceparent 헤더를 다음 호출에 전달</td></tr>
+            <tr><td>Grafana 대시보드 & 알림</td><td>SLI 대시보드 + Burn Rate 알림</td></tr>
+            <tr><td rowspan="3"><strong style="color:var(--orange)">배포</strong></td><td>Canary/Blue-Green 배포 가능</td><td>ArgoCD Rollout 또는 weight 조정</td></tr>
+            <tr><td>Rollback 절차 문서화</td><td>ArgoCD Sync로 이전 커밋 복원</td></tr>
+            <tr><td>Helm values에 resource request/limit</td><td>VPA 추천값 반영</td></tr>
+            <tr><td rowspan="3"><strong style="color:var(--red)">복원력</strong></td><td>Health check (liveness/readiness)</td><td>적절한 간격 + 실패 임계값</td></tr>
+            <tr><td>Graceful shutdown</td><td>SIGTERM → 진행 요청 완료 → 종료</td></tr>
+            <tr><td>PDB 설정</td><td>minAvailable 또는 maxUnavailable</td></tr>
+            <tr><td rowspan="2"><strong style="color:var(--purple)">보안</strong></td><td>non-root 실행</td><td>SecurityContext runAsNonRoot: true</td></tr>
+            <tr><td>NetworkPolicy</td><td>필요한 통신만 허용</td></tr>
+            <tr><td rowspan="2"><strong style="color:var(--teal)">용량</strong></td><td>예상 트래픽 추정</td><td>피크 RPS, 저장 데이터 크기</td></tr>
+            <tr><td>HPA 설정</td><td>min/max replicas, 커스텀 메트릭</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sec" id="prr-template">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Template</div>
+        <h3>PRR 문서 템플릿</h3>
+        <div class="cs">새 서비스 런칭 시 작성하는 1페이지 PRR 문서</div>
+        <div class="dt">
+          <div class="db df"><div class="l">PRR 문서</div><div class="v"><div class="fm" style="text-align:left;font-size:10.5px">## Production Readiness Review
+서비스명: order-service
+날짜: 2025-03-20
+작성자: Jisung
+
+### 1. 서비스 개요
+설명: 주문 처리 API
+의존성: PostgreSQL(HARD), Redis(HARD), Payment API(SOFT)
+예상 트래픽: 피크 200 RPS, 평균 50 RPS
+
+### 2. SLO
+SLI: P99 latency < 500ms (요청의 97%)
+SLO: 97% / 30일 Rolling Window
+Error Budget: 3% = 30일 × 24h × 60m × 0.03 = 1,296분 ≈ 21.6시간
+  → P99이 500ms를 초과하는 시간이 월 21.6시간까지 허용
+
+### 3. Observability ✅
+[x] Prometheus 메트릭: http_request_duration_seconds
+[x] JSON 로그: Loki 수집 확인
+[x] Trace: traceparent 헤더 전파 확인
+[x] Dashboard: Grafana order-service SLI 대시보드
+[x] Alert: Burn Rate 14.4x/6x/1x 3단계
+
+### 4. Resilience ✅
+[x] livenessProbe: /healthz, 10s interval
+[x] readinessProbe: /ready, 5s interval
+[x] Graceful shutdown: terminationGracePeriodSeconds=30
+[x] PDB: maxUnavailable=1
+[x] HPA: min=2, max=10, CPU 70% + RPS 200
+
+### 5. Deployment ✅
+[x] Canary: ArgoCD Rollout 10%→50%→100%
+[x] Rollback: git revert → ArgoCD auto-sync
+
+### 6. Security ✅
+[x] non-root, readOnlyRootFilesystem
+[x] NetworkPolicy: DB/Redis만 egress 허용
+
+### 7. 위험 & 미해결
+- [ ] Payment API 장애 시 Fallback 미구현 (SOFT dependency)
+- [ ] Chaos 테스트 미수행 (런칭 후 1주 내 실행 예정)
+
+### 판정: ✅ 프로덕션 배포 승인</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CHANGE MANAGEMENT ===== -->
+  <div class="P" id="p-change">
+    <div class="PH"><div class="bg bg-o">● Change Management</div><h2>변경 관리</h2><p>변경 리스크 등급, 배포 윈도우, Freeze 정책 — 변경이 장애의 가장 큰 원인이다.</p></div>
+
+    <div class="sec" id="change-risk">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Risk</div>
+        <h3>변경 리스크 등급</h3>
+        <div class="cs">모든 변경은 같지 않다 — 리스크에 따라 검증 수준을 차등 적용</div>
+        <div class="cp">Google SRE의 연구에 따르면 <strong>전체 인시던트의 70%가 변경(배포, 설정 변경, 인프라 변경)에 의해 발생</strong>한다. 변경의 리스크를 분류하고, 리스크에 따라 검증 수준을 달리하면 인시던트를 대폭 줄일 수 있다.</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>등급</th><th>설명</th><th>예시</th><th>검증 요건</th></tr></thead>
+          <tbody>
+            <tr><td><strong style="color:var(--green)">Low</strong></td><td>영향 범위 좁고 롤백 쉬움</td><td>앱 코드 배포 (Canary), ConfigMap 변경, 문서 업데이트</td><td>CI 통과 + Canary. 자동 승인 가능</td></tr>
+            <tr><td><strong style="color:var(--orange)">Medium</strong></td><td>영향 범위 넓거나 롤백에 주의 필요</td><td>Helm 차트 변경, 새 서비스 런칭, DB 마이그레이션 (backward compatible)</td><td>CI + Staging 검증 + PR 리뷰 + Canary</td></tr>
+            <tr><td><strong style="color:var(--red)">High</strong></td><td>전체 서비스 영향 또는 롤백 어려움</td><td>K8s 업그레이드, CRD 변경, 네트워크 정책 변경, DB 스키마 (breaking)</td><td>Staging 완전 검증 + SRE 승인 + 유지보수 윈도우 + Rollback 계획 문서화</td></tr>
+            <tr><td><strong style="color:var(--purple)">Critical</strong></td><td>롤백 불가능한 변경</td><td>클러스터 마이그레이션, 데이터 마이그레이션, 플랫폼 변경</td><td>전체 테스트 + Blue-Green + 비상 연락망 + War Room 대기</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sec" id="change-freeze">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Freeze</div>
+        <h3>Change Freeze & 배포 윈도우</h3>
+        <div class="cs">배포를 하면 안 되는 시간과 해야 하는 시간을 명확히</div>
+        <div class="dt">
+          <div class="db"><div class="l">Freeze 정책</div><div class="v"><strong>정기 Freeze:</strong><br>• 금요일 오후~월요일 아침: 주말 배포 금지 (Solo DevOps면 더더욱)<br>• 매월 마지막 주: 월말 결산 기간 (금융/커머스)<br>• 연말 연휴: 12월 말 ~ 1월 초<br><br><strong>비정기 Freeze:</strong><br>• Error Budget RED (25% 미만) → 안정화 작업만 허용<br>• K8s 업그레이드 중 → 앱 배포 동결<br>• 대규모 이벤트/프로모션 기간<br><br><strong>Freeze 예외:</strong><br>• P1/P2 인시던트 핫픽스<br>• 보안 패치 (CVE Critical)<br>→ 예외에도 PR 리뷰 + Canary 필수</div></div>
+          <div class="db"><div class="l">배포 윈도우</div><div class="v"><strong>권장 배포 시간:</strong><br>화~목 10:00~16:00 (KST)<br>→ 문제 발생 시 <strong>업무 시간 내 대응</strong> 가능<br>→ 월요일은 주말 축적 이슈 대응, 금요일은 주말 리스크 회피<br><br><strong>High 리스크 변경:</strong><br>유지보수 윈도우: 수요일 14:00~16:00<br>→ 사전 공지, War Room 대기, SLI 실시간 모니터링<br><br><strong>자동화:</strong><br>ArgoCD Sync Window로 배포 허용/금지 시간 제어<br><code>syncWindows:</code><br><code>- kind: deny</code><br><code>  schedule: "0 17 * * 5"</code><br><code>  duration: 63h</code><br><code>  # 금요일 17시 ~ 월요일 08시 배포 차단</code></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DEPENDENCY ===== -->
+  <div class="P" id="p-depend">
+    <div class="PH"><div class="bg bg-p">● Dependency Management</div><h2>의존성 관리와 SLO Budget 분배</h2><p>서비스 의존성을 식별하고, 의존성의 SLO가 우리 SLO에 미치는 영향을 정량적으로 분석.</p></div>
+
+    <div class="sec" id="dep-map">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Mapping</div>
+        <h3>의존성 매핑</h3>
+        <div class="cs">Critical Path 위의 모든 의존성을 식별하고 HARD/SOFT로 분류</div>
+        <div class="dt">
+          <div class="db"><div class="l">의존성 분류</div><div class="v"><strong>HARD Dependency:</strong> 이것이 없으면 서비스 완전 불가능<br>예: DB(데이터 저장), Auth 서비스(인증), Redis(세션)<br>→ <strong>반드시 이중화</strong>. Circuit Breaker로 장애 격리. Fallback 불가능 = 서비스 다운 인정<br><br><strong>SOFT Dependency:</strong> 이것이 없어도 핵심 기능은 동작<br>예: 알림 서비스, 추천 엔진, 분석 서비스<br>→ <strong>Graceful Degradation</strong>. 해당 기능만 비활성화. 사용자에게 "일시적으로 이용 불가" 표시<br><br><strong>INFRA Dependency:</strong> 모든 서비스가 공유하는 인프라<br>예: CoreDNS, NAT Gateway, Load Balancer<br>→ <strong>인프라 이중화</strong>. 단일 장애점(SPOF) 제거</div></div>
+          <div class="db"><div class="l">의존성 매핑 도구</div><div class="v"><strong>수동 매핑:</strong> 아키텍처 다이어그램에서 화살표를 따라가며 목록 작성<br><br><strong>자동 매핑:</strong><br>• <strong>Kiali (Istio):</strong> Service Graph에서 자동 시각화<br>• <strong>Hubble (Cilium):</strong> Flow 데이터에서 서비스 간 통신 패턴 추출<br>• <strong>Tempo/분산 추적:</strong> Trace 데이터에서 의존성 체인 추적<br><br><strong>결과물 예시:</strong><br>api-server → [HARD] PostgreSQL → [HARD] EBS<br>api-server → [HARD] Redis → [HARD] ElastiCache<br>api-server → [SOFT] Payment API → [외부]<br>api-server → [INFRA] CoreDNS<br>api-server → [INFRA] NAT GW → [INFRA] Internet<br><br><strong>Critical Path:</strong> 사용자 요청이 성공하기 위해 <strong>반드시 거쳐야 하는 HARD 의존성 체인</strong></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="dep-budget">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Budget</div>
+        <h3>의존성 SLO Budget 분배</h3>
+        <div class="cs">"우리 SLO 99.9%를 달성하려면, 각 의존성의 SLO는 얼마여야 하는가?"</div>
+        <div class="cp">서비스의 SLO는 <strong>의존성 SLO의 곱</strong>보다 높을 수 없다. 3개의 HARD 의존성이 각각 99.9%면, 최상의 경우 서비스 SLO는 <code>99.9% × 99.9% × 99.9% = 99.7%</code>이다. 우리 서비스의 에러가 0이라도 의존성 에러로 SLO를 달성하지 못할 수 있다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">의존성 SLO 곱 계산</div><div class="v"><div class="fm" style="text-align:left;font-size:10.5px">서비스 Availability ≤ Π(의존성 Availability)
+
+예시: api-server의 HARD 의존성
+  PostgreSQL:     99.95%
+  Redis:          99.99%
+  Payment API:    99.9%
+  CoreDNS:        99.999%
+  
+  최대 서비스 Availability:
+  0.9995 × 0.9999 × 0.999 × 0.99999
+  = 0.99839... ≈ 99.84%
+
+  → 우리 코드가 완벽해도 SLO 99.9%는 불가능!
+  → Payment API(99.9%)가 병목
+
+  해결: Payment API를 SOFT로 변경
+  → 장애 시 Fallback (결제 지연 처리)
+  → HARD 의존성에서 제외
+  → 새 계산: 0.9995 × 0.9999 × 0.99999 ≈ 99.94%
+  → SLO 99.9% 달성 가능</div></div></div>
+          <div class="db"><div class="l">Budget 분배 전략</div><div class="v"><strong>전체 Error Budget을 의존성별로 배분:</strong><br><br><strong>SLO 99.9% → Error Budget 0.1%</strong><br>• 자체 에러 (코드 버그, 배포 실패): 0.04%<br>• PostgreSQL 장애: 0.03%<br>• Redis 장애: 0.01%<br>• 인프라 (CoreDNS, NAT GW): 0.01%<br>• 여유분 (예측 불가): 0.01%<br>• 합계: 0.10%<br><br><strong>의미:</strong><br>"PostgreSQL 장애로 인한 에러가 0.03%를 초과하면 DB 팀/AWS 지원에 에스컬레이션"<br>"자체 에러가 0.04%를 초과하면 배포 동결"<br><br><strong>실전:</strong> 이 수준의 Budget 분배는 대규모 조직에서나 가능. Solo DevOps에서는 <strong>전체 Budget을 하나로 관리</strong>하되, 인시던트 Postmortem에서 "이 에러가 자체 원인인지 의존성 원인인지" 분류하는 것만으로도 충분</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

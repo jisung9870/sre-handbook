@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Systems Performance Engineering — SRE Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--red);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--red)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="method"].on{color:var(--red)}.T[data-t="method"].on::after{background:var(--red);left:6%;right:6%}
+.T[data-t="tools"].on{color:var(--blue)}.T[data-t="tools"].on::after{background:var(--blue);left:6%;right:6%}
+.T[data-t="flame"].on{color:var(--orange)}.T[data-t="flame"].on::after{background:var(--orange);left:6%;right:6%}
+.T[data-t="profile"].on{color:var(--green)}.T[data-t="profile"].on::after{background:var(--green);left:6%;right:6%}
+.T[data-t="sixty"].on{color:var(--purple)}.T[data-t="sixty"].on::after{background:var(--purple);left:6%;right:6%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.dt{grid-template-columns:1fr!important}.T{font-size:8px;padding:10px 2px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">CS for SRE</div><h1><em>Systems</em><br>Performance</h1></div>
+  <div class="sl">방법론</div>
+  <ul class="sn">
+    <li><a data-t="method" data-s="use-method" class="on"><span class="d" style="background:var(--red)"></span>USE Method</a></li>
+    <li><a data-t="method" data-s="red-method"><span class="d" style="background:var(--red)"></span>RED Method</a></li>
+    <li><a data-t="method" data-s="tsa"><span class="d" style="background:var(--red)"></span>TSA Method</a></li>
+    <li><a data-t="method" data-s="workload"><span class="d" style="background:var(--red)"></span>워크로드 분석</a></li>
+  </ul>
+  <div class="sl">Linux 성능 도구</div>
+  <ul class="sn">
+    <li><a data-t="tools" data-s="perf-tool"><span class="d" style="background:var(--blue)"></span>perf 심화</a></li>
+    <li><a data-t="tools" data-s="bpf-tools"><span class="d" style="background:var(--blue)"></span>BPF 성능 도구</a></li>
+    <li><a data-t="tools" data-s="strace-ss"><span class="d" style="background:var(--blue)"></span>strace / ss / sar</a></li>
+  </ul>
+  <div class="sl">Flame Graph</div>
+  <ul class="sn">
+    <li><a data-t="flame" data-s="flame-read"><span class="d" style="background:var(--orange)"></span>읽기 & 해석</a></li>
+    <li><a data-t="flame" data-s="flame-types"><span class="d" style="background:var(--orange)"></span>CPU / Memory / Off-CPU</a></li>
+  </ul>
+  <div class="sl">Continuous Profiling</div>
+  <ul class="sn">
+    <li><a data-t="profile" data-s="cont-prof"><span class="d" style="background:var(--green)"></span>프로덕션 프로파일링</a></li>
+    <li><a data-t="profile" data-s="go-pprof"><span class="d" style="background:var(--green)"></span>Go pprof</a></li>
+  </ul>
+  <div class="sl">60-Second Analysis</div>
+  <ul class="sn">
+    <li><a data-t="sixty" data-s="sixty-check"><span class="d" style="background:var(--purple)"></span>60초 체크리스트</a></li>
+    <li><a data-t="sixty" data-s="k8s-perf"><span class="d" style="background:var(--purple)"></span>K8s 성능 진단</a></li>
+  </ul>
+  <div class="S-f"><p>You can't optimize<br>what you can't<br>measure.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="method" onclick="sw('method')">● 방법론</button>
+    <button class="T" data-t="tools" onclick="sw('tools')">● 도구</button>
+    <button class="T" data-t="flame" onclick="sw('flame')">● Flame Graph</button>
+    <button class="T" data-t="profile" onclick="sw('profile')">● Profiling</button>
+    <button class="T" data-t="sixty" onclick="sw('sixty')">● 60초 분석</button>
+  </div>
+
+  <!-- ===== METHODOLOGY ===== -->
+  <div class="P on" id="p-method">
+    <div class="PH"><div class="bg bg-r">● Performance Methodologies</div><h2>성능 분석 방법론</h2><p>USE, RED, TSA — 체계적으로 성능 병목을 찾는 프레임워크. Brendan Gregg의 Systems Performance 핵심.</p></div>
+
+    <div class="sec" id="use-method">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Resource</div>
+        <h3>USE Method — 리소스 관점 성능 분석</h3>
+        <div class="cs">Utilization, Saturation, Errors — 모든 리소스에 대해 세 가지를 확인하면 병목을 찾을 수 있다</div>
+        <div class="cp">Brendan Gregg가 제안한 USE Method는 <strong>모든 하드웨어 리소스</strong>(CPU, Memory, Disk, Network)에 대해 <strong>Utilization(사용률), Saturation(포화도), Errors(에러)</strong>를 확인하는 체계적 접근이다. "어디가 병목인가?"에 대한 가장 빠른 답을 제공한다.</div>
+      </div>
+      <div class="bx" style="padding:0;overflow:hidden;">
+        <table class="tb">
+          <thead><tr><th>리소스</th><th>Utilization (사용률)</th><th>Saturation (포화)</th><th>Errors (에러)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>CPU</strong></td><td><code>mpstat -P ALL 1</code><br>node_cpu_seconds_total</td><td><code>vmstat 1</code> → r 컬럼 (run queue)<br>node_load1 > CPU 코어 수</td><td><code>perf stat</code> → machine_clears<br>dmesg → MCE</td></tr>
+            <tr><td><strong>Memory</strong></td><td><code>free -h</code> → used/total<br>node_memory_MemAvailable</td><td><code>vmstat 1</code> → si/so (swap in/out)<br>node_vmstat_pgmajfault</td><td><code>dmesg | grep oom</code><br>OOMKill 카운터</td></tr>
+            <tr><td><strong>Disk I/O</strong></td><td><code>iostat -xz 1</code> → %util<br>node_disk_io_time_seconds</td><td><code>iostat</code> → avgqu-sz (큐 깊이)<br>node_disk_io_time_weighted</td><td><code>iostat</code> → error 카운트<br>smartctl → 디스크 에러</td></tr>
+            <tr><td><strong>Network</strong></td><td><code>sar -n DEV 1</code> → rxKB/txKB<br>node_network_receive_bytes</td><td><code>ss -s</code> → TCP retransmit<br>netstat → backlog overflow</td><td><code>ip -s link</code> → errors, drops<br>ethtool -S → rx_dropped</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="nt g"><strong>💡 USE Method 적용 순서</strong><br><strong>1)</strong> CPU → <strong>2)</strong> Memory → <strong>3)</strong> Disk → <strong>4)</strong> Network 순서로 확인. 가장 먼저 포화(Saturation)된 리소스가 병목.<br><strong>K8s에서:</strong> <code>kubectl top node</code>로 노드별 CPU/Memory → <code>kubectl top pod --containers</code>로 Pod별 확인 → 노드 접근하여 USE 체크리스트 실행</div>
+    </div>
+
+    <div class="sec" id="red-method">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Service</div>
+        <h3>RED Method — 서비스 관점 성능 분석</h3>
+        <div class="cs">Rate, Errors, Duration — 서비스의 건강 상태를 측정하는 3가지 메트릭</div>
+        <div class="cp">USE가 <strong>리소스(인프라)</strong> 관점이라면, RED는 <strong>서비스(앱)</strong> 관점이다. Tom Wilkie가 제안했으며 Google의 <strong>Four Golden Signals</strong>(Latency, Traffic, Errors, Saturation)의 단순화 버전이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">RED 3요소</div><div class="v"><strong>Rate:</strong> 초당 요청 수 (RPS). 서비스가 얼마나 바쁜가<br><code>sum(rate(http_requests_total[5m])) by (service)</code><br><br><strong>Errors:</strong> 초당 실패 요청 수 또는 에러율<br><code>sum(rate(http_requests_total{code=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))</code><br><br><strong>Duration:</strong> 요청 처리 시간. P50, P99 히스토그램<br><code>histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))</code></div></div>
+          <div class="db"><div class="l">USE vs RED 선택</div><div class="v"><strong>USE:</strong> "노드/서버가 왜 느린가?" — 인프라 병목 진단<br>→ CPU 과부하? 메모리 부족? 디스크 I/O 포화?<br><br><strong>RED:</strong> "서비스가 왜 느린가?" — 서비스 건강 상태 진단<br>→ 에러율 증가? latency 증가? 트래픽 급증?<br><br><strong>실전 흐름:</strong><br>1. RED로 어떤 서비스가 문제인지 식별<br>2. 해당 서비스가 실행 중인 노드에서 USE로 리소스 병목 진단<br>3. 병목 리소스를 확인 후 Flame Graph/profiling으로 근본 원인 추적<br><br><strong>SLI/SLO와 연결:</strong> RED의 Errors = Availability SLI, Duration = Latency SLI</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="tsa">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Thread</div>
+        <h3>TSA Method — Thread State Analysis</h3>
+        <div class="cs">스레드가 시간을 어디서 보내는가 — On-CPU, Off-CPU(대기), Sleep</div>
+        <div class="dt">
+          <div class="db"><div class="l">스레드 상태 분해</div><div class="v"><div class="fm" style="text-align:left;font-size:10.5px">스레드의 전체 시간 = On-CPU + Off-CPU
+
+On-CPU:  실제로 CPU에서 실행 중
+  → CPU-bound인가? → CPU Flame Graph로 확인
+
+Off-CPU: CPU를 기다리며 대기 중
+  = Runnable (CPU 큐에서 대기 — CPU 부족)
+  + Blocked (I/O, Lock, Sleep 등)
+    = Disk I/O wait
+    + Network I/O wait  
+    + Lock contention
+    + Sleep (timer, condition variable)</div><br><strong>핵심 통찰:</strong> P99 latency가 높지만 CPU 사용률이 낮다면 → <strong>Off-CPU 시간이 범인</strong>. I/O 대기, Lock 대기, 네트워크 대기 중 하나</div></div>
+          <div class="db"><div class="l">진단 도구</div><div class="v"><strong>On-CPU 분석:</strong><br><code>perf record -g -p PID sleep 30</code><br>→ CPU Flame Graph 생성<br><br><strong>Off-CPU 분석:</strong><br><code>bpftrace -e 'tracepoint:sched:sched_switch { ... }'</code><br>→ Off-CPU Flame Graph 생성. 어디서 블록되었는지<br><br><strong>Go 앱:</strong><br><code>/debug/pprof/goroutine</code> — 고루틴 상태 (running/waiting)<br><code>/debug/pprof/block</code> — Lock contention 프로파일<br><code>/debug/pprof/mutex</code> — Mutex contention<br><br><strong>K8s에서:</strong> <code>kubectl exec -it pod -- curl localhost:6060/debug/pprof/goroutine?debug=1</code></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="workload">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Analysis</div>
+        <h3>워크로드 분석 (Workload Characterization)</h3>
+        <div class="cs">"어떤 종류의 부하가 시스템에 가해지고 있는가?"를 체계적으로 파악</div>
+        <div class="dt">
+          <div class="db"><div class="l">질문 체크리스트</div><div class="v"><strong>Who:</strong> 어떤 클라이언트/서비스가 부하를 생성하는가?<br><strong>What:</strong> 어떤 요청 패턴? 읽기/쓰기 비율? 크기 분포?<br><strong>When:</strong> 부하가 집중되는 시간대? 주기적 패턴?<br><strong>How much:</strong> 초당 요청 수? 동시 연결 수? 대역폭?<br><strong>Distribution:</strong> 요청 크기/지속 시간의 분포? 평균 vs P99?<br><br><strong>결과:</strong> "API 서버는 평균 500 RPS, 읽기 80%/쓰기 20%, 요청 크기 P99 = 2KB, 평일 10~18시 피크, 주말 20% 수준"<br>→ 이 프로파일이 Capacity Planning과 성능 최적화의 기반</div></div>
+          <div class="db"><div class="l">Latency 분포 분석</div><div class="v"><strong>평균이 아닌 분포를 봐야 한다:</strong><br><br><strong>히스토그램:</strong> Prometheus <code>histogram_quantile</code><br>P50 = 10ms, P99 = 200ms, P99.9 = 2s<br>→ 평균(30ms)만 보면 문제 없어 보이지만, P99.9에서 <strong>200배 느린 꼬리</strong>가 존재<br><br><strong>Bimodal 분포:</strong> 캐시 히트(2ms) vs 캐시 미스(200ms)가 혼재 → 평균 100ms. 하지만 실체는 두 개의 모드<br><br><strong>Coordinated Omission:</strong> 벤치마크 도구가 느린 응답 중에 새 요청을 보내지 않아 latency를 과소 측정하는 문제. Gil Tene의 발견. wrk2, k6가 이를 보정</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOOLS ===== -->
+  <div class="P" id="p-tools">
+    <div class="PH"><div class="bg bg-b">● Linux Performance Tools</div><h2>Linux 성능 분석 도구</h2><p>perf, BPF tools, strace, ss, sar — 시스템 성능을 깊이 파고드는 도구.</p></div>
+
+    <div class="sec" id="perf-tool">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Core Tool</div>
+        <h3>perf 심화</h3>
+        <div class="cs">Linux Performance Counters — CPU 마이크로아키텍처 수준의 성능 분석</div>
+        <div class="dt">
+          <div class="db"><div class="l">핵심 명령</div><div class="v"><strong>perf stat:</strong> CPU 카운터 기반 통계<br><code>perf stat -p PID sleep 10</code><br>→ instructions, cycles, cache-misses, branch-misses<br>→ <strong>IPC (Instructions Per Cycle)</strong>: 1.0 이상이면 양호. < 0.5면 메모리 바운드<br><br><strong>perf record + report:</strong><br><code>perf record -g -p PID sleep 30</code><br><code>perf report</code><br>→ 어떤 함수에서 CPU 시간을 가장 많이 소비하는가<br><br><strong>perf top:</strong> 실시간 CPU 핫스팟<br><code>perf top -p PID</code><br>→ top처럼 실시간으로 CPU를 많이 쓰는 함수 목록</div></div>
+          <div class="db"><div class="l">PMU (Performance Monitoring Unit)</div><div class="v"><strong>CPU 하드웨어 카운터:</strong><br>• <code>instructions</code>: 실행된 명령어 수<br>• <code>cycles</code>: CPU 사이클 수<br>• <code>cache-references</code>: 캐시 참조<br>• <code>cache-misses</code>: 캐시 미스 → 메모리 접근 필요<br>• <code>branch-misses</code>: 분기 예측 실패<br>• <code>context-switches</code>: 컨텍스트 스위칭 수<br><br><strong>Cache Miss Rate > 10%:</strong> 데이터가 캐시에 안 올라옴. 자료구조의 메모리 레이아웃 문제<br><strong>Branch Miss > 5%:</strong> 조건 분기가 많은 코드. 루프 언롤링, 분기 제거 필요</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="bpf-tools">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">BPF</div>
+        <h3>BPF 성능 도구 (bpftrace / BCC)</h3>
+        <div class="cs">eBPF 기반 동적 트레이싱 — perf보다 유연한 커널/앱 분석</div>
+        <div class="dt">
+          <div class="db"><div class="l">bpftrace 원라이너</div><div class="v"><strong>프로세스별 syscall 카운트:</strong><br><code>bpftrace -e 'tracepoint:raw_syscalls:sys_enter { @[comm] = count(); }'</code><br><br><strong>TCP 재전송 추적:</strong><br><code>bpftrace -e 'kprobe:tcp_retransmit_skb { @[kstack] = count(); }'</code><br><br><strong>Block I/O latency 히스토그램:</strong><br><code>bpftrace -e 'kprobe:blk_account_io_done { @us = hist(nsecs - @start[arg0]); }'</code><br><br><strong>파일 열기 추적:</strong><br><code>bpftrace -e 'tracepoint:syscalls:sys_enter_openat { printf("%s %s\n", comm, str(args->filename)); }'</code><br><br><strong>DNS 조회 지연 측정:</strong><br><code>bpftrace -e 'uprobe:/lib/x86_64-linux-gnu/libc.so.6:getaddrinfo { @start[tid] = nsecs; } uretprobe:/lib/x86_64-linux-gnu/libc.so.6:getaddrinfo { @ms = hist((nsecs - @start[tid])/1000000); delete(@start[tid]); }'</code></div></div>
+          <div class="db"><div class="l">BCC tools (사전 구축된 도구)</div><div class="v"><strong>execsnoop:</strong> 새 프로세스 실행 추적<br><strong>opensnoop:</strong> 파일 열기 추적<br><strong>biolatency:</strong> Block I/O latency 히스토그램<br><strong>biosnoop:</strong> 개별 Block I/O 요청 추적<br><strong>tcplife:</strong> TCP 연결 수명 추적<br><strong>tcpretrans:</strong> TCP 재전송 추적<br><strong>runqlat:</strong> CPU run queue latency (얼마나 CPU를 기다렸는가)<br><strong>profile:</strong> CPU 프로파일링 → Flame Graph<br><strong>offcputime:</strong> Off-CPU 시간 분석 → Off-CPU Flame Graph<br><br><code>apt install bpfcc-tools</code> 또는 <code>dnf install bcc-tools</code></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="strace-ss">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Classic</div>
+        <h3>strace / ss / sar</h3>
+        <div class="cs">전통적이지만 여전히 강력한 성능 진단 도구</div>
+        <div class="dt">
+          <div class="db"><div class="l">strace — syscall 추적</div><div class="v"><code>strace -f -e trace=network -p PID</code> — 네트워크 syscall만<br><code>strace -f -e trace=file -p PID</code> — 파일 syscall만<br><code>strace -c -p PID</code> — syscall별 통계 요약<br><code>strace -T -e read,write -p PID</code> — 각 syscall 소요 시간<br><br><strong>⚠ 주의:</strong> strace는 ptrace 기반이라 <strong>성능 오버헤드가 크다</strong> (2~100배 느려질 수 있음). 프로덕션에서는 bpftrace/BCC를 권장<br><br><strong>K8s:</strong> <code>kubectl debug -it pod -- strace -p 1 -e trace=network</code></div></div>
+          <div class="db"><div class="l">ss & sar</div><div class="v"><strong>ss — 소켓 통계 (netstat 대체):</strong><br><code>ss -s</code> — TCP/UDP 소켓 요약<br><code>ss -tnp</code> — TCP 연결 목록 + PID<br><code>ss -tnp state time-wait | wc -l</code> — TIME_WAIT 수<br><code>ss -tnp state established dst :5432</code> — DB 연결 수<br><br><strong>sar — 히스토리컬 시스템 통계:</strong><br><code>sar -u 1 5</code> — CPU 사용률 5초간<br><code>sar -r 1 5</code> — 메모리 사용률<br><code>sar -d 1 5</code> — 디스크 I/O<br><code>sar -n DEV 1 5</code> — 네트워크 인터페이스 통계<br><code>sar -n TCP 1 5</code> — TCP 통계 (active/passive/retrans)<br>과거 데이터: <code>sar -u -f /var/log/sa/sa15</code> (15일 데이터)</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FLAME GRAPH ===== -->
+  <div class="P" id="p-flame">
+    <div class="PH"><div class="bg bg-o">● Flame Graphs</div><h2>Flame Graph 분석</h2><p>CPU, Memory, Off-CPU Flame Graph — 성능 병목을 시각적으로 식별하는 가장 강력한 도구.</p></div>
+
+    <div class="sec" id="flame-read">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Reading</div>
+        <h3>Flame Graph 읽기 & 해석</h3>
+        <div class="cs">X축은 알파벳 순서(시간순 아님!). Y축은 콜 스택 깊이. 너비가 해당 함수의 CPU 점유 비율</div>
+        <div class="cp">Brendan Gregg가 창시한 Flame Graph는 <strong>스택 트레이스를 시각화</strong>한 것이다. 가장 흔한 오해: <strong>X축은 시간이 아니다.</strong> 같은 함수 호출을 합쳐서 알파벳 순으로 정렬한 것이다. <strong>넓은 막대 = 많은 시간을 차지하는 함수</strong>.</div>
+        <div class="dt">
+          <div class="db"><div class="l">읽는 법</div><div class="v"><strong>Y축 (아래→위):</strong> 콜 스택. 아래가 호출자, 위가 피호출자<br><strong>X축:</strong> 알파벳 순으로 정렬된 스택 프레임. <strong>좌우 위치에 의미 없음</strong><br><strong>너비:</strong> 해당 함수가 전체 샘플에서 차지하는 비율. <strong>넓을수록 많은 시간 소비</strong><br><strong>색상:</strong> 보통 랜덤. 특별한 의미 없음 (일부 도구는 언어별 색상)<br><br><strong>핫스팟 찾기:</strong><br>→ 꼭대기(top of stack)에서 넓은 "플래토(고원)"를 찾는다<br>→ 이 함수가 <strong>실제로 CPU를 소비하는 곳</strong><br>→ 아래쪽이 넓으면: 많은 함수를 호출하지만 본인은 CPU 적게 사용</div></div>
+          <div class="db"><div class="l">생성 방법</div><div class="v"><strong>Linux perf:</strong><br><code>perf record -g -p PID sleep 30</code><br><code>perf script | stackcollapse-perf.pl | flamegraph.pl > flame.svg</code><br><br><strong>Go pprof:</strong><br><code>go tool pprof -http=:8080 http://localhost:6060/debug/pprof/profile?seconds=30</code><br>→ 브라우저에서 Flame Graph 자동 생성<br><br><strong>bpftrace:</strong><br><code>bpftrace -e 'profile:hz:99 { @[kstack] = count(); }' > out.txt</code><br><code>stackcollapse-bpftrace.sh out.txt | flamegraph.pl > flame.svg</code><br><br><strong>Pyroscope:</strong> 프로덕션에서 지속적으로 수집 → 시간대별 Flame Graph</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="flame-types">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Types</div>
+        <h3>Flame Graph 유형</h3>
+        <div class="cs">CPU, Off-CPU, Memory, Differential — 각각 다른 병목을 보여준다</div>
+        <div class="dt">
+          <div class="db"><div class="l">유형별 용도</div><div class="v"><strong>CPU Flame Graph:</strong> "어떤 함수가 CPU를 많이 쓰는가?" CPU-bound 문제 진단. 가장 기본적<br><br><strong>Off-CPU Flame Graph:</strong> "어떤 함수에서 블록되어 기다리는가?" I/O wait, Lock contention 진단. CPU 사용률은 낮은데 latency가 높을 때<br><br><strong>Memory Flame Graph:</strong> "어떤 함수가 메모리를 많이 할당하는가?" 메모리 누수, 과도한 allocation 진단. Go: <code>/debug/pprof/heap</code><br><br><strong>Differential Flame Graph:</strong> 두 시점의 Flame Graph를 비교. "어떤 함수가 더 많이 실행되게 됐는가?" 성능 퇴화(regression) 진단</div></div>
+          <div class="db"><div class="l">Off-CPU Flame Graph 핵심</div><div class="v"><strong>가장 과소평가되는 Flame Graph.</strong> "서비스가 느린데 CPU 사용률이 30%뿐이에요" → Off-CPU 문제일 확률 높음<br><br><strong>흔한 Off-CPU 원인:</strong><br>• <strong>Disk I/O wait:</strong> 느린 디스크 읽기/쓰기<br>• <strong>Network I/O wait:</strong> 느린 DB 쿼리, 외부 API 호출<br>• <strong>Lock contention:</strong> Mutex/RWLock 경합<br>• <strong>Sleep/Timer:</strong> 불필요한 sleep 호출<br>• <strong>Page Fault:</strong> 메모리 매핑된 파일의 major fault<br><br><strong>생성:</strong> <code>offcputime-bpfcc -p PID 30 > off.txt</code><br><code>flamegraph.pl --color=io < off.txt > offcpu.svg</code></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CONTINUOUS PROFILING ===== -->
+  <div class="P" id="p-profile">
+    <div class="PH"><div class="bg bg-g">● Continuous Profiling</div><h2>프로덕션 프로파일링</h2><p>Pyroscope, Parca, Go pprof — 프로덕션 환경에서 상시 프로파일링하여 성능 변화를 추적.</p></div>
+
+    <div class="sec" id="cont-prof">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Always-On</div>
+        <h3>Continuous Profiling이란</h3>
+        <div class="cs">메트릭이 "무엇이 문제"를 알려주면, 프로파일링은 "코드의 어디가 문제"를 알려준다</div>
+        <div class="cp">전통 프로파일링은 "문제가 발생했을 때" 수동으로 실행한다. Continuous Profiling은 <strong>프로덕션에서 항상 프로파일을 수집</strong>하여, 과거 시점의 성능 분포를 언제든 조회할 수 있다. <strong>Metric → Trace → Profile</strong>로 drill-down하여 코드 라인까지 근본 원인을 추적한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">도구</div><div class="v"><strong>Pyroscope (Grafana):</strong> LGTM 스택과 네이티브 통합. Grafana에서 Flame Graph 조회<br>Pull/Push 모드. Go, Java, Python, Ruby 지원<br>Alloy에서 <code>pyroscope.scrape</code>로 수집<br><br><strong>Parca (Polar Signals):</strong> eBPF 기반 zero-instrumentation 프로파일링. 언어 무관<br><br><strong>오버헤드:</strong> ~2~5% CPU. 프로덕션에 상시 적용 가능한 수준<br><br><strong>LGTM + P (Profiling) = LGTMP:</strong><br>Metric(Prometheus) → 이상 감지<br>Trace(Tempo) → 느린 요청 추적<br>Profile(Pyroscope) → 코드 핫스팟 식별<br>→ <strong>완전한 관측 파이프라인</strong></div></div>
+          <div class="db"><div class="l">활용 시나리오</div><div class="v"><strong>성능 퇴화 감지:</strong><br>배포 전후의 CPU 프로파일을 비교 (Differential Flame Graph). "이 배포 후 parseJSON 함수가 3배 느려졌다"<br><br><strong>리소스 최적화:</strong><br>"이 Pod이 CPU 500m을 사용하는데, 프로파일을 보니 40%가 JSON 직렬화. protobuf로 전환하면 300m으로 줄일 수 있다"<br><br><strong>인시던트 사후 분석:</strong><br>"장애 시점의 CPU 프로파일을 보니 DB 커넥션 풀 대기에서 80%의 시간을 소비했다" → Postmortem의 Root Cause 근거<br><br><strong>비용 절감:</strong><br>CPU 프로파일에서 불필요한 처리(과도한 로깅, 불필요한 JSON 파싱)를 식별 → 리소스 request 축소 → 노드 수 감소</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="go-pprof">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Go</div>
+        <h3>Go pprof — Go 앱 프로파일링</h3>
+        <div class="cs">Go는 pprof를 내장하여 프로덕션 프로파일링이 가장 쉬운 언어 중 하나</div>
+        <div class="dt">
+          <div class="db"><div class="l">pprof 엔드포인트</div><div class="v"><strong>HTTP 서버에 추가:</strong><br><code>import _ "net/http/pprof"</code><br><code>go func() { http.ListenAndServe(":6060", nil) }()</code><br><br><strong>프로파일 종류:</strong><br><code>/debug/pprof/profile?seconds=30</code> — CPU 프로파일<br><code>/debug/pprof/heap</code> — 힙 메모리 할당<br><code>/debug/pprof/goroutine</code> — 고루틴 상태<br><code>/debug/pprof/block</code> — 블로킹 프로파일<br><code>/debug/pprof/mutex</code> — 뮤텍스 경합<br><code>/debug/pprof/trace?seconds=5</code> — 실행 트레이스</div></div>
+          <div class="db"><div class="l">실전 사용</div><div class="v"><strong>CPU 프로파일 분석:</strong><br><code>go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30</code><br><code>(pprof) top 20</code> — CPU 상위 20 함수<br><code>(pprof) web</code> — 브라우저에서 그래프 열기<br><code>(pprof) list funcName</code> — 소스 코드 라인별 CPU 소비<br><br><strong>K8s에서:</strong><br><code>kubectl port-forward pod/api-server 6060:6060</code><br><code>go tool pprof http://localhost:6060/debug/pprof/heap</code><br><br><strong>Pyroscope 연동:</strong><br>Go SDK로 자동 수집 → Grafana에서 시간대별 Flame Graph 조회<br>또는 Alloy의 <code>pyroscope.scrape</code>로 Pull 모드 수집<br><br><strong>주의:</strong> 프로덕션에서 <code>/debug/pprof</code>는 <strong>내부 네트워크에서만 접근 가능</strong>하도록 NetworkPolicy로 보호</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 60-SECOND ===== -->
+  <div class="P" id="p-sixty">
+    <div class="PH"><div class="bg bg-p">● 60-Second Analysis</div><h2>60초 성능 체크리스트</h2><p>Brendan Gregg의 Linux 60-Second Analysis — 서버에 접속한 후 처음 60초에 실행하는 명령어 10개.</p></div>
+
+    <div class="sec" id="sixty-check">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Checklist</div>
+        <h3>Linux 60-Second Analysis</h3>
+        <div class="cs">성능 문제가 보고되었을 때, 노드에 접속하자마자 실행하는 10개 명령</div>
+      </div>
+      <div class="co"><span class="c"># 1. 시스템 부하 요약 — 지난 1/5/15분 load average</span>
+<span class="k">uptime</span>
+
+<span class="c"># 2. 커널 메시지 — OOM, 하드웨어 에러, TCP 드롭</span>
+<span class="k">dmesg -T | tail -20</span>
+
+<span class="c"># 3. CPU 사용률 + run queue</span>
+<span class="k">vmstat 1 5</span>
+<span class="c"># r > CPU코어 수: CPU 포화 / si/so > 0: 스왑 발생</span>
+
+<span class="c"># 4. CPU 코어별 사용률</span>
+<span class="k">mpstat -P ALL 1 3</span>
+<span class="c"># 한 코어만 100%: 싱글스레드 병목</span>
+
+<span class="c"># 5. 프로세스별 CPU/Memory</span>
+<span class="k">pidstat 1 3</span>
+
+<span class="c"># 6. 디스크 I/O</span>
+<span class="k">iostat -xz 1 3</span>
+<span class="c"># %util > 80%: 디스크 포화 / await > 10ms: 느린 I/O</span>
+
+<span class="c"># 7. 메모리</span>
+<span class="k">free -h</span>
+<span class="c"># available이 중요 (free가 아님!)</span>
+
+<span class="c"># 8. 네트워크 인터페이스</span>
+<span class="k">sar -n DEV 1 3</span>
+
+<span class="c"># 9. TCP 통계 — 재전송이 높으면 네트워크 문제</span>
+<span class="k">sar -n TCP,ETCP 1 3</span>
+
+<span class="c"># 10. 전체 요약</span>
+<span class="k">top</span> <span class="c"># 또는 htop</span></div>
+      <div class="nt g"><strong>💡 각 명령의 핵심 관찰 포인트</strong><br><strong>uptime:</strong> load average가 CPU 코어 수를 초과하면 포화. 급증 추세이면 장애 진행 중<br><strong>dmesg:</strong> <code>Out of memory</code>, <code>nf_conntrack: table full</code>, <code>NMI watchdog</code> → 즉시 조치 필요<br><strong>vmstat:</strong> <code>r</code> > 코어 수 → CPU 포화. <code>si/so</code> > 0 → 스왑 = 메모리 부족 = 성능 급락<br><strong>iostat:</strong> <code>%util</code> > 80% 지속 → 디스크 병목. SSD인데 <code>await</code> > 10ms → 이상<br><strong>free:</strong> <code>available</code>이 총 메모리의 10% 미만 → 메모리 압박</div>
+    </div>
+
+    <div class="sec" id="k8s-perf">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Kubernetes</div>
+        <h3>K8s 성능 진단 60초</h3>
+        <div class="cs">K8s 환경에서의 성능 문제 초기 진단 체크리스트</div>
+      </div>
+      <div class="co"><span class="c"># 1. 노드 리소스 사용률</span>
+<span class="k">kubectl top node</span>
+
+<span class="c"># 2. Pod 리소스 사용률 (컨테이너별)</span>
+<span class="k">kubectl top pod --containers -n production</span>
+
+<span class="c"># 3. Pod 상태 확인 — Restart, OOMKilled</span>
+<span class="k">kubectl get pods -n production --sort-by='.status.containerStatuses[0].restartCount'</span>
+
+<span class="c"># 4. Node conditions — DiskPressure, MemoryPressure</span>
+<span class="k">kubectl get nodes -o custom-columns='NAME:.metadata.name,CONDITIONS:.status.conditions[?(@.status=="True")].type'</span>
+
+<span class="c"># 5. Events — 최근 문제 이벤트</span>
+<span class="k">kubectl get events -n production --sort-by='.lastTimestamp' | tail -20</span>
+
+<span class="c"># 6. CPU Throttling 확인</span>
+<span class="k">kubectl exec -it pod -- cat /sys/fs/cgroup/cpu.stat</span>
+<span class="c"># nr_throttled > 0 이면 CPU limit에 의한 throttling 발생</span>
+
+<span class="c"># 7. 컨테이너 메모리 상세</span>
+<span class="k">kubectl exec -it pod -- cat /sys/fs/cgroup/memory.stat</span>
+
+<span class="c"># 8. 노드 진입하여 USE Method</span>
+<span class="k">kubectl debug node/my-node -it --image=ubuntu</span>
+<span class="k">chroot /host</span>
+<span class="k">uptime && vmstat 1 3 && iostat -xz 1 3 && free -h</span></div>
+      <div class="nt o"><strong>⚠ CPU Throttling — 숨겨진 성능 킬러</strong><br>CPU <strong>limit</strong>이 설정되어 있으면, 앱이 limit 이상의 CPU를 사용하려 할 때 커널이 <strong>강제로 실행을 중단(throttle)</strong>시킨다. CPU 사용률은 limit 이하로 보이지만 <strong>latency가 급증</strong>한다. <code>container_cpu_cfs_throttled_periods_total</code>이 높으면 limit 증가 또는 제거 고려. 많은 SRE 팀이 <strong>CPU limit을 설정하지 않는</strong> 전략을 채택하는 이유.</div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

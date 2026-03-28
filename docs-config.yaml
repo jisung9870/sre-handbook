@@ -1,0 +1,92 @@
+# SRE Learning Hub — 문서 구성 파일
+#
+# 새 문서 추가 방법:
+#   1. public/docs/<slug>.html 파일 복사
+#   2. 아래 해당 카테고리의 docs: 목록에 slug(확장자 없이) 한 줄 추가
+#   3. pnpm dev 또는 pnpm extract 실행 → 자동 반영
+#
+# color 값: blue | green | orange | red | purple | teal | indigo
+# icon 값 : lucide-react 아이콘명 (BookOpen, Terminal, Container, Network, ...)
+
+categories:
+  - id: sre-basics
+    label: SRE 기초
+    icon: BookOpen
+    color: blue
+    docs:
+      - dora-metrics-guide
+      - sre-concepts-guide
+      - sre-concepts-deep-study-guide
+      - slo-engineering-deep-dive
+      - prr-error-budget
+      - error-budget-policy-guide
+
+  - id: linux-os
+    label: Linux/OS
+    icon: Terminal
+    color: green
+    docs:
+      - md-lvm-concepts
+      - sre-linux-networking-deep-dive
+      - linux-kernel-deep-internals
+      - filesystem-storage-internals
+
+  - id: kubernetes
+    label: Kubernetes
+    icon: Container
+    color: purple
+    docs:
+      - k8s-operations-deep-dive
+      - k8s-security-supply-chain
+
+  - id: networking
+    label: 네트워킹
+    icon: Network
+    color: teal
+    docs:
+      - networking-advanced
+      - ebpf-cilium-networking
+      - http2-http3-grpc
+      - container-networking-internals
+
+  - id: observability-db
+    label: 관측/DB
+    icon: BarChart3
+    color: orange
+    docs:
+      - observability-engineering-deep-dive
+      - database-stateful-services
+      - systems-performance-engineering
+
+  - id: distributed-systems
+    label: 분산시스템 & 신뢰성
+    icon: GitBranch
+    color: red
+    docs:
+      - distributed-systems-internals
+      - capacity-planning-reliability
+      - incident-response-oncall
+      - chaos-engineering-resilience
+
+  - id: iac-deploy
+    label: IaC & 배포
+    icon: Layers
+    color: blue
+    docs:
+      - iac-gitops-deep-dive
+      - service-mesh-istio
+
+  - id: culture-cost
+    label: 문화 & 비용
+    icon: Users
+    color: orange
+    docs:
+      - finops-cloud-cost
+      - platform-engineering
+
+  - id: cs-fundamentals
+    label: CS 기반
+    icon: Cpu
+    color: purple
+    docs:
+      - ds-algo-infrastructure

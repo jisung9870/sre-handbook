@@ -1,0 +1,185 @@
+/* 문서 콘텐츠 기본 스타일 — .doc-content 스코프 */
+/* 컴포넌트 스타일(.card/.note/.cg 등)은 원본 HTML <style>을 스코핑해서 주입 */
+
+/* ── 다크 모드: 원본 HTML CSS 변수 오버라이드 ─────────────────────────────
+   28개 문서의 3가지 변수 명명 패턴을 모두 커버:
+   Pattern A (dora): --surface, --text, --text-dim, --text-muted, --c-speed, --c-speed-bg, ...
+   Pattern B (k8s):  --sf, --tx, --td, --tm, --blue, --bbg, --bbd, ...
+   Pattern C (mixed):--surface/--s2, --text/--td/--tm, --blue/--blue-bg, ...
+   ──────────────────────────────────────────────────────────────────────── */
+[data-theme="dark"] .doc-content {
+  /* ── 배경 ── */
+  --bg: #0d1117;
+  --sf: #161b22;          /* k8s, distributed-systems 등 */
+  --surface: #161b22;     /* dora, sre-concepts 등 */
+  --sidebar-bg: #161b22;
+  --s2: #1c2128;          /* k8s 등 */
+  --surface-2: #1c2128;   /* dora 등 */
+
+  /* ── 보더 ── */
+  --bd: #30363d;
+  --border: #30363d;
+  --bs: #484f58;
+  --border-s: #484f58;
+  --border-strong: #484f58;
+
+  /* ── 텍스트 ── */
+  --tx: #e6edf3;
+  --text: #e6edf3;
+  --td: #8b949e;
+  --text-dim: #8b949e;
+  --tm: #6e7681;
+  --text-muted: #6e7681;
+
+  /* ── 그림자 ── */
+  --sh: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --sh2: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow2: 0 2px 8px rgba(0, 0, 0, 0.5);
+
+  /* ── 액센트 색상 (밝기 증가) ── */
+  --blue: #58a6ff;
+  --c-speed: #58a6ff;     /* dora-metrics */
+
+  --purple: #a371f7;
+  --c-stable: #a371f7;    /* dora-metrics */
+
+  --green: #3fb950;
+  --c-green: #3fb950;
+
+  --orange: #f0883e;
+  --c-orange: #f0883e;
+
+  --red: #f85149;
+  --c-red: #f85149;
+
+  --teal: #2ea043;
+  --c-teal: #2ea043;
+
+  --indigo: #818cf8;
+
+  /* ── 배경 틴트 (밝은 투명도로 변환) ── */
+  /* blue */
+  --bbg: rgba(88, 166, 255, 0.1);
+  --blue-bg: rgba(88, 166, 255, 0.1);
+  --c-speed-bg: rgba(88, 166, 255, 0.1);
+
+  /* purple */
+  --pbg: rgba(163, 113, 247, 0.1);
+  --purple-bg: rgba(163, 113, 247, 0.1);
+  --c-stable-bg: rgba(163, 113, 247, 0.1);
+
+  /* green */
+  --gbg: rgba(63, 185, 80, 0.1);
+  --green-bg: rgba(63, 185, 80, 0.1);
+  --c-green-bg: rgba(63, 185, 80, 0.1);
+
+  /* orange */
+  --obg: rgba(240, 136, 62, 0.1);
+  --orange-bg: rgba(240, 136, 62, 0.1);
+  --c-orange-bg: rgba(240, 136, 62, 0.1);
+
+  /* red */
+  --rbg: rgba(248, 81, 73, 0.1);
+  --red-bg: rgba(248, 81, 73, 0.1);
+  --c-red-bg: rgba(248, 81, 73, 0.1);
+
+  /* teal */
+  --tbg: rgba(46, 160, 67, 0.1);
+  --teal-bg: rgba(46, 160, 67, 0.1);
+  --c-teal-bg: rgba(46, 160, 67, 0.1);
+
+  /* indigo */
+  --ibg: rgba(129, 140, 248, 0.1);
+  --indigo-bg: rgba(129, 140, 248, 0.1);
+
+  /* ── 보더 틴트 ── */
+  --bbd: rgba(88, 166, 255, 0.25);
+  --blue-bd: rgba(88, 166, 255, 0.25);
+  --c-speed-border: rgba(88, 166, 255, 0.25);
+
+  --pbd: rgba(163, 113, 247, 0.25);
+  --purple-bd: rgba(163, 113, 247, 0.25);
+  --c-stable-border: rgba(163, 113, 247, 0.25);
+
+  --gbd: rgba(63, 185, 80, 0.25);
+  --green-bd: rgba(63, 185, 80, 0.25);
+  --c-green-border: rgba(63, 185, 80, 0.25);
+
+  --obd: rgba(240, 136, 62, 0.25);
+  --orange-bd: rgba(240, 136, 62, 0.25);
+  --c-orange-border: rgba(240, 136, 62, 0.25);
+
+  --rbd: rgba(248, 81, 73, 0.25);
+  --red-bd: rgba(248, 81, 73, 0.25);
+  --c-red-border: rgba(248, 81, 73, 0.25);
+
+  --tbd: rgba(46, 160, 67, 0.25);
+  --teal-bd: rgba(46, 160, 67, 0.25);
+  --c-teal-border: rgba(46, 160, 67, 0.25);
+
+  --ibd: rgba(129, 140, 248, 0.25);
+  --indigo-bd: rgba(129, 140, 248, 0.25);
+}
+
+.doc-content {
+  font-family: 'Noto Sans KR', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--color-text-primary);
+}
+
+/* heading scroll-margin: TopBar + TabBar 높이 보정 */
+.doc-content h2,
+.doc-content h3,
+.doc-content h4,
+.doc-content .sub,
+.doc-content .sec {
+  scroll-margin-top: calc(var(--topbar-height) + 56px + 16px);
+}
+
+/* pre/code 기본 — 원본 CSS에 없는 경우 폴백 */
+.doc-content pre {
+  overflow-x: auto;
+  position: relative;
+}
+
+/* .code-block: 원본 HTML 인라인 구문강조 div (position 보장) */
+.doc-content .code-block {
+  position: relative;
+}
+
+.doc-content pre code {
+  white-space: pre;
+}
+
+/* 코드 복사 버튼 래퍼 (TabPanel.tsx에서 동적으로 추가) */
+.doc-content .code-block-wrapper {
+  position: relative;
+}
+
+.doc-content .code-copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  z-index: 1;
+}
+
+.doc-content .code-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.doc-content .code-copy-btn.copied {
+  color: #86efac;
+  border-color: rgba(134, 239, 172, 0.3);
+}
