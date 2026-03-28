@@ -3,6 +3,7 @@ node_modules/
 
 # 빌드 결과
 dist/
+dist-offline/
 .vite/
 
 # 빌드 타임 생성 파일 (pnpm extract & pnpm search-index로 재생성)
