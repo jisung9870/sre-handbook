@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>자료구조 & 알고리즘 핵심 — DevOps/SRE 면접 가이드</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--purple);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--purple)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="bigo"].on{color:var(--blue)}.T[data-t="bigo"].on::after{background:var(--blue);left:6%;right:6%}
+.T[data-t="hashmap"].on{color:var(--green)}.T[data-t="hashmap"].on::after{background:var(--green);left:6%;right:6%}
+.T[data-t="tree-ds"].on{color:var(--orange)}.T[data-t="tree-ds"].on::after{background:var(--orange);left:6%;right:6%}
+.T[data-t="queue-ds"].on{color:var(--red)}.T[data-t="queue-ds"].on::after{background:var(--red);left:6%;right:6%}
+.T[data-t="graph-ds"].on{color:var(--teal)}.T[data-t="graph-ds"].on::after{background:var(--teal);left:6%;right:6%}
+.T[data-t="sort-ds"].on{color:var(--purple)}.T[data-t="sort-ds"].on::after{background:var(--purple);left:6%;right:6%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.qa{margin-top:18px}.qa-q{background:var(--rbg);border:1px solid var(--rbd);border-radius:var(--r);padding:14px 18px;margin-bottom:2px;font-weight:700;font-size:13px;color:var(--red)}.qa-q::before{content:'Q. ';font-family:'JetBrains Mono',monospace;font-weight:700}.qa-a{background:var(--sf);border:1px solid var(--bd);border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-bottom:4px}.qa-a .short{font-weight:700;color:var(--green);font-size:13px;margin-bottom:8px;display:block}.qa-a .short::before{content:'A. ';font-family:'JetBrains Mono',monospace}.qa-a .deep{color:var(--td);font-size:12px;line-height:1.7}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.tb{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.dt{grid-template-columns:1fr!important}.T{font-size:8px;padding:10px 2px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">Interview Prep</div><h1><em>자료구조</em> &<br>알고리즘</h1></div>
+  <div class="sl">시간복잡도</div>
+  <ul class="sn"><li><a data-t="bigo" data-s="bigo-what" class="on"><span class="d" style="background:var(--blue)"></span>Big-O 실무 예시</a></li></ul>
+  <div class="sl">해시맵</div>
+  <ul class="sn"><li><a data-t="hashmap" data-s="hash-how"><span class="d" style="background:var(--green)"></span>해시맵 & Go map</a></li></ul>
+  <div class="sl">트리</div>
+  <ul class="sn"><li><a data-t="tree-ds" data-s="tree-why"><span class="d" style="background:var(--orange)"></span>BST & 왜 B-Tree인가</a></li></ul>
+  <div class="sl">큐 & 스택</div>
+  <ul class="sn"><li><a data-t="queue-ds" data-s="queue-infra"><span class="d" style="background:var(--red)"></span>인프라에서의 큐</a></li></ul>
+  <div class="sl">그래프</div>
+  <ul class="sn"><li><a data-t="graph-ds" data-s="dag-infra"><span class="d" style="background:var(--teal)"></span>DAG & 의존성</a></li></ul>
+  <div class="sl">정렬</div>
+  <ul class="sn"><li><a data-t="sort-ds" data-s="sort-compare"><span class="d" style="background:var(--purple)"></span>정렬 알고리즘</a></li></ul>
+  <div class="S-f"><p>"왜 이 자료구조를<br>선택했는지" 설명할<br>수 있는 수준.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="bigo" onclick="sw('bigo')">● Big-O</button>
+    <button class="T" data-t="hashmap" onclick="sw('hashmap')">● 해시맵</button>
+    <button class="T" data-t="tree-ds" onclick="sw('tree-ds')">● 트리</button>
+    <button class="T" data-t="queue-ds" onclick="sw('queue-ds')">● 큐/스택</button>
+    <button class="T" data-t="graph-ds" onclick="sw('graph-ds')">● 그래프</button>
+    <button class="T" data-t="sort-ds" onclick="sw('sort-ds')">● 정렬</button>
+  </div>
+
+  <!-- ===== BIG-O ===== -->
+  <div class="P on" id="p-bigo">
+    <div class="PH"><div class="bg bg-b">● Time Complexity</div><h2>시간복잡도 실무 예시</h2><p>O(1)부터 O(n²)까지 — 인프라 운영에서 만나는 각 복잡도의 실체.</p></div>
+    <div class="sec" id="bigo-what">
+      <div class="qa">
+        <div class="qa-q">시간복잡도를 실무 예시와 함께 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">시간복잡도는 입력 크기(N)에 따라 연산 횟수가 어떻게 증가하는지를 나타냅니다. O(1)은 해시맵 조회(입력 크기와 무관), O(log N)은 B-Tree 인덱스 검색(높이만큼), O(N)은 iptables 규칙 순회, O(N log N)은 정렬, O(N²)은 이중 루프(Nested Loop Join)입니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>복잡도</th><th>의미</th><th>N=1000일 때</th><th>인프라 실무 예시</th></tr></thead>
+              <tbody>
+                <tr><td><strong>O(1)</strong></td><td>상수</td><td>1</td><td>eBPF Map 조회, 해시맵 get, Redis GET</td></tr>
+                <tr><td><strong>O(log N)</strong></td><td>로그</td><td>10</td><td>B+Tree 인덱스 검색, Skip List 조회</td></tr>
+                <tr><td><strong>O(N)</strong></td><td>선형</td><td>1,000</td><td>iptables 규칙 순회, Seq Scan, 리스트 검색</td></tr>
+                <tr><td><strong>O(N log N)</strong></td><td>선형로그</td><td>10,000</td><td>sort 명령어, Prometheus 시계열 정렬</td></tr>
+                <tr><td><strong>O(N²)</strong></td><td>이차</td><td>1,000,000</td><td>Nested Loop Join (인덱스 없는 경우)</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>핵심 면접 사례 — iptables O(N) vs eBPF O(1):</strong><br>
+            kube-proxy의 iptables 모드에서 Service 수가 1000개이면, 매 패킷마다 수천 개의 iptables 규칙을 <strong>순차 평가(O(N))</strong>합니다. Cilium은 eBPF Hash Map에서 <strong>O(1) 조회</strong>로 Service→Pod 매핑을 찾습니다. Service 10,000개에서 이 차이가 <strong>수 ms의 latency 차이</strong>로 나타납니다.<br><br>
+            <strong>Go에서:</strong><br>
+            <code>map[string]int</code> — O(1) 평균 조회. 해시 충돌 시 최악 O(N)이지만 Go가 내부적으로 잘 관리<br>
+            <code>[]int</code> + 이진 탐색 — O(log N). <code>sort.Search()</code><br>
+            <code>[]int</code> + 선형 탐색 — O(N). 단순 for 루프
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HASHMAP ===== -->
+  <div class="P" id="p-hashmap">
+    <div class="PH"><div class="bg bg-g">● HashMap</div><h2>해시맵</h2><p>O(1) 조회의 원리, 충돌 해결, Go map 내부 — 가장 많이 쓰이는 자료구조.</p></div>
+    <div class="sec" id="hash-how">
+      <div class="qa">
+        <div class="qa-q">해시맵의 동작 원리와 충돌 해결 방법을 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">해시맵은 키를 해시 함수로 변환하여 배열의 인덱스(버킷)를 결정하고, 해당 버킷에 값을 저장합니다. 서로 다른 키가 같은 버킷에 매핑되는 것이 해시 충돌이며, Chaining(링크드 리스트로 연결)과 Open Addressing(다른 빈 버킷 탐색)으로 해결합니다. Go의 map은 Chaining 방식을 사용합니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">해시맵 동작:
+  key "user:42" → hash("user:42") = 0x7F3A → 0x7F3A % 8 = 2
+  → bucket[2]에 value 저장
+
+  key "user:99" → hash("user:99") = 0x4E12 → 0x4E12 % 8 = 2
+  → 충돌! bucket[2]에 이미 데이터 있음
+
+Chaining: bucket[2] → [user:42, val1] → [user:99, val2]
+Open Addressing: bucket[2] 사용 중 → bucket[3] 확인 → 비어있으면 저장</div>
+            <strong>Go map 내부:</strong><br>
+            Go의 map은 <strong>해시 테이블 + 버킷 배열</strong>로 구현됩니다. 각 버킷은 8개의 키-값 쌍을 저장. 버킷이 가득 차면 overflow 버킷을 연결(chaining). Load factor가 6.5를 초과하면 <strong>자동 확장(rehash)</strong> — 이때 점진적 마이그레이션(incremental growth)으로 한 번에 전체 복사하지 않음.<br><br>
+            <strong>Go map 주의사항:</strong><br>
+            • <strong>동시 접근 안전하지 않음:</strong> 여러 goroutine이 동시에 읽기/쓰기하면 <code>fatal error: concurrent map writes</code>. <code>sync.RWMutex</code> 또는 <code>sync.Map</code> 사용 필수<br>
+            • <strong>순서 보장 없음:</strong> <code>for k, v := range m</code>의 순서가 실행마다 다름<br>
+            • <strong>nil map에 쓰기하면 panic:</strong> <code>var m map[string]int; m["a"] = 1</code> → panic. <code>make(map[string]int)</code>로 초기화 필요<br><br>
+            <div class="co"><span class="c">// Go: 동시 접근 안전한 map 패턴</span>
+<span class="k">type</span> SafeMap <span class="k">struct</span> {
+    mu sync.RWMutex
+    m  <span class="k">map</span>[<span class="k">string</span>]<span class="k">int</span>
+}
+<span class="k">func</span> (s *SafeMap) <span class="f">Get</span>(key <span class="k">string</span>) (<span class="k">int</span>, <span class="k">bool</span>) {
+    s.mu.RLock()
+    <span class="k">defer</span> s.mu.RUnlock()
+    v, ok := s.m[key]
+    <span class="k">return</span> v, ok
+}
+<span class="k">func</span> (s *SafeMap) <span class="f">Set</span>(key <span class="k">string</span>, val <span class="k">int</span>) {
+    s.mu.Lock()
+    <span class="k">defer</span> s.mu.Unlock()
+    s.m[key] = val
+}</div>
+            <strong>인프라 매핑:</strong> eBPF Hash Map, Redis의 Hash 타입, Prometheus 라벨 셋 → 시계열 매핑 모두 해시맵 기반
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TREE ===== -->
+  <div class="P" id="p-tree-ds">
+    <div class="PH"><div class="bg bg-o">● Tree Structures</div><h2>트리 자료구조</h2><p>BST, Red-Black Tree, 왜 DB는 B-Tree를 쓰는가 — 선택의 이유를 설명.</p></div>
+    <div class="sec" id="tree-why">
+      <div class="qa">
+        <div class="qa-q">이진 탐색 트리(BST)와 레드블랙 트리의 차이, 그리고 DB가 B-Tree를 선택한 이유를 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">BST는 왼쪽 자식 < 부모 < 오른쪽 자식 규칙의 트리로 O(log N) 검색이지만, 편향되면 O(N)으로 퇴화합니다. Red-Black Tree는 색상 규칙으로 균형을 유지하여 항상 O(log N)을 보장합니다. 하지만 DB는 B-Tree를 사용하는데, 이유는 하나의 노드에 수백 개의 키를 저장하여 트리 높이를 3~4로 유지하고, 디스크 I/O 횟수를 최소화하기 때문입니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>트리</th><th>노드당 키</th><th>높이 (100만 행)</th><th>디스크 I/O</th><th>용도</th></tr></thead>
+              <tbody>
+                <tr><td><strong>BST</strong></td><td>1</td><td>~20</td><td>~20회</td><td>이론적 기본</td></tr>
+                <tr><td><strong>Red-Black</strong></td><td>1</td><td>~20</td><td>~20회</td><td>메모리 내 (Go map, Java TreeMap, Linux CFS)</td></tr>
+                <tr><td><strong>B-Tree</strong></td><td>수백</td><td>~3</td><td>~3회</td><td>디스크 기반 (PostgreSQL 인덱스, 파일시스템)</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>핵심 인사이트:</strong> 디스크 I/O는 메모리 접근보다 <strong>10만 배 느립니다</strong>. Red-Black Tree는 메모리에서는 빠르지만 디스크에서 20번 I/O하면 치명적. B-Tree는 한 노드가 디스크 블록(4~8KB) 크기에 맞춰 설계되어 <strong>3번의 디스크 읽기</strong>로 완료합니다.<br><br>
+            <strong>Go에서의 트리:</strong><br>
+            • <code>map</code>: 내부적으로 해시 테이블 (트리 아님)<br>
+            • <code>container/heap</code>: 힙 트리 (우선순위 큐)<br>
+            • BoltDB(etcd): B+Tree 구현<br>
+            • Red-Black Tree: Go 표준에 없음. 직접 구현 또는 3rd party. Linux CFS의 vruntime 관리에 사용
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== QUEUE / STACK ===== -->
+  <div class="P" id="p-queue-ds">
+    <div class="PH"><div class="bg bg-r">● Queue & Stack</div><h2>큐 & 스택</h2><p>Kafka가 큐인 이유, K8s workqueue, BFS/DFS — 인프라에서의 큐/스택.</p></div>
+    <div class="sec" id="queue-infra">
+      <div class="qa">
+        <div class="qa-q">큐와 스택이 인프라에서 어떻게 사용되는지 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">큐(FIFO)는 Kafka 파티션(메시지 순서 보장), K8s Controller의 workqueue(Reconcile 대상 순차 처리), 네트워크 패킷 버퍼에 사용됩니다. 스택(LIFO)은 함수 호출 스택, Terraform 의존성 해결(DFS 기반), undo 연산에 사용됩니다.</span>
+          <div class="deep">
+            <strong>인프라에서의 큐:</strong><br>
+            • <strong>Kafka 파티션:</strong> append-only 로그 = 큐. Consumer가 offset으로 순서대로 읽음. 파티션 내 순서 보장<br>
+            • <strong>K8s workqueue:</strong> Controller의 Reconcile 대상을 큐에 넣고 Worker가 순차 처리. RateLimiting Queue로 재시도 시 exponential backoff<br>
+            • <strong>NIC Ring Buffer:</strong> 네트워크 패킷을 큐잉. 가득 차면 드롭<br>
+            • <strong>BFS (Breadth-First Search):</strong> 큐를 사용. K8s에서 서비스 의존성을 탐색할 때 가까운 의존성부터 확인<br><br>
+            <strong>인프라에서의 스택:</strong><br>
+            • <strong>함수 호출 스택:</strong> goroutine 스택 (초기 2KB, 자동 확장)<br>
+            • <strong>DFS (Depth-First Search):</strong> 스택을 사용. Terraform이 리소스 의존성을 해결할 때 깊이 우선 탐색<br>
+            • <strong>Undo/Rollback:</strong> 변경 사항을 스택에 쌓고 역순으로 되돌리기<br><br>
+            <div class="co"><span class="c">// Go: 간단한 큐 (slice 기반)</span>
+<span class="k">type</span> Queue[T <span class="k">any</span>] <span class="k">struct</span> { items []T }
+<span class="k">func</span> (q *Queue[T]) <span class="f">Enqueue</span>(item T) { q.items = <span class="k">append</span>(q.items, item) }
+<span class="k">func</span> (q *Queue[T]) <span class="f">Dequeue</span>() T {
+    item := q.items[0]
+    q.items = q.items[1:]
+    <span class="k">return</span> item
+}
+
+<span class="c">// Go: channel을 큐로 사용 (더 Go-idiomatic)</span>
+ch := <span class="k">make</span>(<span class="k">chan</span> <span class="k">string</span>, 100) <span class="c">// buffered channel = bounded queue</span>
+ch <- <span class="s">"task1"</span>                <span class="c">// enqueue</span>
+task := <-ch                   <span class="c">// dequeue (blocking)</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== GRAPH ===== -->
+  <div class="P" id="p-graph-ds">
+    <div class="PH"><div class="bg bg-t">● Graph & DAG</div><h2>그래프 & DAG</h2><p>Argo Workflows가 DAG인 이유, 위상 정렬, 의존성 해결.</p></div>
+    <div class="sec" id="dag-infra">
+      <div class="qa">
+        <div class="qa-q">DAG(Directed Acyclic Graph)란 무엇이고, 인프라에서 어떻게 사용되나요?</div>
+        <div class="qa-a">
+          <span class="short">DAG는 방향이 있고 순환이 없는 그래프입니다. "A를 먼저 하고 B를 한다"같은 의존성 관계를 표현합니다. 순환이 없으므로 위상 정렬(Topological Sort)로 실행 순서를 결정할 수 있습니다. Terraform, Argo Workflows, CI/CD 파이프라인, K8s Controller의 Owner Reference 체인이 모두 DAG입니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">DAG 예시 (Terraform):
+
+  VPC ──→ Subnet ──→ EKS Cluster ──→ Node Group
+   │                      │
+   └──→ Security Group ───┘
+   
+  위상 정렬 결과 (실행 순서):
+  1. VPC
+  2. Subnet, Security Group (병렬 가능)
+  3. EKS Cluster
+  4. Node Group</div>
+            <strong>인프라에서의 DAG:</strong><br>
+            • <strong>Terraform:</strong> 리소스 의존성을 DAG로 구성. <code>terraform graph</code>로 시각화. 위상 정렬 순서로 생성, 역순으로 삭제<br>
+            • <strong>Argo Workflows:</strong> DAG 타입 워크플로에서 step 간 의존성을 정의. 의존성 없는 step은 병렬 실행<br>
+            • <strong>Jenkins Pipeline:</strong> stage 간 의존성이 DAG<br>
+            • <strong>K8s Garbage Collection:</strong> Owner Reference가 DAG 구조. Deployment → ReplicaSet → Pod. 부모 삭제 시 GC가 DAG를 역순으로 자식 삭제<br>
+            • <strong>Git:</strong> 커밋 히스토리가 DAG (병합 커밋이 여러 부모를 가짐)<br><br>
+            <strong>위상 정렬 (Topological Sort):</strong><br>
+            DAG에서 의존성을 만족하는 실행 순서를 결정하는 알고리즘. O(V+E).<br>
+            <strong>순환이 있으면 위상 정렬 불가능</strong> → 순환 의존성 감지에 사용 (Terraform이 순환 참조를 에러로 보고하는 것)<br><br>
+            <div class="co"><span class="c">// Go: 간단한 위상 정렬 (Kahn's Algorithm)</span>
+<span class="k">func</span> <span class="f">topoSort</span>(graph <span class="k">map</span>[<span class="k">string</span>][]<span class="k">string</span>) []<span class="k">string</span> {
+    inDegree := <span class="k">make</span>(<span class="k">map</span>[<span class="k">string</span>]<span class="k">int</span>)
+    <span class="k">for</span> node, deps := <span class="k">range</span> graph {
+        <span class="k">if</span> _, ok := inDegree[node]; !ok { inDegree[node] = 0 }
+        <span class="k">for</span> _, dep := <span class="k">range</span> deps { inDegree[dep]++ }
+    }
+    <span class="k">var</span> queue, result []<span class="k">string</span>
+    <span class="k">for</span> n, d := <span class="k">range</span> inDegree {
+        <span class="k">if</span> d == 0 { queue = <span class="k">append</span>(queue, n) }
+    }
+    <span class="k">for</span> <span class="k">len</span>(queue) > 0 {
+        node := queue[0]; queue = queue[1:]
+        result = <span class="k">append</span>(result, node)
+        <span class="k">for</span> _, dep := <span class="k">range</span> graph[node] {
+            inDegree[dep]--
+            <span class="k">if</span> inDegree[dep] == 0 { queue = <span class="k">append</span>(queue, dep) }
+        }
+    }
+    <span class="k">return</span> result
+}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SORT ===== -->
+  <div class="P" id="p-sort-ds">
+    <div class="PH"><div class="bg bg-p">● Sorting</div><h2>정렬 알고리즘</h2><p>퀵소트 vs 머지소트 — 시간/공간 복잡도, 안정 정렬이 중요한 경우.</p></div>
+    <div class="sec" id="sort-compare">
+      <div class="qa">
+        <div class="qa-q">퀵소트와 머지소트를 비교하고, 안정 정렬(stable sort)이 중요한 경우를 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">퀵소트는 평균 O(N log N), 최악 O(N²)이지만 in-place(추가 메모리 O(log N))라 실무에서 가장 많이 사용됩니다. 머지소트는 항상 O(N log N)이지만 O(N) 추가 메모리가 필요합니다. 안정 정렬은 같은 키의 원래 순서를 유지하는 것으로, DB 정렬이나 다중 기준 정렬에서 중요합니다. Go의 sort.Slice()는 비안정, sort.SliceStable()은 안정 정렬입니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>알고리즘</th><th>평균</th><th>최악</th><th>공간</th><th>안정</th><th>실무</th></tr></thead>
+              <tbody>
+                <tr><td><strong>퀵소트</strong></td><td>O(N log N)</td><td>O(N²)</td><td>O(log N)</td><td>❌</td><td>Go sort.Slice, C qsort</td></tr>
+                <tr><td><strong>머지소트</strong></td><td>O(N log N)</td><td>O(N log N)</td><td>O(N)</td><td>✅</td><td>Go sort.SliceStable, Java Arrays.sort(Object)</td></tr>
+                <tr><td><strong>팀소트</strong></td><td>O(N log N)</td><td>O(N log N)</td><td>O(N)</td><td>✅</td><td>Python sorted(), Java Arrays.sort</td></tr>
+                <tr><td><strong>힙소트</strong></td><td>O(N log N)</td><td>O(N log N)</td><td>O(1)</td><td>❌</td><td>우선순위 큐 (K8s scheduler)</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>안정 정렬이 중요한 경우:</strong><br>
+            로그를 먼저 timestamp 순 정렬하고, 같은 timestamp 내에서 severity 순 정렬할 때. 안정 정렬이면 두 번째 정렬이 첫 번째 정렬 결과를 보존합니다. 비안정 정렬이면 같은 severity 내에서 timestamp 순서가 깨질 수 있습니다.<br><br>
+            <strong>Go 코드:</strong><br>
+            <div class="co"><span class="c">// 비안정 정렬 (퀵소트 기반)</span>
+sort.Slice(pods, <span class="k">func</span>(i, j <span class="k">int</span>) <span class="k">bool</span> {
+    <span class="k">return</span> pods[i].CPU > pods[j].CPU <span class="c">// CPU 사용량 내림차순</span>
+})
+
+<span class="c">// 안정 정렬 (머지소트 기반)</span>
+sort.SliceStable(logs, <span class="k">func</span>(i, j <span class="k">int</span>) <span class="k">bool</span> {
+    <span class="k">return</span> logs[i].Timestamp.Before(logs[j].Timestamp)
+})
+
+<span class="c">// K8s scheduler에서: 우선순위 큐 (힙) 사용</span>
+<span class="c">// Pod을 우선순위별로 스케줄링할 때 heap.Interface 구현</span></div>
+            <strong>면접 포인트:</strong> "왜 Go의 기본 sort.Slice()는 비안정인가?" → 퀵소트가 in-place(메모리 절약)이고 평균적으로 가장 빠르기 때문. 안정성이 필요하면 명시적으로 <code>SliceStable()</code>을 호출.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

@@ -30,6 +30,7 @@ categories:
       - sre-linux-networking-deep-dive
       - linux-kernel-deep-internals
       - filesystem-storage-internals
+      - os-fundamentals
 
   - id: kubernetes
     label: Kubernetes
@@ -48,6 +49,7 @@ categories:
       - ebpf-cilium-networking
       - http2-http3-grpc
       - container-networking-internals
+      - network-deep-dive
 
   - id: observability-db
     label: 관측/DB
@@ -57,6 +59,7 @@ categories:
       - observability-engineering-deep-dive
       - database-stateful-services
       - systems-performance-engineering
+      - database-internals
 
   - id: distributed-systems
     label: 분산시스템 & 신뢰성
@@ -67,6 +70,7 @@ categories:
       - capacity-planning-reliability
       - incident-response-oncall
       - chaos-engineering-resilience
+      - distributed-systems-interview
 
   - id: iac-deploy
     label: IaC & 배포
@@ -90,3 +94,4 @@ categories:
     color: purple
     docs:
       - ds-algo-infrastructure
+      - ds-algo-essentials

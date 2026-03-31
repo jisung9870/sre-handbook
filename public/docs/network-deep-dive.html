@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>네트워크 심화 — DevOps/SRE 면접 가이드</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--teal);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--teal)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="osi"].on{color:var(--blue)}.T[data-t="osi"].on::after{background:var(--blue);left:6%;right:6%}
+.T[data-t="tcp"].on{color:var(--green)}.T[data-t="tcp"].on::after{background:var(--green);left:6%;right:6%}
+.T[data-t="http"].on{color:var(--orange)}.T[data-t="http"].on::after{background:var(--orange);left:6%;right:6%}
+.T[data-t="dns-tls"].on{color:var(--red)}.T[data-t="dns-tls"].on::after{background:var(--red);left:6%;right:6%}
+.T[data-t="subnet"].on{color:var(--purple)}.T[data-t="subnet"].on::after{background:var(--purple);left:6%;right:6%}
+.T[data-t="nat"].on{color:var(--teal)}.T[data-t="nat"].on::after{background:var(--teal);left:6%;right:6%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.qa{margin-top:18px}.qa-q{background:var(--rbg);border:1px solid var(--rbd);border-radius:var(--r);padding:14px 18px;margin-bottom:2px;font-weight:700;font-size:13px;color:var(--red)}.qa-q::before{content:'Q. ';font-family:'JetBrains Mono',monospace;font-weight:700}.qa-a{background:var(--sf);border:1px solid var(--bd);border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-bottom:4px}.qa-a .short{font-weight:700;color:var(--green);font-size:13px;margin-bottom:8px;display:block}.qa-a .short::before{content:'A. ';font-family:'JetBrains Mono',monospace}.qa-a .deep{color:var(--td);font-size:12px;line-height:1.7}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.tb{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.dt{grid-template-columns:1fr!important}.T{font-size:8px;padding:10px 2px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">Interview Prep</div><h1><em>네트워크</em><br>면접 가이드</h1></div>
+  <div class="sl">계층 모델</div>
+  <ul class="sn">
+    <li><a data-t="osi" data-s="osi-layer" class="on"><span class="d" style="background:var(--blue)"></span>OSI vs TCP/IP</a></li>
+    <li><a data-t="osi" data-s="where-break"><span class="d" style="background:var(--blue)"></span>실무에서 어디가 깨지나</a></li>
+  </ul>
+  <div class="sl">TCP</div>
+  <ul class="sn">
+    <li><a data-t="tcp" data-s="handshake"><span class="d" style="background:var(--green)"></span>3-way/4-way Handshake</a></li>
+    <li><a data-t="tcp" data-s="flow-congestion"><span class="d" style="background:var(--green)"></span>흐름제어 vs 혼잡제어</a></li>
+  </ul>
+  <div class="sl">HTTP</div>
+  <ul class="sn">
+    <li><a data-t="http" data-s="http-versions"><span class="d" style="background:var(--orange)"></span>HTTP/1.1 vs 2 vs 3</a></li>
+  </ul>
+  <div class="sl">DNS & TLS</div>
+  <ul class="sn">
+    <li><a data-t="dns-tls" data-s="dns-how"><span class="d" style="background:var(--red)"></span>DNS 동작</a></li>
+    <li><a data-t="dns-tls" data-s="tls-handshake"><span class="d" style="background:var(--red)"></span>TLS Handshake</a></li>
+  </ul>
+  <div class="sl">서브넷</div>
+  <ul class="sn">
+    <li><a data-t="subnet" data-s="cidr"><span class="d" style="background:var(--purple)"></span>CIDR & 서브넷 계산</a></li>
+  </ul>
+  <div class="sl">NAT</div>
+  <ul class="sn">
+    <li><a data-t="nat" data-s="nat-k8s"><span class="d" style="background:var(--teal)"></span>NAT/SNAT/DNAT in K8s</a></li>
+  </ul>
+  <div class="S-f"><p>CORS, SNAT, Proxy<br>Protocol 실무 경험을<br>이론과 연결.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="osi" onclick="sw('osi')">● 계층</button>
+    <button class="T" data-t="tcp" onclick="sw('tcp')">● TCP</button>
+    <button class="T" data-t="http" onclick="sw('http')">● HTTP</button>
+    <button class="T" data-t="dns-tls" onclick="sw('dns-tls')">● DNS/TLS</button>
+    <button class="T" data-t="subnet" onclick="sw('subnet')">● 서브넷</button>
+    <button class="T" data-t="nat" onclick="sw('nat')">● NAT</button>
+  </div>
+
+  <!-- ===== OSI ===== -->
+  <div class="P on" id="p-osi">
+    <div class="PH"><div class="bg bg-b">● Layer Models</div><h2>OSI 7계층 vs TCP/IP 4계층</h2><p>각 계층 역할과 실무에서 문제가 생기는 지점.</p></div>
+
+    <div class="sec" id="osi-layer">
+      <div class="qa">
+        <div class="qa-q">OSI 7계층과 TCP/IP 4계층을 비교하고, 실무에서는 어떤 모델을 쓰나요?</div>
+        <div class="qa-a">
+          <span class="short">OSI는 교육/참조 모델이고, 실무에서는 TCP/IP 4계층(Link→Internet→Transport→Application)을 사용합니다. OSI의 5~7계층(Session/Presentation/Application)은 TCP/IP에서 하나의 Application 계층으로 통합됩니다. 장애 진단 시 "L3 문제(라우팅)인가? L4 문제(포트/방화벽)인가? L7 문제(앱 로직)인가?"로 계층을 나눠 접근합니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>OSI</th><th>TCP/IP</th><th>프로토콜</th><th>K8s 연결</th></tr></thead>
+              <tbody>
+                <tr><td><strong>L7 Application</strong></td><td rowspan="3">Application</td><td>HTTP, gRPC, DNS</td><td>Ingress, Gateway API, Istio VirtualService</td></tr>
+                <tr><td><strong>L6 Presentation</strong></td><td>TLS, SSL</td><td>cert-manager, mTLS</td></tr>
+                <tr><td><strong>L5 Session</strong></td><td>WebSocket, gRPC stream</td><td>서비스 메시 세션 관리</td></tr>
+                <tr><td><strong>L4 Transport</strong></td><td>Transport</td><td>TCP, UDP</td><td>Service (ClusterIP), kube-proxy, NodePort</td></tr>
+                <tr><td><strong>L3 Network</strong></td><td>Internet</td><td>IP, ICMP</td><td>Pod CIDR, CNI, NetworkPolicy</td></tr>
+                <tr><td><strong>L2 Data Link</strong></td><td rowspan="2">Link</td><td>Ethernet, ARP</td><td>veth, bridge, VXLAN</td></tr>
+                <tr><td><strong>L1 Physical</strong></td><td>전기 신호</td><td>NIC, 케이블</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="where-break">
+      <div class="qa">
+        <div class="qa-q">실무에서 네트워크 문제가 가장 자주 발생하는 계층은?</div>
+        <div class="qa-a">
+          <span class="short">L7(앱) > L4(방화벽/포트) > L3(라우팅) 순서로 빈번합니다. L7에서는 CORS, TLS 인증서 만료, HTTP 타임아웃이 흔하고, L4에서는 SecurityGroup 미설정, 포트 미개방이 흔하고, L3에서는 라우팅 테이블 오류, VPN CIDR 충돌이 발생합니다.</span>
+          <div class="deep">
+            <strong>실무 경험 연결:</strong><br>
+            • <strong>L7 — NHN NKS CORS 403:</strong> kube-proxy의 SNAT가 LB 소스 IP를 변환 → Traefik Proxy Protocol trust가 실패 → CORS 검증 실패. <code>externalTrafficPolicy: Local</code>로 해결. 이 사례는 L4(SNAT)와 L7(CORS)이 결합된 문제<br>
+            • <strong>L4 — SecurityGroup:</strong> 새 서비스 배포 시 포트를 SG에 추가하지 않아 타임아웃. 에러 메시지가 없어 진단이 어려움 → <code>telnet host port</code>로 L4 연결 확인<br>
+            • <strong>L3 — VPN CIDR 충돌:</strong> AWS VPC CIDR과 NHN Cloud 대역이 겹쳐 VPN 라우팅 실패<br><br>
+            <strong>진단 순서:</strong><br>
+            <code>ping host</code> → L3 확인 (ICMP)<br>
+            <code>telnet host port</code> → L4 확인 (TCP 연결)<br>
+            <code>curl -v https://host</code> → L7 확인 (HTTP 응답)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TCP ===== -->
+  <div class="P" id="p-tcp">
+    <div class="PH"><div class="bg bg-g">● TCP Deep Dive</div><h2>TCP 핵심</h2><p>3-way/4-way handshake, 흐름제어, 혼잡제어 — SRE가 반드시 알아야 하는 TCP 내부.</p></div>
+
+    <div class="sec" id="handshake">
+      <div class="qa">
+        <div class="qa-q">TCP 3-way handshake와 4-way handshake를 설명해 주세요. TIME_WAIT은 왜 존재하나요?</div>
+        <div class="qa-a">
+          <span class="short">3-way handshake(SYN→SYN-ACK→ACK)로 연결을 설정하고, 4-way handshake(FIN→ACK→FIN→ACK)로 연결을 종료합니다. TIME_WAIT(기본 60초)는 연결 종료를 먼저 시작한 쪽에서 발생하며, 네트워크에 남아있을 수 있는 지연된 패킷이 새 연결에 영향을 주지 않도록 보장합니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">3-Way Handshake (연결 설정):
+Client → SYN (seq=x)         → Server
+Client ← SYN-ACK (seq=y, ack=x+1) ← Server
+Client → ACK (ack=y+1)       → Server
+→ 1 RTT (SYN + SYN-ACK) 후 데이터 전송 시작
+
+4-Way Handshake (연결 종료):
+Client → FIN (seq=x)         → Server
+Client ← ACK (ack=x+1)       ← Server   (Server 아직 보낼 데이터 있을 수 있음)
+Client ← FIN (seq=y)         ← Server   (Server도 종료 준비 완료)
+Client → ACK (ack=y+1)       → Server
+Client: TIME_WAIT 상태 (60초) → CLOSED</div>
+            <strong>TIME_WAIT이 문제가 되는 경우:</strong><br>
+            고빈도 HTTP 연결 (매 요청마다 연결/종료)에서 TIME_WAIT 소켓이 수만 개 쌓이면 <strong>소스 포트(ephemeral port, 32768~60999) 고갈</strong>. 새 연결을 만들 수 없게 됨.<br><br>
+            <strong>해결:</strong><br>
+            • <code>net.ipv4.tcp_tw_reuse = 1</code> — TIME_WAIT 소켓을 새 연결에 재사용 (안전)<br>
+            • HTTP keep-alive로 연결 재사용 → TIME_WAIT 자체를 줄임<br>
+            • K8s에서: Traefik/Nginx의 upstream keepalive 설정으로 백엔드 커넥션 재사용<br><br>
+            <strong>SYN Flood 공격:</strong> SYN만 대량 전송하고 SYN-ACK에 응답하지 않아 서버의 <strong>SYN Queue</strong>를 소진시키는 DDoS. <code>net.ipv4.tcp_syncookies = 1</code>로 방어. SYN Queue 없이 SYN-ACK에 쿠키를 담아 상태 없이 검증.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="flow-congestion">
+      <div class="qa">
+        <div class="qa-q">TCP 흐름제어(Flow Control)와 혼잡제어(Congestion Control)의 차이를 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">흐름제어는 "수신자가 처리할 수 있는 속도로 보내기"(수신자 보호), 혼잡제어는 "네트워크가 감당할 수 있는 속도로 보내기"(네트워크 보호)입니다. 흐름제어는 TCP 윈도우(rwnd)로, 혼잡제어는 혼잡 윈도우(cwnd)로 구현되며, 실제 전송 속도는 min(rwnd, cwnd)로 결정됩니다.</span>
+          <div class="deep">
+            <strong>흐름제어 — Sliding Window:</strong><br>
+            수신자가 <code>Window Size</code> 헤더로 "나는 X바이트까지 받을 수 있다"를 알림. 송신자는 이 범위 내에서만 ACK 없이 전송. <code>Window Size = 0</code>이면 전송 중단 (수신 버퍼 가득참).<br><br>
+            <strong>혼잡제어 — CWND 알고리즘:</strong><br>
+            <div class="fm" style="text-align:left;font-size:10.5px">Slow Start: cwnd = 1 MSS → ACK마다 cwnd × 2 (지수 증가)
+  → cwnd가 ssthresh에 도달하면 Congestion Avoidance로 전환
+
+Congestion Avoidance: ACK마다 cwnd += 1 MSS (선형 증가)
+  → 패킷 손실 감지 시:
+    ssthresh = cwnd / 2
+    cwnd = 1 (Slow Start로 복귀) — TCP Tahoe
+    cwnd = cwnd / 2 (Fast Recovery) — TCP Reno/CUBIC</div>
+            <strong>BBR (Bottleneck Bandwidth and RTT):</strong> Google이 개발한 혼잡제어 알고리즘. 패킷 손실이 아닌 <strong>대역폭과 RTT를 측정</strong>하여 최적 전송 속도를 결정. 패킷 손실이 잦은 환경(무선, 장거리)에서 CUBIC 대비 <strong>2~25배 처리량 향상</strong>. <code>sysctl net.ipv4.tcp_congestion_control=bbr</code><br><br>
+            <strong>실무 연결:</strong> Traefik/Nginx의 keepalive timeout 체인 설정에서 언급한 것처럼, <strong>Nginx upstream keepalive < LB idle timeout < Traefik idleTimeout</strong> 순서가 중요합니다. 이 체인이 어긋나면 한쪽에서 연결이 끊겨 TCP RST가 발생합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HTTP ===== -->
+  <div class="P" id="p-http">
+    <div class="PH"><div class="bg bg-o">● HTTP Versions</div><h2>HTTP/1.1 vs 2 vs 3</h2><p>keep-alive, 멀티플렉싱, QUIC — 프로토콜 진화와 K8s 환경에서의 영향.</p></div>
+
+    <div class="sec" id="http-versions">
+      <div class="qa">
+        <div class="qa-q">HTTP/1.1, HTTP/2, HTTP/3의 핵심 차이를 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">HTTP/1.1은 텍스트 기반, 연결당 하나의 요청-응답(HOL Blocking), keep-alive로 연결 재사용. HTTP/2는 바이너리 프레이밍, 단일 연결에서 멀티플렉싱(여러 요청 동시), HPACK 헤더 압축. 하지만 TCP HOL Blocking은 미해결. HTTP/3는 UDP 기반 QUIC으로 TCP를 대체하여 스트림별 독립 전송, 0-RTT 재연결, 연결 마이그레이션을 지원합니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>항목</th><th>HTTP/1.1</th><th>HTTP/2</th><th>HTTP/3</th></tr></thead>
+              <tbody>
+                <tr><td>전송</td><td>TCP</td><td>TCP</td><td>QUIC (UDP)</td></tr>
+                <tr><td>형식</td><td>텍스트</td><td>바이너리 프레이밍</td><td>바이너리</td></tr>
+                <tr><td>멀티플렉싱</td><td>❌ (6 병렬 연결)</td><td>✅ (단일 연결)</td><td>✅ + 스트림 독립</td></tr>
+                <tr><td>헤더 압축</td><td>없음</td><td>HPACK</td><td>QPACK</td></tr>
+                <tr><td>HOL Blocking</td><td>HTTP + TCP</td><td>TCP만 남음</td><td>없음</td></tr>
+                <tr><td>연결 설정</td><td>1 RTT (TCP) + 2 RTT (TLS)</td><td>1+1 RTT</td><td>1 RTT (재연결 0-RTT)</td></tr>
+                <tr><td>K8s에서</td><td>기본</td><td>gRPC, Traefik H2C</td><td>CDN에서 종단</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>gRPC와 HTTP/2 LB 문제 (실무 핵심):</strong><br>
+            gRPC는 HTTP/2 위에서 동작합니다. HTTP/2는 단일 TCP 연결에서 모든 요청을 멀티플렉싱하므로, <strong>L4 LB(K8s ClusterIP)는 연결 수준에서만 분산</strong>합니다. 한 클라이언트의 모든 gRPC 호출이 같은 서버로 가게 됩니다. <strong>해결:</strong> Headless Service + 클라이언트 사이드 LB, 또는 L7 프록시(Traefik GRPCRoute), 또는 Istio/Linkerd가 L7 LB를 자동 처리.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DNS & TLS ===== -->
+  <div class="P" id="p-dns-tls">
+    <div class="PH"><div class="bg bg-r">● DNS & TLS</div><h2>DNS 동작 & TLS Handshake</h2><p>이름 해석과 암호화 — 모든 네트워크 통신의 시작점.</p></div>
+
+    <div class="sec" id="dns-how">
+      <div class="qa">
+        <div class="qa-q">DNS 질의의 전체 과정을 설명해 주세요. Recursive와 Iterative의 차이는?</div>
+        <div class="qa-a">
+          <span class="short">Recursive 질의는 클라이언트가 DNS 리졸버에 "최종 답을 달라"고 요청하는 것이고, Iterative 질의는 리졸버가 루트→TLD→권한 서버를 단계별로 직접 질의하며 최종 답을 찾는 것입니다. 일반적으로 클라이언트→로컬 리졸버는 Recursive, 리졸버→각 DNS 서버는 Iterative로 동작합니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">브라우저가 api.example.com 접속:
+
+1. 로컬 DNS 캐시 확인 (/etc/hosts, 브라우저 캐시)
+2. 없으면 → 로컬 DNS 리졸버(ISP 또는 8.8.8.8)에 Recursive 질의
+3. 리졸버 캐시 확인
+4. 없으면 → Root DNS (.에 대해) Iterative 질의
+   "com.의 NS는 a.gtld-servers.net이다"
+5. → TLD DNS (com.에 대해) Iterative 질의
+   "example.com.의 NS는 ns1.example.com이다"
+6. → 권한 DNS (example.com.에 대해) Iterative 질의
+   "api.example.com = 1.2.3.4 (TTL 300)"
+7. 리졸버가 결과를 캐시 (TTL 300초간)
+8. 클라이언트에 응답</div>
+            <strong>K8s DNS (CoreDNS):</strong><br>
+            Pod의 <code>/etc/resolv.conf</code>:<br>
+            <code>nameserver 10.96.0.10</code> (CoreDNS ClusterIP)<br>
+            <code>search prod.svc.cluster.local svc.cluster.local cluster.local</code><br>
+            <code>options ndots:5</code><br><br>
+            <strong>ndots:5 문제:</strong> <code>api.external.com</code>(점 2개 < 5)이면 search 도메인을 먼저 시도 → 4번의 불필요한 DNS 쿼리 → 외부 도메인 해석 지연. <strong>해결:</strong> FQDN 끝에 <code>.</code> 추가 또는 <code>ndots: 2</code>로 변경<br><br>
+            <strong>DNS Cache Poisoning:</strong> 공격자가 가짜 DNS 응답을 리졸버 캐시에 주입. DNSSEC(서명 검증)으로 방어. 클라우드 환경에서는 Route 53/Cloud DNS가 기본적으로 방어.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="tls-handshake">
+      <div class="qa">
+        <div class="qa-q">TLS 1.3 Handshake 과정을 설명해 주세요. mTLS는 무엇인가요?</div>
+        <div class="qa-a">
+          <span class="short">TLS 1.3은 1-RTT로 핸드셰이크를 완료합니다. ClientHello(지원 암호화 스위트 + 키 공유)→ServerHello(선택된 스위트 + 키 공유 + 인증서)→완료. mTLS(mutual TLS)는 서버뿐 아니라 클라이언트도 인증서를 제시하여 양방향 인증을 하는 것으로, Istio가 서비스 간 통신에 SPIFFE 기반 mTLS를 자동 적용합니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">TLS 1.3 Handshake (1-RTT):
+
+Client → ServerHello:
+  - 지원 암호화 스위트 목록
+  - Key Share (ECDHE 공개키)
+  - SNI (Server Name Indication — 어떤 도메인에 접속하는지)
+
+Server → Client:
+  - 선택된 암호화 스위트
+  - Key Share (ECDHE 공개키)  
+  - 인증서 + 인증서 체인
+  - CertificateVerify (서버 개인키로 서명)
+  - Finished
+
+→ 대칭키 유도 완료, 암호화 통신 시작
+→ TLS 1.2 대비 1 RTT 절감 (1.2는 2 RTT)</div>
+            <strong>SNI (Server Name Indication):</strong> 하나의 IP에 여러 도메인을 호스팅할 때, 클라이언트가 "어떤 도메인에 접속하는지"를 알려줘야 서버가 올바른 인증서를 제시할 수 있음. <strong>SNI는 평문</strong>이므로 방화벽/프록시가 도메인을 볼 수 있음. ESNI/ECH가 이를 암호화하는 표준.<br><br>
+            <strong>mTLS in K8s:</strong><br>
+            • <strong>Istio:</strong> istiod CA가 각 사이드카에 SPIFFE 인증서를 발급. PeerAuthentication STRICT 모드로 모든 서비스 간 통신을 mTLS 강제<br>
+            • <strong>cert-manager + Traefik:</strong> Istio 없이도 cert-manager가 인증서를 발급하고 Traefik이 mTLS를 수행할 수 있지만, 서비스별 설정이 필요하여 운영 부담이 큼<br>
+            • <strong>Cilium WireGuard:</strong> 커널 레벨에서 노드 간 암호화. mTLS보다 가볍지만 Pod 레벨이 아닌 노드 레벨 암호화
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SUBNET ===== -->
+  <div class="P" id="p-subnet">
+    <div class="PH"><div class="bg bg-p">● Subnetting</div><h2>서브넷 & CIDR 계산</h2><p>CIDR 표기법, VPC 설계 시 서브넷 분할 — 면접에서 빠르게 계산하는 법.</p></div>
+
+    <div class="sec" id="cidr">
+      <div class="qa">
+        <div class="qa-q">CIDR 표기법을 설명하고, /16, /24, /28의 차이를 말해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">CIDR(Classless Inter-Domain Routing)은 IP 주소 뒤에 슬래시와 서브넷 마스크 비트 수를 표기하는 방법입니다. /16은 65,536개 IP(대규모 VPC), /24는 256개 IP(일반 서브넷), /28은 16개 IP(소규모 서브넷). 슬래시 뒤 숫자가 커질수록 네트워크 범위가 좁아지고, 32에서 빼면 호스트 비트 수가 됩니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>CIDR</th><th>서브넷 마스크</th><th>IP 수</th><th>사용 가능</th><th>VPC 설계 용도</th></tr></thead>
+              <tbody>
+                <tr><td><strong>/16</strong></td><td>255.255.0.0</td><td>65,536</td><td>65,531 (AWS 5개 예약)</td><td>VPC 전체 (10.0.0.0/16)</td></tr>
+                <tr><td><strong>/20</strong></td><td>255.255.240.0</td><td>4,096</td><td>4,091</td><td>큰 서브넷 (EKS 노드)</td></tr>
+                <tr><td><strong>/24</strong></td><td>255.255.255.0</td><td>256</td><td>251</td><td>일반 서브넷</td></tr>
+                <tr><td><strong>/28</strong></td><td>255.255.255.240</td><td>16</td><td>11</td><td>소규모 (NAT GW, LB)</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>빠른 계산법:</strong> <code>IP 수 = 2^(32-CIDR)</code><br>
+            /24 → 2^8 = 256개<br>
+            /20 → 2^12 = 4,096개<br>
+            /28 → 2^4 = 16개<br><br>
+            <strong>VPC 설계 실전 (EKS + NHN NKS 멀티클라우드):</strong><br>
+            <div class="fm" style="text-align:left;font-size:10.5px">AWS VPC: 10.0.0.0/16  (65,536 IP)
+├── Public Subnet:  10.0.0.0/24   × 3 AZ (LB, NAT GW)
+├── Private Subnet: 10.0.10.0/20  × 3 AZ (EKS 노드)
+└── DB Subnet:      10.0.100.0/24 × 3 AZ (RDS)
+
+NHN Cloud: 172.16.0.0/16
+├── Subnet: 172.16.0.0/20 × 2 AZ (NKS)
+
+⚠ VPN 연결 시 CIDR 겹침 방지!
+10.0.0.0/16 ↔ 172.16.0.0/16 = 겹치지 않음 ✅</div>
+            <strong>EKS Pod CIDR:</strong> VPC CNI는 VPC CIDR에서 Pod IP를 할당합니다. /20 서브넷(4,091 IP)이면 Pod 수 제한이 생길 수 있어 <strong>Prefix Delegation</strong>으로 확장하거나, 큰 서브넷(/16)을 사용합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== NAT ===== -->
+  <div class="P" id="p-nat">
+    <div class="PH"><div class="bg bg-t">● NAT in K8s</div><h2>NAT/SNAT/DNAT</h2><p>K8s에서 kube-proxy가 하는 것, iptables 규칙, Proxy Protocol — 실무 경험 연결.</p></div>
+
+    <div class="sec" id="nat-k8s">
+      <div class="qa">
+        <div class="qa-q">SNAT, DNAT의 차이와 K8s에서의 동작을 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">SNAT(Source NAT)는 패킷의 소스 IP를 변경하는 것이고, DNAT(Destination NAT)는 목적지 IP를 변경하는 것입니다. K8s에서 kube-proxy는 Service ClusterIP→Pod IP로 DNAT를 수행하고, Pod→외부 통신 시 Node IP로 SNAT(MASQUERADE)를 수행합니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">K8s Service DNAT:
+Client → Service ClusterIP:80 (10.96.1.100:80)
+  → kube-proxy iptables: DNAT → Pod IP:8080 (10.244.1.5:8080)
+  → conntrack에 매핑 기록
+  → 응답: Pod → Client (conntrack이 역변환)
+
+Pod→External SNAT:
+Pod (10.244.1.5) → google.com:443
+  → POSTROUTING: MASQUERADE → Node IP (192.168.1.10)
+  → NAT Gateway → Internet
+  → 응답: Node IP → conntrack 역변환 → Pod</div>
+            <strong>NHN NKS CORS 403 해결 사례 (핵심 면접 소재):</strong><br>
+            <strong>문제:</strong> NHN NKS에서 kube-proxy SNAT가 LB의 소스 IP를 노드 IP로 변환 → Traefik이 Proxy Protocol로 받은 클라이언트 IP와 실제 소스 IP가 불일치 → Proxy Protocol trust 실패 → CORS 403<br><br>
+            <strong>근본 원인:</strong> <code>externalTrafficPolicy: Cluster</code>(기본)일 때, 다른 노드의 Pod으로 트래픽이 라우팅되면서 <strong>추가 SNAT</strong>이 발생<br><br>
+            <strong>해결:</strong> <code>externalTrafficPolicy: Local</code> 설정 → LB가 해당 노드의 Pod에만 직접 전달 → 추가 SNAT 없음 → 소스 IP 보존 → Proxy Protocol trust 성공<br><br>
+            <strong>Proxy Protocol이란:</strong> LB가 클라이언트의 원본 IP를 보존하여 백엔드에 전달하는 프로토콜. TCP 연결 시작 시 <code>PROXY TCP4 client_ip client_port server_ip server_port\r\n</code> 헤더를 추가. Traefik에서 <code>trustedIPs</code>를 VPC CIDR로 설정하여 신뢰할 수 있는 소스에서만 Proxy Protocol을 수용합니다.
+          </div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 면접에서 이 사례를 설명하는 법</strong><br>"NHN Cloud NKS 환경에서 간헐적으로 CORS 403 에러가 발생하는 장애를 해결한 경험이 있습니다. 원인은 kube-proxy의 SNAT가 LB의 소스 IP를 변환하여 Traefik의 Proxy Protocol trust가 실패하는 것이었습니다. externalTrafficPolicy를 Local로 변경하여 SNAT를 방지하고 소스 IP를 보존하는 방식으로 해결했습니다."<br>→ <strong>L3/L4 수준의 이해 + 실전 디버깅 능력 + K8s 네트워킹 지식</strong>을 한 번에 보여줄 수 있는 강력한 사례</div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

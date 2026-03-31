@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OS 핵심 — DevOps/SRE 면접 가이드</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--blue)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="vm"].on{color:var(--blue)}.T[data-t="vm"].on::after{background:var(--blue);left:6%;right:6%}
+.T[data-t="proc"].on{color:var(--green)}.T[data-t="proc"].on::after{background:var(--green);left:6%;right:6%}
+.T[data-t="sched"].on{color:var(--orange)}.T[data-t="sched"].on::after{background:var(--orange);left:6%;right:6%}
+.T[data-t="sync"].on{color:var(--red)}.T[data-t="sync"].on::after{background:var(--red);left:6%;right:6%}
+.T[data-t="mem"].on{color:var(--purple)}.T[data-t="mem"].on::after{background:var(--purple);left:6%;right:6%}
+.T[data-t="fs"].on{color:var(--teal)}.T[data-t="fs"].on::after{background:var(--teal);left:6%;right:6%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+/* Q&A 면접 스타일 */
+.qa{margin-top:18px}.qa-q{background:var(--rbg);border:1px solid var(--rbd);border-radius:var(--r);padding:14px 18px;margin-bottom:2px;font-weight:700;font-size:13px;color:var(--red)}.qa-q::before{content:'Q. ';font-family:'JetBrains Mono',monospace;font-weight:700}.qa-a{background:var(--sf);border:1px solid var(--bd);border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-bottom:4px}.qa-a .short{font-weight:700;color:var(--green);font-size:13px;margin-bottom:8px;display:block}.qa-a .short::before{content:'A. ';font-family:'JetBrains Mono',monospace}.qa-a .deep{color:var(--td);font-size:12px;line-height:1.7}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.tb{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.dt{grid-template-columns:1fr!important}.T{font-size:8px;padding:10px 2px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">Interview Prep</div><h1><em>OS 핵심</em><br>면접 가이드</h1></div>
+  <div class="sl">가상 메모리</div>
+  <ul class="sn">
+    <li><a data-t="vm" data-s="vm-page" class="on"><span class="d" style="background:var(--blue)"></span>페이지 테이블 & 폴트</a></li>
+    <li><a data-t="vm" data-s="vm-tlb"><span class="d" style="background:var(--blue)"></span>TLB & 스왑</a></li>
+  </ul>
+  <div class="sl">프로세스 & 스레드</div>
+  <ul class="sn">
+    <li><a data-t="proc" data-s="proc-vs"><span class="d" style="background:var(--green)"></span>프로세스 vs 스레드</a></li>
+    <li><a data-t="proc" data-s="ctx-switch"><span class="d" style="background:var(--green)"></span>컨텍스트 스위칭</a></li>
+  </ul>
+  <div class="sl">스케줄링</div>
+  <ul class="sn">
+    <li><a data-t="sched" data-s="sched-algo"><span class="d" style="background:var(--orange)"></span>스케줄링 알고리즘</a></li>
+    <li><a data-t="sched" data-s="cfs"><span class="d" style="background:var(--orange)"></span>Linux CFS</a></li>
+  </ul>
+  <div class="sl">동기화</div>
+  <ul class="sn">
+    <li><a data-t="sync" data-s="mutex-sem"><span class="d" style="background:var(--red)"></span>Mutex & Semaphore</a></li>
+    <li><a data-t="sync" data-s="deadlock"><span class="d" style="background:var(--red)"></span>Deadlock</a></li>
+  </ul>
+  <div class="sl">메모리 관리</div>
+  <ul class="sn">
+    <li><a data-t="mem" data-s="heap-stack"><span class="d" style="background:var(--purple)"></span>힙 & 스택</a></li>
+    <li><a data-t="mem" data-s="oom"><span class="d" style="background:var(--purple)"></span>OOM Killer</a></li>
+  </ul>
+  <div class="sl">파일 시스템</div>
+  <ul class="sn">
+    <li><a data-t="fs" data-s="inode-fd"><span class="d" style="background:var(--teal)"></span>Inode & FD</a></li>
+    <li><a data-t="fs" data-s="vfs-layer"><span class="d" style="background:var(--teal)"></span>VFS</a></li>
+  </ul>
+  <div class="S-f"><p>RTOS의 경험을<br>리눅스로 확장하는<br>면접 준비.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="vm" onclick="sw('vm')">● 가상 메모리</button>
+    <button class="T" data-t="proc" onclick="sw('proc')">● 프로세스</button>
+    <button class="T" data-t="sched" onclick="sw('sched')">● 스케줄링</button>
+    <button class="T" data-t="sync" onclick="sw('sync')">● 동기화</button>
+    <button class="T" data-t="mem" onclick="sw('mem')">● 메모리</button>
+    <button class="T" data-t="fs" onclick="sw('fs')">● 파일시스템</button>
+  </div>
+
+  <!-- ===== 가상 메모리 ===== -->
+  <div class="P on" id="p-vm">
+    <div class="PH"><div class="bg bg-b">● Virtual Memory</div><h2>가상 메모리</h2><p>페이지 테이블, 페이지 폴트, TLB, 스왑 — 프로세스가 물리 메모리보다 큰 주소 공간을 사용할 수 있는 이유.</p></div>
+
+    <div class="sec" id="vm-page">
+      <div class="qa">
+        <div class="qa-q">가상 메모리란 무엇이고, 왜 필요한가요?</div>
+        <div class="qa-a">
+          <span class="short">프로세스에게 연속적이고 독립적인 주소 공간을 제공하는 추상화 계층입니다. 물리 메모리를 직접 접근하지 않고 가상 주소를 사용하여 프로세스 간 격리, 물리 메모리보다 큰 주소 공간 사용, 메모리 공유를 가능하게 합니다.</span>
+          <div class="deep">
+            <strong>RTOS와의 차이:</strong> STM32 같은 MCU에서는 MPU(Memory Protection Unit)로 제한된 보호만 하거나 보호 없이 직접 물리 주소를 사용합니다. 리눅스는 <strong>MMU(Memory Management Unit)</strong> 하드웨어가 모든 메모리 접근을 가상→물리로 변환합니다.<br><br>
+            <strong>핵심 동작:</strong><br>
+            1. 프로세스가 가상 주소 <code>0x7fff1234</code>에 접근<br>
+            2. CPU의 MMU가 <strong>페이지 테이블</strong>을 조회하여 물리 주소로 변환<br>
+            3. 해당 페이지가 물리 메모리에 없으면 → <strong>페이지 폴트</strong> 발생<br>
+            4. 커널이 디스크(스왑)에서 해당 페이지를 물리 메모리로 로드<br><br>
+            <strong>K8s에서의 연결:</strong> 컨테이너도 프로세스이므로 가상 메모리를 사용합니다. <code>container_memory_rss</code>는 실제 물리 메모리에 매핑된 페이지 크기이고, <code>container_memory_usage_bytes</code>는 Page Cache를 포함합니다. 이 차이를 이해해야 OOMKill 원인을 진단할 수 있습니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="qa">
+        <div class="qa-q">페이지 테이블의 구조를 설명해 주세요. 왜 멀티레벨인가요?</div>
+        <div class="qa-a">
+          <span class="short">가상 주소를 물리 주소로 변환하는 매핑 테이블입니다. 단일 레벨이면 64비트 주소 공간에서 테이블 크기가 수 PB이므로, 4~5단계 계층 구조(PGD→PUD→PMD→PTE)로 사용하지 않는 주소 범위의 테이블을 아예 생성하지 않아 메모리를 절약합니다.</span>
+          <div class="deep">
+            <strong>x86-64 4-Level 페이지 테이블:</strong><br>
+            <div class="fm" style="text-align:left;font-size:10px">가상 주소 (48비트 유효):
+[PGD 9비트][PUD 9비트][PMD 9비트][PTE 9비트][Offset 12비트]
+
+PGD (Page Global Directory) → 512 엔트리
+  → PUD (Page Upper Directory) → 512 엔트리
+    → PMD (Page Middle Directory) → 512 엔트리
+      → PTE (Page Table Entry) → 512 엔트리 → 물리 페이지
+
+페이지 크기: 4KB (2^12 = Offset 12비트)
+Huge Page: 2MB (PMD 레벨에서 직접 매핑) 또는 1GB (PUD 레벨)</div>
+            <strong>Huge Pages가 중요한 이유:</strong> 일반 4KB 페이지로 수 GB 메모리를 매핑하면 PTE 엔트리가 수백만 개 필요하고 TLB 미스가 빈번합니다. <strong>2MB Huge Page</strong>를 쓰면 엔트리 수가 512배 감소하여 TLB 히트율이 극적으로 개선됩니다. PostgreSQL, Redis 같은 대용량 메모리 앱에서 Huge Pages를 활성화하면 성능이 10~20% 향상될 수 있습니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="qa">
+        <div class="qa-q">페이지 폴트(Page Fault)의 종류와 성능 영향은?</div>
+        <div class="qa-a">
+          <span class="short">Minor Fault는 물리 메모리에 페이지가 있지만 매핑만 없는 경우(수 μs), Major Fault는 디스크에서 페이지를 읽어와야 하는 경우(수 ms)입니다. Major Fault가 빈번하면 시스템이 극적으로 느려집니다.</span>
+          <div class="deep">
+            <strong>Minor Page Fault:</strong> <code>mmap()</code>으로 파일을 매핑했지만 실제로 접근하지 않은 페이지를 처음 접근할 때. 또는 <code>fork()</code> 후 Copy-on-Write가 트리거될 때. 페이지가 이미 물리 메모리에 있으므로 PTE만 업데이트. <strong>~1~10μs</strong><br><br>
+            <strong>Major Page Fault:</strong> 페이지가 디스크(스왑)에 있어서 디스크 I/O가 필요. HDD에서 <strong>~5~10ms</strong>, SSD에서 <strong>~0.1~1ms</strong>. 하지만 빈번하면 시스템 전체가 I/O wait으로 응답 불가.<br><br>
+            <strong>K8s에서:</strong> <code>container_memory_swap</code>이 증가하면 major fault가 빈번하다는 뜻. 스왑은 K8s 노드에서 기본적으로 비활성화(kubelet <code>--fail-swap-on=true</code>)되므로, 메모리 부족 시 스왑 대신 <strong>OOMKill</strong>이 발생합니다.<br><br>
+            <strong>모니터링:</strong><br>
+            <code>ps -o min_flt,maj_flt -p PID</code> — 프로세스별 fault 수<br>
+            <code>sar -B 1</code> — 시스템 전체 page fault 통계<br>
+            Prometheus: <code>node_vmstat_pgmajfault</code> — major fault 급증 시 알림
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="vm-tlb">
+      <div class="qa">
+        <div class="qa-q">TLB(Translation Lookaside Buffer)가 뭐고, 왜 성능에 중요한가요?</div>
+        <div class="qa-a">
+          <span class="short">페이지 테이블 조회 결과를 캐시하는 CPU 내부의 고속 캐시입니다. 매 메모리 접근마다 4단계 페이지 테이블을 탐색하면 4번의 추가 메모리 접근이 필요하므로, TLB 히트 시 이를 건너뛰어 성능을 유지합니다. TLB 미스율이 높으면 모든 메모리 접근이 5배 느려집니다.</span>
+          <div class="deep">
+            <strong>TLB 특성:</strong><br>
+            • 크기: 보통 64~1536 엔트리 (CPU마다 다름)<br>
+            • 히트 시간: ~0.5~1ns (L1 캐시와 동급)<br>
+            • 미스 시간: ~10~100ns (페이지 테이블 walk)<br>
+            • 히트율: 일반적으로 >99% (지역성이 좋은 앱)<br><br>
+            <strong>TLB Flush (Shootdown):</strong> 컨텍스트 스위칭 시 TLB 전체 또는 일부가 무효화됩니다. 이것이 컨텍스트 스위칭 비용의 상당 부분. ASID(Address Space ID)를 지원하는 CPU는 프로세스별 TLB 엔트리를 유지하여 flush를 최소화합니다.<br><br>
+            <strong>Huge Pages와 TLB:</strong> 4KB 페이지로 1GB를 커버하려면 262,144 TLB 엔트리가 필요하지만, 2MB Huge Page로는 512 엔트리만 필요. TLB는 크기가 매우 제한적이므로 <strong>Huge Pages가 TLB 히트율을 극적으로 개선</strong>합니다.<br><br>
+            <strong>RTOS 비교:</strong> STM32의 MPU는 리전 수가 8~16개로 매우 적고 TLB가 없습니다. 리눅스는 MMU+TLB가 하드웨어에 내장되어 자동으로 동작합니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="qa">
+        <div class="qa-q">스왑(Swap)이란? K8s에서 스왑을 비활성화하는 이유는?</div>
+        <div class="qa-a">
+          <span class="short">물리 메모리가 부족할 때 사용 빈도가 낮은 페이지를 디스크로 옮기는 메커니즘입니다. K8s에서 스왑을 비활성화하는 이유는 kubelet의 메모리 관리(resource request/limit, OOMKill, eviction)가 정확한 물리 메모리 사용량에 의존하는데, 스왑이 활성화되면 실제 메모리 부족 시점을 정확히 판단할 수 없기 때문입니다.</span>
+          <div class="deep">
+            <strong>스왑 동작:</strong><br>
+            1. 물리 메모리 부족 → kswapd(커널 스레드)가 페이지 회수 시작<br>
+            2. <strong>Anonymous pages</strong>(힙, 스택)를 스왑 영역(디스크)으로 이동<br>
+            3. <strong>File-backed pages</strong>(Page Cache)는 원본 파일이 있으므로 단순히 drop<br>
+            4. <code>vm.swappiness</code>: 0(스왑 최소화)~100(적극 스왑). 기본 60<br><br>
+            <strong>K8s 1.28+에서 스왑 지원 (alpha):</strong><br>
+            • <code>NodeSwap</code> feature gate로 제한적 스왑 허용<br>
+            • <code>LimitedSwap</code> 모드: Burstable QoS Pod만 스왑 사용 허용<br>
+            • 아직 프로덕션 미권장. 대부분의 환경에서 스왑 비활성화가 표준<br><br>
+            <strong>모니터링:</strong><br>
+            <code>free -h</code> → Swap 사용량<br>
+            <code>vmstat 1</code> → si(swap in), so(swap out) 컬럼. 0이 아니면 메모리 부족<br>
+            <code>node_memory_SwapFree_bytes</code> → Prometheus 메트릭
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 프로세스 & 스레드 ===== -->
+  <div class="P" id="p-proc">
+    <div class="PH"><div class="bg bg-g">● Process & Thread</div><h2>프로세스 vs 스레드</h2><p>차이점, 컨텍스트 스위칭 비용, Go의 goroutine — 면접 최빈출 주제.</p></div>
+
+    <div class="sec" id="proc-vs">
+      <div class="qa">
+        <div class="qa-q">프로세스와 스레드의 차이를 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">프로세스는 독립된 주소 공간, 파일 디스크립터, 시그널 핸들러를 가진 실행 단위입니다. 스레드는 같은 프로세스 내에서 코드, 데이터, 힙을 공유하면서 각자의 스택과 레지스터를 가진 실행 흐름입니다. 리눅스에서는 둘 다 task_struct로 표현되며, clone() syscall의 플래그로 공유 범위를 결정합니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>항목</th><th>프로세스</th><th>스레드</th></tr></thead>
+              <tbody>
+                <tr><td>주소 공간</td><td>독립 (격리)</td><td>공유 (같은 프로세스 내)</td></tr>
+                <tr><td>생성 비용</td><td>높음 (페이지 테이블 복사)</td><td>낮음 (스택만 할당)</td></tr>
+                <tr><td>통신</td><td>IPC (pipe, socket, shm)</td><td>공유 메모리 직접 접근</td></tr>
+                <tr><td>장애 격리</td><td>한 프로세스 크래시 → 다른 프로세스 무관</td><td>한 스레드 크래시 → 전체 프로세스 종료</td></tr>
+                <tr><td>Linux 내부</td><td>clone(CLONE_NEWPID...)</td><td>clone(CLONE_VM|CLONE_FS|CLONE_FILES)</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>리눅스의 특수성:</strong> 리눅스는 프로세스와 스레드를 구분하지 않습니다. 둘 다 <code>task_struct</code>이며 <code>clone()</code>의 플래그로 공유 범위만 다릅니다. <code>CLONE_VM</code>이면 주소 공간을 공유(=스레드), 없으면 복사(=프로세스).<br><br>
+            <strong>RTOS 비교:</strong> FreeRTOS에서 "task"는 리눅스의 스레드에 가깝습니다. 모든 task가 같은 주소 공간을 공유하고 MPU로만 보호합니다. 리눅스의 프로세스 격리(MMU 기반)는 RTOS에는 없는 강력한 보안 경계입니다.<br><br>
+            <strong>K8s 컨테이너:</strong> 컨테이너는 <strong>프로세스</strong>입니다 (namespace + cgroup으로 격리된). 같은 Pod의 컨테이너들은 Network Namespace를 공유하지만 PID Namespace는 분리됩니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="qa">
+        <div class="qa-q">Go의 goroutine은 스레드와 어떻게 다른가요?</div>
+        <div class="qa-a">
+          <span class="short">goroutine은 Go 런타임이 관리하는 경량 "그린 스레드"입니다. OS 스레드 위에 M:N 멀티플렉싱(여러 goroutine을 적은 OS 스레드에 매핑)으로 동작합니다. 생성 비용이 ~2KB 스택으로 시작하여 OS 스레드(~1~8MB)보다 500배 이상 저렴하고, 수십만 개를 동시에 운영할 수 있습니다.</span>
+          <div class="deep">
+            <strong>Go GMP 모델:</strong><br>
+            • <strong>G (Goroutine):</strong> 실행할 코드 + 스택. 초기 스택 2KB, 필요하면 자동 확장<br>
+            • <strong>M (Machine):</strong> OS 스레드. <code>GOMAXPROCS</code>만큼 활성 (기본 = CPU 코어 수)<br>
+            • <strong>P (Processor):</strong> 로컬 run queue를 가진 스케줄러 컨텍스트. M과 1:1 매핑<br><br>
+            <strong>goroutine이 블록되면:</strong><br>
+            1. syscall (네트워크 I/O 등)로 goroutine이 블록<br>
+            2. Go 런타임이 해당 M에서 goroutine을 분리<br>
+            3. M은 다른 goroutine을 실행 (네트워크 I/O는 netpoller가 비동기 처리)<br>
+            4. I/O 완료 → goroutine을 다시 run queue에 넣음<br><br>
+            <strong>OpsGate/내부 도구에서:</strong> Go로 만드는 도구에서 HTTP 핸들러마다 goroutine이 생성됩니다. 동시 1000개 요청이 와도 1000개 goroutine이 ~2MB만 사용. OS 스레드로는 ~8GB가 필요했을 것.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="ctx-switch">
+      <div class="qa">
+        <div class="qa-q">컨텍스트 스위칭의 비용을 설명해 주세요. 프로세스 간 vs 스레드 간 차이는?</div>
+        <div class="qa-a">
+          <span class="short">컨텍스트 스위칭은 CPU가 현재 실행 중인 작업의 상태(레지스터, PC, 스택 포인터)를 저장하고 다른 작업의 상태를 복원하는 과정입니다. 프로세스 간 전환은 주소 공간이 바뀌므로 TLB flush + 페이지 테이블 전환이 추가되어 ~5~10μs, 스레드 간 전환은 주소 공간이 같으므로 ~1~3μs로 더 가볍습니다.</span>
+          <div class="deep">
+            <strong>비용 구성:</strong><br>
+            <div class="fm" style="text-align:left;font-size:10.5px">Direct Cost:
+  레지스터 저장/복원: ~0.5μs
+  커널 모드 전환: ~0.5μs
+  TLB flush (프로세스 간): ~1~3μs
+  페이지 테이블 전환 (프로세스 간): ~0.5μs
+
+Indirect Cost (더 비쌈):
+  CPU 캐시 오염: ~10~100μs (새 프로세스의 데이터가 캐시에 없음)
+  TLB 미스 증가: ~5~50μs (워밍업 기간)
+  Branch prediction 미스: ~1~5μs
+
+총 비용: Direct 2~5μs + Indirect 10~100μs</div>
+            <strong>K8s 관점:</strong> 노드에 너무 많은 Pod(프로세스)를 배치하면 컨텍스트 스위칭 오버헤드가 증가합니다. <code>node_context_switches_total</code> 메트릭이 초당 수만을 초과하면 CPU가 실제 작업보다 전환에 시간을 더 쓸 수 있습니다. 이것이 "noisy neighbor" 문제의 한 원인입니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 스케줄링 ===== -->
+  <div class="P" id="p-sched">
+    <div class="PH"><div class="bg bg-o">● Scheduling</div><h2>프로세스 스케줄링</h2><p>FIFO, SJF, RR, CFS — CPU를 프로세스에 할당하는 알고리즘.</p></div>
+
+    <div class="sec" id="sched-algo">
+      <div class="qa">
+        <div class="qa-q">주요 스케줄링 알고리즘을 비교해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">FIFO(선입선출)는 가장 단순하지만 짧은 작업이 긴 작업 뒤에서 대기(convoy effect). SJF(최단 작업 우선)는 평균 대기 시간 최적이지만 실행 시간 예측 불가. RR(라운드 로빈)은 시간 할당량(time quantum)만큼 번갈아 실행하여 공정하지만 컨텍스트 스위칭 빈번. CFS(리눅스 기본)는 "가장 적게 실행된 프로세스 우선"으로 공정성을 보장합니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>알고리즘</th><th>원리</th><th>장점</th><th>단점</th><th>실무 예시</th></tr></thead>
+              <tbody>
+                <tr><td><strong>FIFO</strong></td><td>먼저 온 순서</td><td>단순, 오버헤드 0</td><td>Convoy Effect</td><td>배치 잡 큐</td></tr>
+                <tr><td><strong>SJF</strong></td><td>짧은 것 먼저</td><td>평균 대기 최소</td><td>실행시간 예측 불가, 기아</td><td>이론적</td></tr>
+                <tr><td><strong>RR</strong></td><td>시간 할당량 순환</td><td>공정, 응답 시간 양호</td><td>스위칭 빈번</td><td>RTOS 일반적</td></tr>
+                <tr><td><strong>CFS</strong></td><td>가중 공정 스케줄링</td><td>공정 + 우선순위 + 효율</td><td>복잡</td><td>Linux 기본</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>RTOS 경험 연결:</strong> FreeRTOS에서는 Priority-based Preemptive 스케줄링을 사용했을 것. 리눅스 CFS는 이와 다르게 <strong>"가상 런타임(vruntime)"</strong>이 가장 적은 프로세스를 다음에 실행하여 CPU 시간을 공정하게 분배합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="cfs">
+      <div class="qa">
+        <div class="qa-q">Linux CFS(Completely Fair Scheduler)의 동작 원리를 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">CFS는 각 프로세스의 "가상 런타임(vruntime)"을 추적하고, vruntime이 가장 적은 프로세스를 다음에 실행합니다. vruntime은 실제 실행 시간을 nice 값(우선순위)의 가중치로 나눈 것이므로, 높은 우선순위 프로세스는 같은 실제 시간을 써도 vruntime이 느리게 증가하여 더 많은 CPU를 받습니다. Red-Black Tree로 vruntime을 관리하여 O(log N)으로 다음 프로세스를 선택합니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">vruntime += 실제_실행_시간 × (기본_가중치 ÷ 프로세스_가중치)
+
+nice 0 (기본): 가중치 1024 → vruntime = 실제 시간
+nice -20 (최고 우선순위): 가중치 88761 → vruntime 매우 느리게 증가
+nice 19 (최저 우선순위): 가중치 15 → vruntime 빠르게 증가
+
+→ 높은 우선순위 프로세스는 vruntime이 느리게 증가
+→ CFS는 항상 vruntime이 가장 낮은 것을 선택
+→ 결과적으로 높은 우선순위가 더 많은 CPU를 받음</div>
+            <strong>K8s에서 CFS와 CPU Limit:</strong><br>
+            K8s의 CPU limit은 CFS <strong>bandwidth throttling</strong>으로 구현됩니다. <code>cpu.cfs_period_us</code>(기본 100ms) 동안 <code>cpu.cfs_quota_us</code>만큼만 실행을 허용합니다.<br>
+            CPU limit 200m → quota 20ms/100ms → 100ms 중 20ms만 실행, 나머지 80ms는 <strong>강제 대기(throttle)</strong>.<br><br>
+            이것이 <strong>CPU Throttling</strong>의 원인입니다. 앱이 순간적으로 200m 이상을 사용하려 해도 커널이 차단합니다. <code>nr_throttled</code> 카운터가 증가하고 latency가 스파이크합니다.
+          </div>
+        </div>
+      </div>
+      <div class="nt o"><strong>⚠ 면접 포인트</strong><br>"K8s에서 CPU limit을 설정하지 않는 전략이 있다"는 점을 언급하면 인상적입니다. CPU request로 스케줄링 보장은 하되, limit을 없애서 throttling을 방지하는 것. <code>container_cpu_cfs_throttled_periods_total</code> 메트릭으로 throttling을 모니터링하는 것도 함께 설명하면 좋습니다.</div>
+    </div>
+  </div>
+
+  <!-- ===== 동기화 ===== -->
+  <div class="P" id="p-sync">
+    <div class="PH"><div class="bg bg-r">● Synchronization</div><h2>동기화</h2><p>Mutex, Semaphore, Deadlock — 공유 리소스 접근을 제어하는 메커니즘.</p></div>
+
+    <div class="sec" id="mutex-sem">
+      <div class="qa">
+        <div class="qa-q">Mutex와 Semaphore의 차이를 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">Mutex는 "잠금 소유권"이 있는 이진 잠금으로, 잠근 스레드만 해제할 수 있습니다. Semaphore는 카운터 기반으로, 카운터가 0이면 대기하고 양수이면 진입합니다. Mutex는 "하나의 스레드만 접근"을 보장하고, Semaphore는 "N개까지 동시 접근"을 허용합니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>항목</th><th>Mutex</th><th>Semaphore</th></tr></thead>
+              <tbody>
+                <tr><td>소유권</td><td>있음 (잠근 스레드만 해제)</td><td>없음 (아무 스레드나 signal 가능)</td></tr>
+                <tr><td>값</td><td>0 또는 1</td><td>0 ~ N (카운팅)</td></tr>
+                <tr><td>용도</td><td>상호 배제 (임계 영역)</td><td>리소스 카운팅, 시그널링</td></tr>
+                <tr><td>Go에서</td><td><code>sync.Mutex</code></td><td><code>golang.org/x/sync/semaphore</code></td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>Go에서의 실무 패턴:</strong><br>
+            Go에서는 Mutex보다 <strong>채널(channel)</strong>을 선호합니다. "메모리를 공유하여 통신하지 말고, 통신하여 메모리를 공유하라(Don't communicate by sharing memory; share memory by communicating)"가 Go의 철학입니다.<br><br>
+            <strong>하지만 Mutex가 필요한 경우:</strong> 단순한 카운터, 캐시 맵 보호 같은 경우 Mutex가 채널보다 단순하고 효율적입니다. OpsGate의 in-memory 상태 관리에서 <code>sync.RWMutex</code>(읽기 다수/쓰기 소수)를 사용하는 것이 적절합니다.<br><br>
+            <strong>RTOS 비교:</strong> FreeRTOS의 <code>xSemaphoreTake()</code>/<code>xSemaphoreGive()</code>와 동일한 개념이지만, 리눅스는 futex(fast userspace mutex)로 구현하여 커널 진입 없이 잠금을 획득할 수 있어 더 효율적입니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="deadlock">
+      <div class="qa">
+        <div class="qa-q">Deadlock의 4가지 필요 조건과 해결 방법을 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">Deadlock은 상호 배제(Mutual Exclusion), 점유 대기(Hold and Wait), 비선점(No Preemption), 순환 대기(Circular Wait) 4가지 조건이 모두 만족될 때 발생합니다. 하나라도 깨면 Deadlock을 방지할 수 있습니다. 실무에서 가장 흔한 방법은 "잠금 순서를 일정하게 유지(순환 대기 깨기)"입니다.</span>
+          <div class="deep">
+            <strong>4가지 조건 (Coffman 조건):</strong><br>
+            <strong>1) 상호 배제:</strong> 리소스를 한 번에 하나만 사용 가능<br>
+            <strong>2) 점유 대기:</strong> 리소스를 가진 채로 다른 리소스를 대기<br>
+            <strong>3) 비선점:</strong> 강제로 리소스를 뺏을 수 없음<br>
+            <strong>4) 순환 대기:</strong> A→B→C→A 순환 의존<br><br>
+            <strong>실무에서의 Deadlock:</strong><br>
+            • <strong>DB 트랜잭션:</strong> 트랜잭션 A가 row 1 잠금 후 row 2 요청, 트랜잭션 B가 row 2 잠금 후 row 1 요청 → PostgreSQL이 deadlock 감지하여 한쪽 rollback<br>
+            • <strong>Go:</strong> goroutine A가 ch1에 쓰면서 ch2 읽기 대기, goroutine B가 ch2에 쓰면서 ch1 읽기 대기 → Go 런타임이 "all goroutines are asleep" 감지<br>
+            • <strong>K8s:</strong> PDB가 모든 Pod의 eviction을 막으면 drain이 영원히 대기 (일종의 deadlock)<br><br>
+            <strong>해결 전략:</strong><br>
+            • <strong>잠금 순서 강제:</strong> 항상 같은 순서로 잠금 획득 → 순환 대기 방지<br>
+            • <strong>타임아웃:</strong> 일정 시간 내 잠금 못 얻으면 포기 → 점유 대기 깨기<br>
+            • <strong>Lock-free:</strong> CAS(Compare-And-Swap) 기반 구현 → 잠금 자체를 제거
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 메모리 관리 ===== -->
+  <div class="P" id="p-mem">
+    <div class="PH"><div class="bg bg-p">● Memory Management</div><h2>메모리 관리</h2><p>힙/스택, malloc 동작, OOM Killer — 리눅스 메모리 관리의 실무 관점.</p></div>
+
+    <div class="sec" id="heap-stack">
+      <div class="qa">
+        <div class="qa-q">힙(Heap)과 스택(Stack)의 차이를 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">스택은 함수 호출 시 자동 할당/해제되는 LIFO 구조의 메모리 영역으로, 크기가 고정(기본 8MB)이고 매우 빠릅니다(포인터 이동만). 힙은 프로그래머가 동적으로 할당/해제하는 영역으로, 크기 제한이 없지만 할당이 느리고(malloc이 커널과 상호작용) 메모리 누수와 단편화 위험이 있습니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">프로세스 메모리 레이아웃 (높은 주소 → 낮은 주소):
+┌─────────────────┐ 0xFFFF...
+│    Kernel Space  │ (사용자 접근 불가)
+├─────────────────┤
+│    Stack ↓       │ 함수 호출마다 아래로 성장. 기본 8MB
+│                  │ 지역 변수, 리턴 주소, 매개변수
+├─────────────────┤
+│    ↕ 빈 공간     │
+├─────────────────┤
+│    Heap ↑        │ malloc/new로 위로 성장
+│                  │ 동적 할당 데이터
+├─────────────────┤
+│    BSS           │ 초기화되지 않은 전역/정적 변수 (0으로)
+├─────────────────┤
+│    Data          │ 초기화된 전역/정적 변수
+├─────────────────┤
+│    Text (Code)   │ 실행 코드 (읽기 전용)
+└─────────────────┘ 0x0000...</div>
+            <strong>Go의 특수성:</strong> Go 컴파일러가 <strong>escape analysis</strong>로 변수가 함수 밖에서 참조되는지 분석합니다. 밖에서 참조되면 힙에, 아니면 스택에 할당합니다. <code>go build -gcflags="-m"</code>으로 어떤 변수가 힙으로 이스케이프되는지 확인할 수 있습니다. 힙 할당을 줄이면 GC 부하가 감소하여 latency가 개선됩니다.<br><br>
+            <strong>RTOS 비교:</strong> STM32에서는 힙을 최소화하고 스택 크기를 task별로 정적 할당했을 것. 리눅스에서는 가상 메모리 덕분에 훨씬 자유롭지만, K8s 환경에서 cgroup memory limit이 물리적 제한을 부여합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="oom">
+      <div class="qa">
+        <div class="qa-q">리눅스 OOM Killer의 동작 원리와 K8s에서의 영향을 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">물리 메모리와 스왑이 모두 소진되면 커널의 OOM Killer가 oom_score가 가장 높은 프로세스를 강제 종료합니다. oom_score는 메모리 사용량이 크고 우선순위가 낮은 프로세스에 높게 부여됩니다. K8s에서는 cgroup 레벨에서 OOM이 발생하여 memory limit을 초과한 컨테이너를 OOMKill하고, Pod의 QoS 클래스(Guaranteed > Burstable > BestEffort)에 따라 종료 우선순위가 결정됩니다.</span>
+          <div class="deep">
+            <strong>OOM 점수 계산:</strong><br>
+            <code>oom_score</code> = 메모리 사용 비율 기반 (0~1000)<br>
+            <code>oom_score_adj</code> = 관리자가 조정 (-1000~1000). -1000이면 OOM Kill에서 제외<br><br>
+            <strong>K8s QoS와 OOM 우선순위:</strong><br>
+            <table class="tb">
+              <thead><tr><th>QoS 클래스</th><th>조건</th><th>oom_score_adj</th><th>OOM 우선순위</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Guaranteed</strong></td><td>request = limit (CPU & Memory 모두)</td><td>-997</td><td>가장 나중에 Kill</td></tr>
+                <tr><td><strong>Burstable</strong></td><td>request < limit 또는 일부만 설정</td><td>2~999 (사용량 비례)</td><td>중간</td></tr>
+                <tr><td><strong>BestEffort</strong></td><td>request/limit 없음</td><td>1000</td><td>가장 먼저 Kill</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>OOMKill 진단:</strong><br>
+            <code>kubectl describe pod</code> → <code>OOMKilled</code> 상태<br>
+            <code>kubectl get events</code> → <code>Killing</code> 이벤트<br>
+            <code>dmesg | grep -i oom</code> → 커널 OOM 로그 (어떤 프로세스가 얼마나 쓰고 있었는지)<br>
+            Prometheus: <code>kube_pod_container_status_last_terminated_reason{reason="OOMKilled"}</code><br><br>
+            <strong>실전 대응:</strong> OOMKill이 반복되면 memory request를 VPA Off 모드의 추천값으로 조정합니다. 앱의 메모리 프로파일링(<code>go tool pprof /debug/pprof/heap</code>)으로 실제 누수인지 정상 사용인지 구분합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 파일시스템 ===== -->
+  <div class="P" id="p-fs">
+    <div class="PH"><div class="bg bg-t">● File System</div><h2>파일 시스템</h2><p>Inode, 파일 디스크립터, VFS — 리눅스 I/O의 기본 구조.</p></div>
+
+    <div class="sec" id="inode-fd">
+      <div class="qa">
+        <div class="qa-q">Inode와 파일 디스크립터(FD)의 차이를 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">Inode는 파일의 메타데이터(크기, 권한, 데이터 블록 위치)를 저장하는 디스크 상의 구조입니다. 파일 디스크립터(FD)는 프로세스가 열린 파일에 접근하기 위한 정수 핸들로, 프로세스의 FD 테이블 → 시스템 오픈 파일 테이블 → Inode 순서로 연결됩니다. 파일 이름은 Inode에 저장되지 않고 디렉토리(Dentry)에 저장됩니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">fd = open("/etc/hosts", O_RDONLY)
+
+프로세스 FD 테이블        시스템 파일 테이블        Inode
+┌───────┐              ┌───────────┐          ┌──────────┐
+│ 0: stdin │            │ offset: 0  │          │ size: 412 │
+│ 1: stdout│            │ flags: RD  │─────────→│ uid: 0    │
+│ 2: stderr│            │ refcount: 1│          │ blocks:.. │
+│ 3: ──────┼───────────→│            │          │           │
+└───────┘              └───────────┘          └──────────┘</div>
+            <strong>K8s에서 FD 관련 문제:</strong><br>
+            • <strong>FD 소진:</strong> 프로세스별 <code>ulimit -n</code> (기본 1024). 커넥션 수가 많은 프록시(Envoy, Nginx)에서 FD 부족 에러 발생 → <code>ulimit -n 65535</code> 설정<br>
+            • <strong>Inode 소진:</strong> 컨테이너 로그나 임시 파일이 많아지면 Inode가 먼저 소진되어 디스크 여유가 있어도 파일 생성 불가 → <code>df -i</code>로 확인<br>
+            • <strong>삭제된 파일이 공간을 차지:</strong> 프로세스가 파일을 열어둔 채 삭제하면, 프로세스가 종료되기 전까지 디스크 공간이 해제되지 않음 → <code>lsof +D /var/log | grep deleted</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="vfs-layer">
+      <div class="qa">
+        <div class="qa-q">VFS(Virtual File System)란 무엇이고, 왜 리눅스에서 중요한가요?</div>
+        <div class="qa-a">
+          <span class="short">VFS는 리눅스 커널이 모든 파일시스템(ext4, XFS, NFS, procfs, sysfs 등)에 대해 동일한 인터페이스(open, read, write, close)를 제공하는 추상화 계층입니다. 앱은 실제 파일시스템이 무엇인지 몰라도 동일한 syscall로 접근할 수 있고, 리눅스의 "모든 것은 파일(everything is a file)" 철학을 가능하게 합니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">Application
+  → read() syscall
+    → VFS (추상화 계층)
+      → ext4? XFS? NFS? procfs? — VFS가 라우팅
+        → 실제 파일시스템 드라이버
+          → Block Layer → Device Driver → HW</div>
+            <strong>"모든 것은 파일" 예시:</strong><br>
+            • <code>/proc/[pid]/status</code>: 프로세스 상태를 파일로 접근<br>
+            • <code>/sys/class/net/eth0/statistics</code>: 네트워크 통계를 파일로 접근<br>
+            • <code>/dev/sda</code>: 블록 디바이스를 파일로 접근<br>
+            • Docker/K8s: <code>/sys/fs/cgroup/</code>으로 cgroup 제어를 파일로 접근<br><br>
+            <strong>면접 포인트:</strong> "리눅스에서 모든 것은 파일이다"라는 원칙이 컨테이너 기술의 기반이 됩니다. cgroup의 CPU/메모리 제한은 <code>/sys/fs/cgroup/cpu.max</code>, <code>/sys/fs/cgroup/memory.max</code> 파일에 값을 쓰는 것으로 동작합니다. K8s kubelet이 컨테이너의 resource limit을 설정할 때 이 파일들을 사용합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

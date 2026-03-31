@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>분산 시스템 기초 — DevOps/SRE 면접 가이드</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--indigo);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--indigo)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="cap"].on{color:var(--blue)}.T[data-t="cap"].on::after{background:var(--blue);left:6%;right:6%}
+.T[data-t="raft"].on{color:var(--green)}.T[data-t="raft"].on::after{background:var(--green);left:6%;right:6%}
+.T[data-t="consist"].on{color:var(--orange)}.T[data-t="consist"].on::after{background:var(--orange);left:6%;right:6%}
+.T[data-t="failure"].on{color:var(--red)}.T[data-t="failure"].on::after{background:var(--red);left:6%;right:6%}
+.T[data-t="pattern"].on{color:var(--purple)}.T[data-t="pattern"].on::after{background:var(--purple);left:6%;right:6%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.qa{margin-top:18px}.qa-q{background:var(--rbg);border:1px solid var(--rbd);border-radius:var(--r);padding:14px 18px;margin-bottom:2px;font-weight:700;font-size:13px;color:var(--red)}.qa-q::before{content:'Q. ';font-family:'JetBrains Mono',monospace;font-weight:700}.qa-a{background:var(--sf);border:1px solid var(--bd);border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-bottom:4px}.qa-a .short{font-weight:700;color:var(--green);font-size:13px;margin-bottom:8px;display:block}.qa-a .short::before{content:'A. ';font-family:'JetBrains Mono',monospace}.qa-a .deep{color:var(--td);font-size:12px;line-height:1.7}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.tb{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.dt{grid-template-columns:1fr!important}.T{font-size:8px;padding:10px 2px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">Interview Prep</div><h1><em>분산 시스템</em><br>면접 가이드</h1></div>
+  <div class="sl">CAP 정리</div>
+  <ul class="sn"><li><a data-t="cap" data-s="cap-what" class="on"><span class="d" style="background:var(--blue)"></span>CAP 정리</a></li><li><a data-t="cap" data-s="cap-real"><span class="d" style="background:var(--blue)"></span>실제 시스템 분류</a></li></ul>
+  <div class="sl">합의 알고리즘</div>
+  <ul class="sn"><li><a data-t="raft" data-s="raft-how"><span class="d" style="background:var(--green)"></span>Raft 기본 동작</a></li></ul>
+  <div class="sl">Consistency 모델</div>
+  <ul class="sn"><li><a data-t="consist" data-s="consist-model"><span class="d" style="background:var(--orange)"></span>Strong vs Eventual</a></li></ul>
+  <div class="sl">장애 패턴</div>
+  <ul class="sn"><li><a data-t="failure" data-s="failure-patterns"><span class="d" style="background:var(--red)"></span>Split Brain & Cascading</a></li></ul>
+  <div class="sl">방어 패턴</div>
+  <ul class="sn"><li><a data-t="pattern" data-s="idempotent"><span class="d" style="background:var(--purple)"></span>멱등성 & Circuit Breaker</a></li></ul>
+  <div class="S-f"><p>MongoDB 과반수 투표,<br>Kafka Consumer Lag<br>실전 장애 연결.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="cap" onclick="sw('cap')">● CAP</button>
+    <button class="T" data-t="raft" onclick="sw('raft')">● Raft</button>
+    <button class="T" data-t="consist" onclick="sw('consist')">● Consistency</button>
+    <button class="T" data-t="failure" onclick="sw('failure')">● 장애 패턴</button>
+    <button class="T" data-t="pattern" onclick="sw('pattern')">● 방어 패턴</button>
+  </div>
+
+  <!-- ===== CAP ===== -->
+  <div class="P on" id="p-cap">
+    <div class="PH"><div class="bg bg-b">● CAP Theorem</div><h2>CAP 정리</h2><p>Consistency, Availability, Partition Tolerance — 분산 시스템의 근본 트레이드오프.</p></div>
+    <div class="sec" id="cap-what">
+      <div class="qa">
+        <div class="qa-q">CAP 정리를 설명하고, 왜 3개를 동시에 만족할 수 없는지 알려주세요.</div>
+        <div class="qa-a">
+          <span class="short">CAP 정리는 분산 시스템에서 Consistency(모든 노드가 같은 데이터), Availability(모든 요청에 응답), Partition Tolerance(네트워크 분할에도 동작) 3가지를 동시에 만족할 수 없다는 정리입니다. 네트워크 파티션은 현실에서 반드시 발생하므로 P는 필수이고, C와 A 중 하나를 선택해야 합니다.</span>
+          <div class="deep">
+            <strong>왜 동시에 불가능한가 (직관적 설명):</strong><br>
+            Node A와 Node B 사이 네트워크가 끊겼을 때(Partition):<br>
+            • <strong>C를 선택하면:</strong> A와 B의 데이터가 동기화될 수 없으므로, 요청을 거부(에러 반환). → A 포기<br>
+            • <strong>A를 선택하면:</strong> A와 B가 각자 응답하지만 데이터가 다를 수 있음. → C 포기<br>
+            • <strong>P를 포기하면:</strong> 네트워크 파티션이 없다고 가정. → 현실적이지 않음<br><br>
+            <strong>PACELC 확장:</strong> 파티션이 <strong>없을 때</strong>에도 Latency와 Consistency의 트레이드오프가 존재. "네트워크가 정상이어도 강한 일관성을 원하면 latency가 증가한다."
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sec" id="cap-real">
+      <div class="qa">
+        <div class="qa-q">실제 시스템별 CAP 선택을 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">etcd/ZooKeeper는 CP(일관성 우선 — 과반수 미달 시 쓰기 거부), Cassandra/DynamoDB는 AP(가용성 우선 — 파티션 시에도 응답, 나중에 동기화), MongoDB는 CP(primary 선출 실패 시 쓰기 불가), Kafka는 설정에 따라 CP 또는 AP(acks=all이면 CP, acks=1이면 AP 쪽)입니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>시스템</th><th>CAP</th><th>파티션 시 동작</th><th>실무 경험</th></tr></thead>
+              <tbody>
+                <tr><td><strong>etcd</strong></td><td>CP</td><td>과반수 미달 → 쓰기 거부, 읽기만 가능</td><td>K8s Control Plane. 3노드 중 2개 다운 → 클러스터 쓰기 불가</td></tr>
+                <tr><td><strong>MongoDB</strong></td><td>CP</td><td>primary 선출 실패 → 쓰기 불가 (10~30초)</td><td>ReplicaSet 과반수 투표 실패 시 장애 경험과 연결</td></tr>
+                <tr><td><strong>Redis Sentinel</strong></td><td>CP</td><td>sentinel 과반수로 failover 결정</td><td>failover 중 ~30초 쓰기 불가</td></tr>
+                <tr><td><strong>Kafka</strong></td><td>설정 가변</td><td>acks=all → CP (ISR 대기), acks=1 → AP 쪽</td><td>Consumer Lag 폭증 시 acks 설정이 원인일 수 있음</td></tr>
+                <tr><td><strong>Cassandra</strong></td><td>AP</td><td>파티션 시에도 응답. 나중에 repair</td><td>eventual consistency + hints handoff</td></tr>
+                <tr><td><strong>PostgreSQL</strong></td><td>CA (단일) / CP (복제)</td><td>streaming replication: primary 장애 시 failover</td><td>synchronous_commit으로 C 수준 조절</td></tr>
+              </tbody>
+            </table>
+            <div class="nt o"><strong>⚠ 면접 팁: "MongoDB 과반수 투표 실패" 경험</strong><br>"MongoDB 3노드 ReplicaSet에서 2노드가 동시에 다운되어 과반수(2/3)를 충족하지 못해 primary 선출이 실패하고, 쓰기가 30초간 불가능했던 장애를 경험했습니다. 이것이 CP 시스템의 특성입니다. 가용성(A)을 포기하고 데이터 일관성(C)을 보존한 것이죠."</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RAFT ===== -->
+  <div class="P" id="p-raft">
+    <div class="PH"><div class="bg bg-g">● Raft Consensus</div><h2>Raft 합의 알고리즘</h2><p>Leader Election, Log Replication — etcd/K8s의 Control Plane이 동작하는 원리.</p></div>
+    <div class="sec" id="raft-how">
+      <div class="qa">
+        <div class="qa-q">Raft 알고리즘의 핵심 동작을 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">Raft는 리더 기반 합의 알고리즘으로, 하나의 리더가 모든 쓰기를 받아 로그에 기록하고, 과반수 follower에 복제가 확인되면 커밋합니다. 리더가 죽으면 나머지 노드가 타임아웃 후 선거를 시작하여 새 리더를 선출합니다. etcd가 Raft를 사용하므로 K8s의 모든 상태 변경이 Raft로 합의됩니다.</span>
+          <div class="deep">
+            <strong>3가지 역할:</strong> Leader(쓰기 처리, 복제), Follower(리더 복제 수신), Candidate(선거 후보)<br><br>
+            <strong>Leader Election:</strong><br>
+            <div class="fm" style="text-align:left;font-size:10.5px">1. 모든 노드가 Follower로 시작
+2. Leader의 heartbeat(AppendEntries RPC)를 기다림
+3. election timeout(150~300ms 랜덤) 내 heartbeat 안 오면
+   → Candidate로 전환, term 증가, 자기 자신에 투표
+4. 과반수 투표 받으면 → Leader 당선
+5. 즉시 모든 Follower에 heartbeat 전송
+
+핵심: election timeout을 랜덤화하여 동시 후보 난립(split vote) 방지</div>
+            <strong>Log Replication:</strong><br>
+            <div class="fm" style="text-align:left;font-size:10.5px">1. Client → Leader: "key=foo, value=bar" 쓰기 요청
+2. Leader: 자신의 로그에 추가 (uncommitted)
+3. Leader → Followers: AppendEntries RPC로 로그 전파
+4. Follower: 로그에 추가 후 ACK 반환
+5. Leader: 과반수 ACK 확인 → 로그를 committed로 표시
+6. Leader → Client: 쓰기 성공 응답
+7. 다음 heartbeat에서 Followers에 commit index 전달</div>
+            <strong>etcd 3노드의 의미:</strong> 3노드 → 과반수 = 2. 1노드 장애까지 허용. 5노드 → 과반수 = 3. 2노드 장애까지 허용. 짝수(4노드)는 3노드와 장애 허용 수가 같으므로(과반수 = 3) 비효율적. <strong>항상 홀수</strong>를 권장.<br><br>
+            <strong>K8s에서:</strong> <code>kubectl apply</code> → API Server → etcd Raft 합의 → 과반수 확인 → 저장 완료 → 응답. etcd가 느리면 모든 K8s 작업이 느려짐. <code>etcd_disk_wal_fsync_duration_seconds</code> P99 > 10ms면 SSD 성능 문제.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CONSISTENCY ===== -->
+  <div class="P" id="p-consist">
+    <div class="PH"><div class="bg bg-o">● Consistency Models</div><h2>Consistency 모델</h2><p>Strong, Eventual, Causal — 데이터 일관성 수준별 트레이드오프.</p></div>
+    <div class="sec" id="consist-model">
+      <div class="qa">
+        <div class="qa-q">Strong Consistency와 Eventual Consistency의 차이를 설명하고, 각각 실무 예시를 들어주세요.</div>
+        <div class="qa-a">
+          <span class="short">Strong Consistency는 쓰기가 완료되면 모든 후속 읽기에서 최신 값을 보장합니다(예: 은행 계좌 잔액). Eventual Consistency는 일정 시간 후 모든 복제본이 동일해지지만, 그 사이에 오래된 값을 읽을 수 있습니다(예: SNS 좋아요 수). Strong은 latency가 높고, Eventual은 가용성이 높습니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>모델</th><th>보장</th><th>latency</th><th>실무 예시</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Strong</strong></td><td>읽기 = 최신 값 항상</td><td>높음 (합의 대기)</td><td>etcd, PostgreSQL(sync replication), ZooKeeper</td></tr>
+                <tr><td><strong>Eventual</strong></td><td>"언젠가" 동기화</td><td>낮음</td><td>S3, DynamoDB(기본), DNS, Redis replica</td></tr>
+                <tr><td><strong>Causal</strong></td><td>인과 관계 보존</td><td>중간</td><td>MongoDB(causal sessions), 채팅 메시지 순서</td></tr>
+                <tr><td><strong>Read-your-writes</strong></td><td>내가 쓴 것은 즉시 읽음</td><td>중간</td><td>세션 기반 시스템, 사용자 프로필 수정</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>실무 패턴 — Read-after-Write 문제:</strong><br>
+            사용자가 프로필을 수정(쓰기 → primary) → 즉시 페이지 새로고침(읽기 → replica) → 아직 복제 안 됨 → 이전 데이터가 보임 → "수정 안 됐는데?!"<br>
+            <strong>해결:</strong> 쓰기 직후 읽기를 primary로 라우팅(read-your-writes). 또는 쓰기 후 짧은 지연 후 표시.<br><br>
+            <strong>K8s에서:</strong> etcd는 Strong Consistency. 하지만 kubectl이 <strong>API Server 캐시</strong>를 읽을 때는 약간의 지연이 있을 수 있음. <code>--watch-cache=false</code>로 캐시를 우회하면 항상 etcd에서 직접 읽지만 부하 증가.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FAILURE PATTERNS ===== -->
+  <div class="P" id="p-failure">
+    <div class="PH"><div class="bg bg-r">● Failure Patterns</div><h2>분산 시스템 장애 패턴</h2><p>Split Brain, Cascading Failure, Thundering Herd — 실전 장애와 연결.</p></div>
+    <div class="sec" id="failure-patterns">
+      <div class="qa">
+        <div class="qa-q">Split Brain이란 무엇이고, 어떻게 방지하나요?</div>
+        <div class="qa-a">
+          <span class="short">네트워크 파티션으로 클러스터가 두 그룹으로 나뉘어 각각 자신이 리더라고 판단하는 상태입니다. 양쪽이 독립적으로 쓰기를 수락하면 데이터 불일치가 발생합니다. 과반수 투표(quorum)로 방지합니다: 3노드 중 과반수(2) 이상을 가진 그룹만 리더를 선출할 수 있고, 소수 그룹은 읽기만 가능합니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">3노드 클러스터, 네트워크 파티션 발생:
+
+[Node A] ──── [Node B]  |  [Node C]
+     그룹 1 (2노드)     |  그룹 2 (1노드)
+     과반수 확보 ✅      |  과반수 미달 ❌
+     → 리더 선출 가능     |  → 리더 선출 불가
+     → 정상 읽기/쓰기     |  → 읽기만 (또는 거부)</div>
+            <strong>시스템별 Split Brain 방지:</strong><br>
+            • <strong>etcd (Raft):</strong> 과반수 미달 그룹의 리더가 자동 step down. term이 높은 리더만 유효<br>
+            • <strong>Redis Sentinel:</strong> sentinel 과반수(quorum)가 동의해야 failover 실행. <code>min-slaves-to-write</code>로 고립된 primary의 쓰기 차단<br>
+            • <strong>MongoDB:</strong> election에 과반수 투표 필요. arbiter 노드로 짝수 방지<br><br>
+            <strong>Kafka Consumer Lag 폭증 장애 연결:</strong><br>
+            "Kafka Consumer Lag이 갑자기 폭증한 경험이 있습니다. 원인은 Consumer 그룹의 rebalancing이 네트워크 일시 불안정으로 반복 트리거되면서, 파티션 할당이 안정되지 못해 소비가 중단된 것이었습니다. <code>session.timeout.ms</code>와 <code>heartbeat.interval.ms</code>를 조정하여 해결했습니다."
+          </div>
+        </div>
+      </div>
+
+      <div class="qa">
+        <div class="qa-q">Cascading Failure는 어떻게 발생하고 방지하나요?</div>
+        <div class="qa-a">
+          <span class="short">하나의 서비스 장애가 의존하는 다른 서비스로 연쇄적으로 전파되는 현상입니다. 서비스 A가 느려지면 → B가 A를 기다리며 커넥션 풀 소진 → B도 느려짐 → C도 → 전체 다운. 방지: Timeout(빠르게 실패), Circuit Breaker(호출 자체를 차단), Retry Budget(재시도 비율 제한), Load Shedding(과부하 시 거부)으로 양성 피드백 루프를 끊어야 합니다.</span>
+          <div class="deep">
+            <strong>양성 피드백 루프:</strong><br>
+            부하 증가 → latency 증가 → 동시 요청 증가(느린 요청이 쌓임) → 리소스 소비 증가 → 더 많은 latency → 더 많은 동시 요청 → ... 폭주<br><br>
+            <strong>4가지 차단기:</strong><br>
+            • <strong>Timeout:</strong> 10초 이상 기다리지 않고 빠르게 실패 → 리소스 해방<br>
+            • <strong>Circuit Breaker:</strong> 에러율 50% 초과 시 호출 자체를 차단 → 장애 서비스에 추가 부하 방지<br>
+            • <strong>Retry Budget:</strong> 전체 요청의 10%까지만 재시도 → Retry Storm 방지<br>
+            • <strong>Load Shedding:</strong> 동시 처리 수 초과 시 503 반환 → 처리 가능한 요청만 정상 처리<br><br>
+            <strong>K8s에서:</strong> Istio DestinationRule의 <code>outlierDetection</code>(Pod 레벨 CB) + 앱 코드의 <code>gobreaker</code>(의존성 레벨 CB) 조합으로 다층 방어.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DEFENSE PATTERNS ===== -->
+  <div class="P" id="p-pattern">
+    <div class="PH"><div class="bg bg-p">● Defense Patterns</div><h2>멱등성 & Circuit Breaker</h2><p>분산 환경에서 안전하게 재시도하고, 장애를 격리하는 패턴.</p></div>
+    <div class="sec" id="idempotent">
+      <div class="qa">
+        <div class="qa-q">멱등성(Idempotency)이란 무엇이고, 왜 분산 시스템에서 중요한가요?</div>
+        <div class="qa-a">
+          <span class="short">같은 요청을 여러 번 실행해도 결과가 한 번 실행한 것과 같은 성질입니다. 분산 시스템에서 네트워크 타임아웃 시 "요청이 처리되었는지 불확실"한 상황이 빈번하므로, 안전하게 재시도하려면 연산이 멱등해야 합니다. 예: "잔액을 100으로 설정"은 멱등하지만, "잔액에 100을 더하기"는 멱등하지 않습니다.</span>
+          <div class="deep">
+            <strong>HTTP 메서드별 멱등성:</strong><br>
+            <table class="tb">
+              <thead><tr><th>메서드</th><th>멱등?</th><th>안전?</th><th>설명</th></tr></thead>
+              <tbody>
+                <tr><td><strong>GET</strong></td><td>✅</td><td>✅</td><td>여러 번 호출해도 서버 상태 불변</td></tr>
+                <tr><td><strong>PUT</strong></td><td>✅</td><td>❌</td><td>"이 값으로 설정" — 여러 번 해도 같은 결과</td></tr>
+                <tr><td><strong>DELETE</strong></td><td>✅</td><td>❌</td><td>이미 삭제된 것을 다시 삭제해도 OK</td></tr>
+                <tr><td><strong>POST</strong></td><td>❌</td><td>❌</td><td>"주문 생성" — 여러 번 하면 여러 주문</td></tr>
+                <tr><td><strong>PATCH</strong></td><td>❌ (보통)</td><td>❌</td><td>"잔액 +100" — 여러 번 하면 여러 번 증가</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>비멱등 연산을 멱등으로 만드는 법:</strong><br>
+            <strong>Idempotency Key 패턴:</strong> 클라이언트가 요청에 고유 ID(UUID)를 포함. 서버는 이 ID를 기록하고, 같은 ID가 오면 이전 결과를 반환.<br>
+            <code>POST /api/payments</code> + <code>Idempotency-Key: uuid-123</code><br>
+            → 첫 번째: 결제 처리 + uuid-123 기록<br>
+            → 재시도: uuid-123 이미 존재 → 이전 결과 반환 (중복 결제 방지)<br><br>
+            <strong>Kafka exactly-once:</strong> Producer가 <code>enable.idempotence=true</code> + <code>transactional.id</code>로 중복 메시지 방지. Broker가 sequence number로 중복 감지.
+          </div>
+        </div>
+      </div>
+
+      <div class="qa">
+        <div class="qa-q">Circuit Breaker 패턴의 동작을 설명하고, K8s에서 어떻게 구현하나요?</div>
+        <div class="qa-a">
+          <span class="short">Circuit Breaker는 Closed(정상 통과) → Open(즉시 실패 반환) → Half-Open(탐색적 1개 요청) 3가지 상태로 동작합니다. 연속 실패가 임계값을 초과하면 Open으로 전환하여 장애 서비스 호출을 차단합니다. K8s에서는 Istio DestinationRule의 outlierDetection(Pod 레벨 ejection)과 앱 코드의 gobreaker(서비스 레벨)를 조합합니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">Closed (정상)
+  → 연속 5회 실패 또는 에러율 > 50%
+Open (차단 — 모든 호출 즉시 에러 반환)
+  → 30초 대기
+Half-Open (탐색 — 1개 요청만 통과)
+  → 성공 → Closed 복귀
+  → 실패 → Open 재진입</div>
+            <strong>Go 구현 (gobreaker):</strong><br>
+            <code>cb := gobreaker.NewCircuitBreaker(gobreaker.Settings{</code><br>
+            <code>&nbsp;&nbsp;MaxRequests: 1,</code><br>
+            <code>&nbsp;&nbsp;Timeout: 30 * time.Second,</code><br>
+            <code>&nbsp;&nbsp;ReadyToTrip: func(counts gobreaker.Counts) bool {</code><br>
+            <code>&nbsp;&nbsp;&nbsp;&nbsp;return counts.ConsecutiveFailures > 5</code><br>
+            <code>&nbsp;&nbsp;},</code><br>
+            <code>})</code><br>
+            <code>result, err := cb.Execute(func() (interface{}, error) {</code><br>
+            <code>&nbsp;&nbsp;return httpClient.Do(req)</code><br>
+            <code>})</code><br><br>
+            <strong>Istio (Mesh 레벨):</strong> <code>outlierDetection</code>으로 5xx 연속 5회인 Pod을 30초간 트래픽에서 제외(ejection). 앱 코드 변경 없이 YAML만으로 CB 적용.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>

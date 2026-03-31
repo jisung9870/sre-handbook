@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DB 내부 동작 — DevOps/SRE 면접 가이드</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--orange);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--orange)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--bbg);border-left-color:var(--blue);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="idx"].on{color:var(--blue)}.T[data-t="idx"].on::after{background:var(--blue);left:6%;right:6%}
+.T[data-t="txn"].on{color:var(--green)}.T[data-t="txn"].on::after{background:var(--green);left:6%;right:6%}
+.T[data-t="wal"].on{color:var(--orange)}.T[data-t="wal"].on::after{background:var(--orange);left:6%;right:6%}
+.T[data-t="conn"].on{color:var(--red)}.T[data-t="conn"].on::after{background:var(--red);left:6%;right:6%}
+.T[data-t="explain"].on{color:var(--purple)}.T[data-t="explain"].on::after{background:var(--purple);left:6%;right:6%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}
+.qa{margin-top:18px}.qa-q{background:var(--rbg);border:1px solid var(--rbd);border-radius:var(--r);padding:14px 18px;margin-bottom:2px;font-weight:700;font-size:13px;color:var(--red)}.qa-q::before{content:'Q. ';font-family:'JetBrains Mono',monospace;font-weight:700}.qa-a{background:var(--sf);border:1px solid var(--bd);border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-bottom:4px}.qa-a .short{font-weight:700;color:var(--green);font-size:13px;margin-bottom:8px;display:block}.qa-a .short::before{content:'A. ';font-family:'JetBrains Mono',monospace}.qa-a .deep{color:var(--td);font-size:12px;line-height:1.7}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.tb{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0)}.M{margin-left:0}.P{padding:28px 16px 60px}.dt{grid-template-columns:1fr!important}.T{font-size:8px;padding:10px 2px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">Interview Prep</div><h1><em>DB 내부</em><br>면접 가이드</h1></div>
+  <div class="sl">인덱스</div>
+  <ul class="sn"><li><a data-t="idx" data-s="btree-idx" class="on"><span class="d" style="background:var(--blue)"></span>B-Tree / B+Tree</a></li></ul>
+  <div class="sl">트랜잭션</div>
+  <ul class="sn"><li><a data-t="txn" data-s="isolation"><span class="d" style="background:var(--green)"></span>격리 수준 & MVCC</a></li></ul>
+  <div class="sl">WAL & Checkpoint</div>
+  <ul class="sn"><li><a data-t="wal" data-s="wal-how"><span class="d" style="background:var(--orange)"></span>WAL 동작</a></li></ul>
+  <div class="sl">커넥션 풀링</div>
+  <ul class="sn"><li><a data-t="conn" data-s="conn-pool"><span class="d" style="background:var(--red)"></span>PgBouncer & Limit</a></li></ul>
+  <div class="sl">EXPLAIN</div>
+  <ul class="sn"><li><a data-t="explain" data-s="explain-how"><span class="d" style="background:var(--purple)"></span>쿼리 실행 계획</a></li></ul>
+  <div class="S-f"><p>shared_buffers 튜닝,<br>Aurora ACU 스케일링<br>실전 경험 연결.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="idx" onclick="sw('idx')">● 인덱스</button>
+    <button class="T" data-t="txn" onclick="sw('txn')">● 트랜잭션</button>
+    <button class="T" data-t="wal" onclick="sw('wal')">● WAL</button>
+    <button class="T" data-t="conn" onclick="sw('conn')">● 커넥션</button>
+    <button class="T" data-t="explain" onclick="sw('explain')">● EXPLAIN</button>
+  </div>
+
+  <!-- ===== INDEX ===== -->
+  <div class="P on" id="p-idx">
+    <div class="PH"><div class="bg bg-b">● B-Tree Index</div><h2>B-Tree / B+Tree 인덱스</h2><p>DB가 수억 행에서도 3~4번의 디스크 I/O로 데이터를 찾는 원리.</p></div>
+    <div class="sec" id="btree-idx">
+      <div class="qa">
+        <div class="qa-q">B-Tree와 B+Tree의 차이를 설명하고, 왜 DB가 B+Tree를 사용하는지 알려주세요.</div>
+        <div class="qa-a">
+          <span class="short">B-Tree는 모든 노드에 키+데이터를 저장하고, B+Tree는 리프 노드에만 데이터를 저장하고 내부 노드는 키만 가집니다. B+Tree가 DB에 적합한 이유는: 내부 노드에 더 많은 키를 저장하여 트리 높이가 낮아지고(디스크 I/O 감소), 리프 노드끼리 링크드 리스트로 연결되어 범위 검색(range scan)이 효율적이기 때문입니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">B+Tree 구조 (PostgreSQL 인덱스):
+
+         [10 | 20 | 30]          ← 내부 노드 (키만, 데이터 없음)
+        /     |      \
+  [1,3,7] [12,15,18] [22,25,28]  ← 리프 노드 (키+데이터 포인터)
+     ↔        ↔          ↔       ← 리프 간 링크드 리스트 (range scan용)
+
+높이 3~4: 수천만 행도 3~4번 디스크 읽기로 검색
+  노드 크기 = 페이지 크기 (8KB in PostgreSQL)
+  한 노드에 수백 개 키 → 높이가 매우 낮음</div>
+            <strong>시간 복잡도:</strong> 검색/삽입/삭제 모두 <strong>O(log N)</strong>. 하지만 실제 성능은 트리 높이(= 디스크 I/O 횟수)가 결정. 1억 행 → 높이 ~3~4 → <strong>3~4번의 8KB 페이지 읽기</strong>로 완료.<br><br>
+            <strong>인덱스 bloat 문제:</strong> PostgreSQL에서 DELETE/UPDATE가 빈번하면 dead tuple이 쌓여 인덱스가 비대화됨. 인덱스 크기가 커지면 캐시 효율이 떨어져 I/O 증가.<br>
+            <strong>해결:</strong> <code>REINDEX</code> 또는 <code>pg_repack</code> (online rebuild, 락 없음)<br><br>
+            <strong>실무 경험:</strong> shared_buffers를 128MB→4GB로 튜닝하여 캐시 히트율을 78%→95%로 개선한 경험과 연결하면 — B+Tree 인덱스의 내부 노드가 shared_buffers에 캐시되면 디스크 I/O 없이 메모리에서 검색. 캐시가 작으면 매번 디스크 읽기.
+          </div>
+        </div>
+      </div>
+
+      <div class="qa">
+        <div class="qa-q">Hash 인덱스는 왜 B-Tree만큼 많이 안 쓰이나요?</div>
+        <div class="qa-a">
+          <span class="short">Hash 인덱스는 등호(=) 검색에 O(1)이지만 범위 검색(BETWEEN, ORDER BY, LIKE 'prefix%')을 지원하지 않습니다. B-Tree는 O(log N)이지만 등호, 범위, 정렬, 부등호를 모두 지원합니다. 대부분의 쿼리가 범위 검색을 포함하므로 B-Tree가 범용적으로 더 유리합니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>비교</th><th>B-Tree</th><th>Hash</th></tr></thead>
+              <tbody>
+                <tr><td>등호 (=)</td><td>O(log N)</td><td>O(1)</td></tr>
+                <tr><td>범위 (BETWEEN)</td><td>✅ O(log N + M)</td><td>❌</td></tr>
+                <tr><td>정렬 (ORDER BY)</td><td>✅</td><td>❌</td></tr>
+                <tr><td>부등호 (<, >)</td><td>✅</td><td>❌</td></tr>
+                <tr><td>LIKE 'prefix%'</td><td>✅</td><td>❌</td></tr>
+                <tr><td>WAL 지원</td><td>✅</td><td>✅ (PG 10+)</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>PostgreSQL에서 Hash 인덱스:</strong> PG 10부터 WAL 지원으로 프로덕션에서 사용 가능해졌지만, 여전히 등호 전용. UUID 등 등호 검색만 하는 컬럼에서는 B-Tree보다 약간 빠를 수 있음.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TRANSACTION ===== -->
+  <div class="P" id="p-txn">
+    <div class="PH"><div class="bg bg-g">● Transaction Isolation</div><h2>트랜잭션 격리 수준 & MVCC</h2><p>동시성 제어의 핵심 — PostgreSQL이 Lock 없이 읽기를 허용하는 원리.</p></div>
+    <div class="sec" id="isolation">
+      <div class="qa">
+        <div class="qa-q">트랜잭션 격리 수준 4가지를 설명하고, 각 수준에서 발생하는 문제를 말해주세요.</div>
+        <div class="qa-a">
+          <span class="short">Read Uncommitted(dirty read 허용), Read Committed(커밋된 것만 읽음 — PG 기본), Repeatable Read(트랜잭션 내 같은 쿼리 같은 결과), Serializable(완전 직렬화). 수준이 높을수록 안전하지만 동시성이 떨어집니다. PostgreSQL은 Read Committed가 기본이며 MVCC로 읽기에 Lock을 걸지 않아 높은 동시성을 달성합니다.</span>
+          <div class="deep">
+            <table class="tb">
+              <thead><tr><th>격리 수준</th><th>Dirty Read</th><th>Non-repeatable Read</th><th>Phantom Read</th><th>성능</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Read Uncommitted</strong></td><td>발생</td><td>발생</td><td>발생</td><td>최고</td></tr>
+                <tr><td><strong>Read Committed</strong></td><td>방지</td><td>발생</td><td>발생</td><td>높음 (PG 기본)</td></tr>
+                <tr><td><strong>Repeatable Read</strong></td><td>방지</td><td>방지</td><td>PG에서 방지</td><td>중간</td></tr>
+                <tr><td><strong>Serializable</strong></td><td>방지</td><td>방지</td><td>방지</td><td>낮음</td></tr>
+              </tbody>
+            </table>
+            <br>
+            <strong>각 문제의 의미:</strong><br>
+            • <strong>Dirty Read:</strong> 다른 트랜잭션이 아직 커밋하지 않은 데이터를 읽음. 롤백되면 읽은 데이터가 유효하지 않음<br>
+            • <strong>Non-repeatable Read:</strong> 같은 쿼리를 두 번 실행했는데 결과가 다름 (사이에 다른 트랜잭션이 UPDATE+COMMIT)<br>
+            • <strong>Phantom Read:</strong> 같은 쿼리를 두 번 실행했는데 행 수가 다름 (INSERT+COMMIT)
+          </div>
+        </div>
+      </div>
+
+      <div class="qa">
+        <div class="qa-q">PostgreSQL의 MVCC(Multi-Version Concurrency Control)를 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">MVCC는 데이터의 여러 버전을 동시에 유지하여, 읽기 트랜잭션이 쓰기 트랜잭션을 블록하지 않도록 하는 동시성 제어 기법입니다. PostgreSQL에서 UPDATE는 기존 행을 삭제 표시하고 새 버전을 삽입합니다. 각 트랜잭션은 자신의 스냅샷 시점에 커밋된 버전만 볼 수 있습니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">PostgreSQL MVCC 동작:
+
+1. INSERT: 행에 xmin = 현재 txid 기록 (이 트랜잭션이 생성)
+2. UPDATE: 기존 행에 xmax = 현재 txid 기록 (삭제 표시)
+          + 새 행에 xmin = 현재 txid 기록 (새 버전 생성)
+3. DELETE: 행에 xmax = 현재 txid 기록 (삭제 표시)
+
+읽기 트랜잭션(txid=100)이 볼 수 있는 행:
+  xmin <= 100 AND (xmax IS NULL OR xmax > 100)
+  = "내 스냅샷 전에 생성되고, 아직 삭제되지 않은 행"
+
+→ 읽기에 Lock 없음! 쓰기와 읽기가 동시에 가능</div>
+            <strong>VACUUM의 필요성:</strong> 삭제 표시된 옛 버전(dead tuple)은 어떤 트랜잭션도 더 이상 참조하지 않을 때 물리적으로 제거해야 함. <code>VACUUM</code> 또는 <code>autovacuum</code>이 이를 수행.<br><br>
+            <strong>autovacuum이 느려지면:</strong> dead tuple이 쌓여 테이블/인덱스가 비대화(bloat) → 쿼리 성능 저하 → shared_buffers 효율 감소 → 캐시 히트율 하락. <strong>autovacuum 모니터링</strong>이 PG 운영의 핵심.<br>
+            <code>pg_stat_user_tables.n_dead_tup</code> — 테이블별 dead tuple 수<br>
+            <code>pg_stat_user_tables.last_autovacuum</code> — 마지막 autovacuum 시각
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== WAL ===== -->
+  <div class="P" id="p-wal">
+    <div class="PH"><div class="bg bg-o">● WAL & Checkpoint</div><h2>Write-Ahead Log</h2><p>"데이터를 바꾸기 전에 먼저 로그에 기록한다" — 크래시 복구의 핵심.</p></div>
+    <div class="sec" id="wal-how">
+      <div class="qa">
+        <div class="qa-q">WAL(Write-Ahead Log)의 동작 원리와 PostgreSQL에서의 역할을 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">WAL은 데이터 페이지를 변경하기 전에 변경 내용을 먼저 순차적으로 로그 파일에 기록하는 메커니즘입니다. 크래시가 발생하면 WAL을 재생(replay)하여 마지막 일관된 상태로 복구합니다. PostgreSQL에서 WAL은 추가로 Streaming Replication(복제)과 PITR(Point-in-Time Recovery, 특정 시점 복구)에도 사용됩니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">PostgreSQL 쓰기 경로:
+
+1. UPDATE 실행
+2. WAL 버퍼에 변경 내용 기록
+3. 데이터 페이지를 shared_buffers에서 수정 (dirty page)
+4. COMMIT → WAL 버퍼를 디스크에 fsync (WAL 영속화)
+   ← 여기까지가 COMMIT 시간. 데이터 페이지는 아직 디스크에 안 씀!
+5. 나중에 Checkpoint가 dirty page를 디스크에 flush
+
+크래시 복구:
+  마지막 checkpoint 이후의 WAL을 재생
+  → 모든 커밋된 트랜잭션 복구 보장</div>
+            <strong>핵심: WAL fsync가 쓰기 성능의 병목</strong><br>
+            COMMIT마다 WAL을 디스크에 fsync하므로 <strong>WAL 디스크의 쓰기 성능</strong>이 전체 TPS를 좌우. SSD 필수. etcd도 같은 원리 — <code>etcd_disk_wal_fsync_duration_seconds</code> P99 > 10ms면 리더 선출 문제.<br><br>
+            <strong>Checkpoint:</strong> dirty page를 디스크에 일괄 기록하는 시점. <code>checkpoint_timeout</code>(기본 5분) 또는 <code>max_wal_size</code>(기본 1GB) 초과 시 트리거. Checkpoint 중 I/O 스파이크 → <code>checkpoint_completion_target = 0.9</code>로 분산 쓰기.<br><br>
+            <strong>Aurora와의 차이:</strong> Aurora는 WAL 자체를 네트워크를 통해 6개 복제본(3 AZ × 2)에 직접 전송. 데이터 페이지의 checkpoint 개념이 다름. Aurora Serverless는 ACU(Aurora Capacity Unit) 단위로 컴퓨트를 스케일하고, 스토리지는 자동 확장. ACU 스케일링 시 수 초간 연결 끊김 가능 → <code>max_connections</code>과 무관하게 ACU가 커넥션 수를 제한할 수 있음.
+          </div>
+        </div>
+      </div>
+      <div class="nt g"><strong>💡 면접에서 shared_buffers 튜닝 경험을 말하는 법</strong><br>"PostgreSQL의 shared_buffers를 기본 128MB에서 4GB(전체 RAM의 25%)로 조정하여, B+Tree 인덱스의 내부 노드가 메모리에 캐시되면서 캐시 히트율이 78%에서 95%로 개선되었습니다. 이는 WAL의 checkpoint 빈도를 줄이는 효과도 있어 쓰기 I/O가 감소했습니다."<br>→ <strong>B+Tree + shared_buffers + WAL + Checkpoint</strong>를 하나의 스토리로 연결</div>
+    </div>
+  </div>
+
+  <!-- ===== CONNECTION POOLING ===== -->
+  <div class="P" id="p-conn">
+    <div class="PH"><div class="bg bg-r">● Connection Pooling</div><h2>커넥션 풀링</h2><p>PgBouncer, HikariCP — DB 커넥션은 비싼 리소스. 풀링으로 재사용.</p></div>
+    <div class="sec" id="conn-pool">
+      <div class="qa">
+        <div class="qa-q">DB 커넥션 풀링이 왜 필요하고, PgBouncer는 어떻게 동작하나요?</div>
+        <div class="qa-a">
+          <span class="short">PostgreSQL 커넥션 하나당 OS 프로세스 하나가 생성되어 ~10MB 메모리를 소비합니다. K8s에서 Pod이 수십 개이고 각각 커넥션 풀(20개)을 가지면 수백 개의 DB 커넥션이 열려 PostgreSQL의 max_connections(기본 100)을 초과합니다. PgBouncer는 앱과 DB 사이에서 커넥션을 공유(transaction pooling)하여, 실제 DB 커넥션 수를 앱 커넥션 수보다 훨씬 적게 유지합니다.</span>
+          <div class="deep">
+            <div class="fm" style="text-align:left;font-size:10.5px">PgBouncer 없이:
+  Pod A (pool=20) ─→ 20 connections
+  Pod B (pool=20) ─→ 20 connections  → PostgreSQL (max_connections=100)
+  Pod C (pool=20) ─→ 20 connections     ← 60개 사용. HPA로 5개 되면 100개 초과!
+
+PgBouncer 사용:
+  Pod A (pool=20) ─┐
+  Pod B (pool=20) ─┼→ PgBouncer (max=50) → PostgreSQL (max=100)
+  Pod C (pool=20) ─┘    Transaction Pooling: 
+  Pod D (pool=20) ─┘    쿼리 실행 중에만 DB 커넥션 할당
+  Pod E (pool=20) ─┘    쿼리 완료 → DB 커넥션 반환 → 다른 앱이 재사용</div>
+            <strong>Pooling 모드:</strong><br>
+            • <strong>Session:</strong> 앱 세션 동안 DB 커넥션 고정. 풀링 효과 최소<br>
+            • <strong>Transaction:</strong> 트랜잭션 단위로 DB 커넥션 할당/반환. <strong>가장 많이 사용</strong>. prepared statement 주의<br>
+            • <strong>Statement:</strong> 쿼리 단위로 할당/반환. 가장 공격적. 멀티 스테이트먼트 트랜잭션 불가<br><br>
+            <strong>K8s에서 커넥션 문제 시나리오:</strong><br>
+            HPA 스케일 아웃 → 새 Pod 생성 → 각 Pod이 커넥션 풀 초기화 → <strong>Cold Start 시 커넥션 폭증</strong> → DB max_connections 초과 → 기존 Pod도 커넥션 에러 → Cascading Failure<br>
+            <strong>방어:</strong> PgBouncer 필수 + 앱의 pool 크기를 최소화 + PgBouncer의 <code>max_client_conn</code>과 <code>default_pool_size</code> 분리 설정
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== EXPLAIN ===== -->
+  <div class="P" id="p-explain">
+    <div class="PH"><div class="bg bg-p">● Query Plan</div><h2>EXPLAIN ANALYZE</h2><p>느린 쿼리를 찾고 원인을 분석하는 핵심 도구.</p></div>
+    <div class="sec" id="explain-how">
+      <div class="qa">
+        <div class="qa-q">EXPLAIN ANALYZE의 출력을 읽는 방법을 설명해 주세요.</div>
+        <div class="qa-a">
+          <span class="short">EXPLAIN은 쿼리 실행 계획(예상)을 보여주고, EXPLAIN ANALYZE는 실제로 실행하여 실측 시간까지 보여줍니다. 핵심 포인트는 Seq Scan vs Index Scan, 예상 행 수 vs 실제 행 수의 차이, Nested Loop vs Hash Join 선택, 가장 비용이 높은 노드(bottleneck)입니다.</span>
+          <div class="deep">
+            <div class="co"><span class="k">EXPLAIN ANALYZE</span> SELECT * FROM orders WHERE user_id = 42;
+
+<span class="c">-- 좋은 경우: Index Scan</span>
+Index Scan using idx_orders_user_id on orders
+  (cost=0.43..8.45 rows=5 width=120)
+  (actual time=0.023..0.035 rows=5 loops=1)
+  Index Cond: (user_id = 42)
+Planning Time: 0.1 ms
+Execution Time: 0.06 ms
+
+<span class="c">-- 나쁜 경우: Seq Scan (인덱스 없음)</span>
+Seq Scan on orders
+  (cost=0.00..25000.00 rows=5 width=120)
+  (actual time=150.234..890.567 rows=5 loops=1)
+  Filter: (user_id = 42)
+  Rows Removed by Filter: 999995
+Execution Time: 891 ms</div>
+            <strong>읽는 법:</strong><br>
+            • <code>cost=시작..끝</code>: 예상 비용 (상대값). 숫자가 클수록 비쌈<br>
+            • <code>rows=N</code>: 예상 반환 행 수. 실제와 크게 다르면 <strong>통계가 오래됨</strong> → <code>ANALYZE table_name</code><br>
+            • <code>actual time</code>: 실측 시간 (ms). Execution Time이 최종 시간<br>
+            • <code>Rows Removed by Filter</code>: 인덱스 없이 필터링한 행 수. 높으면 인덱스 필요<br><br>
+            <strong>Scan 유형:</strong><br>
+            • <strong>Seq Scan:</strong> 전체 테이블 순차 읽기. 대량 데이터에서 느림. 작은 테이블이면 OK<br>
+            • <strong>Index Scan:</strong> B+Tree 인덱스로 검색. 소수 행 조회에 빠름<br>
+            • <strong>Index Only Scan:</strong> 인덱스만으로 결과 반환 (테이블 접근 불필요). 가장 빠름<br>
+            • <strong>Bitmap Index Scan:</strong> 인덱스로 대상 페이지를 먼저 찾고, 페이지 단위로 읽기. 중간 범위 쿼리<br><br>
+            <strong>면접 포인트:</strong> "옵티마이저가 Seq Scan을 선택하는 이유"를 설명할 수 있으면 좋습니다. 테이블의 20% 이상을 읽어야 하면 인덱스 사용보다 Seq Scan이 효율적일 수 있습니다. 인덱스는 랜덤 I/O, Seq Scan은 순차 I/O이고, 순차 I/O가 훨씬 빠르기 때문.
+          </div>
+        </div>
+      </div>
+      <div class="nt o"><strong>⚠ 느린 쿼리 진단 체크리스트</strong><br><strong>1)</strong> <code>EXPLAIN ANALYZE</code> 실행<br><strong>2)</strong> Seq Scan + Rows Removed 많으면 → 인덱스 추가<br><strong>3)</strong> 예상 rows vs 실제 rows 크게 다르면 → <code>ANALYZE</code> 실행 (통계 업데이트)<br><strong>4)</strong> Nested Loop + 큰 테이블이면 → Hash Join이 나을 수 있음. 메모리 설정 확인 (<code>work_mem</code>)<br><strong>5)</strong> Sort + Disk이면 → <code>work_mem</code> 증가 또는 인덱스로 정렬 회피</div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script>
+function sw(t){document.querySelectorAll('.T').forEach(function(e){e.classList.remove('on')});document.querySelector('.T[data-t="'+t+'"]').classList.add('on');document.querySelectorAll('.P').forEach(function(e){e.classList.remove('on')});document.getElementById('p-'+t).classList.add('on');document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});var f=document.querySelector('.sn a[data-t="'+t+'"]');if(f)f.classList.add('on');document.querySelector('.S').classList.remove('open')}
+document.querySelectorAll('.sn a').forEach(function(a){a.addEventListener('click',function(){var t=a.dataset.t,s=a.dataset.s;sw(t);document.querySelectorAll('.sn a').forEach(function(e){e.classList.remove('on')});a.classList.add('on');setTimeout(function(){var el=document.getElementById(s);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},50)})});
+</script>
+</body>
+</html>
