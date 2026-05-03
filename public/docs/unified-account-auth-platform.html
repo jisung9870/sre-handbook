@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>통합 계정 & 인증 플랫폼</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fb; --surface: #ffffff; --surface-2: #f0f2f5;
+    --sidebar-bg: #ffffff; --border: #e2e6eb; --border-strong: #d0d5dc;
+    --text: #1a1d23; --text-dim: #5c6370; --text-muted: #8b929e;
+    --c-speed: #0969b2; --c-speed-bg: #e8f4fd; --c-speed-border: #a2d2f5;
+    --c-stable: #8b5cf6; --c-stable-bg: #f3effe; --c-stable-border: #c4b5fd;
+    --c-green: #1a7f37; --c-green-bg: #ecf7ef; --c-green-border: #a6ddb5;
+    --c-orange: #c2600c; --c-orange-bg: #fef3eb; --c-orange-border: #f5cba7;
+    --c-red: #cf222e; --c-red-bg: #fdecea; --c-red-border: #f5a8a8;
+    --c-teal: #0e7c6b; --c-teal-bg: #e6f7f4; --c-teal-border: #8ed5c5;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 10px; --sidebar-w: 252px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-weight: 400; line-height: 1.75; }
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 28px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; box-shadow: 1px 0 8px rgba(0,0,0,0.03); }
+  .sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand h1 em { font-style: normal; color: var(--c-speed); }
+  .sb-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px 6px; font-weight: 600; }
+  .sb-nav { list-style: none; }
+  .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 22px; color: var(--text-dim); text-decoration: none; font-size: 13px; transition: all 0.15s; border-left: 2.5px solid transparent; cursor: pointer; }
+  .sb-nav li a:hover { color: var(--text); background: var(--surface-2); }
+  .sb-nav li a.active { color: var(--text); background: var(--c-speed-bg); border-left-color: var(--c-speed); font-weight: 600; }
+  .sb-nav li a .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 18px 22px 0; border-top: 1px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-muted); line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
+
+  .main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+  .top-tabs { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .top-tab { flex: 1; padding: 15px 16px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: none; cursor: pointer; position: relative; transition: all 0.2s; }
+  .top-tab:hover { color: var(--text); background: var(--surface-2); }
+  .top-tab::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2.5px; border-radius: 2px; transition: all 0.25s; }
+  .top-tab.active { color: var(--text); }
+  .top-tab[data-tab="overview"].active { color: var(--c-teal); }
+  .top-tab[data-tab="overview"].active::after { background: var(--c-teal); left: 12%; right: 12%; }
+  .top-tab[data-tab="auth-methods"].active { color: var(--c-speed); }
+  .top-tab[data-tab="auth-methods"].active::after { background: var(--c-speed); left: 12%; right: 12%; }
+  .top-tab[data-tab="tokens"].active { color: var(--c-stable); }
+  .top-tab[data-tab="tokens"].active::after { background: var(--c-stable); left: 12%; right: 12%; }
+  .top-tab[data-tab="account-ops"].active { color: var(--c-orange); }
+  .top-tab[data-tab="account-ops"].active::after { background: var(--c-orange); left: 12%; right: 12%; }
+  .top-tab[data-tab="security"].active { color: var(--c-red); }
+  .top-tab[data-tab="security"].active::after { background: var(--c-red); left: 12%; right: 12%; }
+  .top-tab[data-tab="references"].active { color: var(--c-green); }
+  .top-tab[data-tab="references"].active::after { background: var(--c-green); left: 12%; right: 12%; }
+
+  .tab-panel { display: none; padding: 40px 52px 80px; max-width: 980px; }
+  .tab-panel.active { display: block; }
+  .panel-header { margin-bottom: 36px; }
+  .panel-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px; font-weight: 600; }
+  .badge-teal { color: var(--c-teal); background: var(--c-teal-bg); border: 1px solid var(--c-teal-border); }
+  .badge-speed { color: var(--c-speed); background: var(--c-speed-bg); border: 1px solid var(--c-speed-border); }
+  .badge-stable { color: var(--c-stable); background: var(--c-stable-bg); border: 1px solid var(--c-stable-border); }
+  .badge-orange { color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .badge-red { color: var(--c-red); background: var(--c-red-bg); border: 1px solid var(--c-red-border); }
+  .badge-green { color: var(--c-green); background: var(--c-green-bg); border: 1px solid var(--c-green-border); }
+  .panel-header h2 { font-size: 27px; font-weight: 700; margin-bottom: 8px; }
+  .panel-header p { color: var(--text-dim); font-size: 15px; max-width: 720px; line-height: 1.7; }
+  .sub { margin-top: 44px; scroll-margin-top: 72px; }
+  .sub h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+  .card h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card p { color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+  .card code { font-family: 'JetBrains Mono', monospace; background: var(--c-green-bg); color: var(--c-green); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .card-full { grid-column: 1 / -1; }
+
+  .level-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .level-table th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+  .level-table td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: top; line-height: 1.55; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .level-table tr:hover td { background: var(--surface-2); }
+  .level-table td:first-child { font-weight: 700; }
+  .lvl-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+  .lvl-elite { color: var(--c-green); background: var(--c-green-bg); }
+  .lvl-high { color: var(--c-speed); background: var(--c-speed-bg); }
+  .lvl-medium { color: var(--c-orange); background: var(--c-orange-bg); }
+  .lvl-low { color: var(--c-red); background: var(--c-red-bg); }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 130px; box-shadow: var(--shadow-sm); }
+  .flow-node h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 3px; font-weight: 700; }
+  .flow-node p { font-size: 11px; color: var(--text-dim); }
+  .flow-arrow { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 22px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-top: 16px; overflow-x: auto; box-shadow: var(--shadow-sm); }
+  .box-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .note { background: var(--c-green-bg); border-left: 3px solid var(--c-green); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .note strong { color: var(--c-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .note-warn { background: var(--c-orange-bg); border-left-color: var(--c-orange); }
+  .note-warn strong { color: var(--c-orange); }
+  .note-info { background: var(--c-speed-bg); border-left-color: var(--c-speed); }
+  .note-info strong { color: var(--c-speed); }
+  .note-danger { background: var(--c-red-bg); border-left-color: var(--c-red); }
+  .note-danger strong { color: var(--c-red); }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .pipe-stage { padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; text-align: center; min-width: 110px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-left: -8px; }
+  .pipe-stage:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); margin-left: 0; }
+  .pipe-stage small { display: block; font-weight: 500; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+
+  .code-block { background: #1e2530; color: #e6edf3; border-radius: 8px; padding: 20px; margin-top: 12px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7; }
+  .code-block .cm { color: #8b949e; } .code-block .kw { color: #ff7b72; } .code-block .str { color: #a5d6ff; } .code-block .fn { color: #d2a8ff; } .code-block .num { color: #79c0ff; }
+
+  .ref-list { list-style: none; margin-top: 14px; }
+  .ref-list li { padding: 12px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; line-height: 1.6; }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list li a { color: var(--c-speed); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; }
+  .ref-list li a:hover { text-decoration: underline; }
+  .ref-list li .ref-desc { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .ref-cat { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-right: 8px; }
+
+  .mobile-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 18px; cursor: pointer; box-shadow: var(--shadow-md); }
+  @media (max-width: 768px) {
+    .mobile-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .tab-panel { padding: 32px 20px 60px; }
+    .cg, .cg3 { grid-template-columns: 1fr; }
+    .top-tab { font-size: 10px; padding: 12px 6px; }
+    .pipeline { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="label">Account & Auth</div><h1><em>Unified</em> Account Platform</h1></div>
+    <div class="sb-label">개요</div>
+    <ul class="sb-nav">
+      <li><a data-tab="overview" data-section="what-is-account-platform" class="active"><span class="dot" style="background:var(--c-teal)"></span>계정 플랫폼이란?</a></li>
+      <li><a data-tab="overview" data-section="why-unified"><span class="dot" style="background:var(--c-teal)"></span>왜 통합 계정인가</a></li>
+      <li><a data-tab="overview" data-section="sre-responsibility"><span class="dot" style="background:var(--c-teal)"></span>SRE 관점의 책임</a></li>
+    </ul>
+    <div class="sb-label">인증 방식</div>
+    <ul class="sb-nav">
+      <li><a data-tab="auth-methods" data-section="auth-types"><span class="dot" style="background:var(--c-speed)"></span>인증 방식 분류</a></li>
+      <li><a data-tab="auth-methods" data-section="social-sso"><span class="dot" style="background:var(--c-speed)"></span>소셜 SSO (LINE/Apple/Google)</a></li>
+      <li><a data-tab="auth-methods" data-section="platform-auth"><span class="dot" style="background:var(--c-speed)"></span>플랫폼 인증 (Steamworks)</a></li>
+      <li><a data-tab="auth-methods" data-section="apple-policy"><span class="dot" style="background:var(--c-speed)"></span>Apple 정책 (2024 변경)</a></li>
+    </ul>
+    <div class="sb-label">토큰 & 세션</div>
+    <ul class="sb-nav">
+      <li><a data-tab="tokens" data-section="token-structure"><span class="dot" style="background:var(--c-stable)"></span>토큰 구조</a></li>
+      <li><a data-tab="tokens" data-section="oauth21"><span class="dot" style="background:var(--c-stable)"></span>OAuth 2.1 표준</a></li>
+      <li><a data-tab="tokens" data-section="session-policy"><span class="dot" style="background:var(--c-stable)"></span>세션 정책 (모바일/PC)</a></li>
+    </ul>
+    <div class="sb-label">계정 운영</div>
+    <ul class="sb-nav">
+      <li><a data-tab="account-ops" data-section="link-unlink"><span class="dot" style="background:var(--c-orange)"></span>계정 연결·해제</a></li>
+      <li><a data-tab="account-ops" data-section="device-mgmt"><span class="dot" style="background:var(--c-orange)"></span>디바이스 관리</a></li>
+      <li><a data-tab="account-ops" data-section="recovery"><span class="dot" style="background:var(--c-orange)"></span>계정 복구</a></li>
+      <li><a data-tab="account-ops" data-section="deletion"><span class="dot" style="background:var(--c-orange)"></span>삭제 (PIPA/GDPR)</a></li>
+    </ul>
+    <div class="sb-label">보안</div>
+    <ul class="sb-nav">
+      <li><a data-tab="security" data-section="threats"><span class="dot" style="background:var(--c-red)"></span>위협 매트릭스</a></li>
+      <li><a data-tab="security" data-section="protection"><span class="dot" style="background:var(--c-red)"></span>방어 기법</a></li>
+      <li><a data-tab="security" data-section="audit"><span class="dot" style="background:var(--c-red)"></span>감사 & 탐지</a></li>
+    </ul>
+    <div class="sb-label">참고 자료</div>
+    <ul class="sb-nav">
+      <li><a data-tab="references" data-section="refs"><span class="dot" style="background:var(--c-green)"></span>표준 / 공식 문서 / 모범 사례</a></li>
+    </ul>
+    <div class="sidebar-footer"><p>Unified Account &amp; Auth<br>= Entry Point of All Games</p></div>
+  </aside>
+
+  <div class="main">
+    <div class="top-tabs">
+      <button class="top-tab active" data-tab="overview" onclick="switchTab('overview')">● 개요</button>
+      <button class="top-tab" data-tab="auth-methods" onclick="switchTab('auth-methods')">● 인증 방식</button>
+      <button class="top-tab" data-tab="tokens" onclick="switchTab('tokens')">● 토큰 & 세션</button>
+      <button class="top-tab" data-tab="account-ops" onclick="switchTab('account-ops')">● 계정 운영</button>
+      <button class="top-tab" data-tab="security" onclick="switchTab('security')">● 보안</button>
+      <button class="top-tab" data-tab="references" onclick="switchTab('references')">● 참고 자료</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="panel-header"><div class="panel-badge badge-teal">● Overview</div><h2>통합 계정 & 인증 플랫폼</h2><p>모든 게임의 진입점이자 공통 플랫폼 SDK의 첫 번째 모듈. 가용성·정합성·보안 어느 하나가 무너져도 라인업 전체가 영향을 받는 가장 critical한 시스템.</p></div>
+
+      <div class="sub" id="what-is-account-platform"><h3>계정 플랫폼이란?</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>정의</h4><p>유저가 게임에 접속하기 위한 <strong>identity 발급·인증·권한 관리·세션 발행</strong>을 담당하는 백엔드. 단일 게임의 회원가입과 달리, 퍼블리셔는 여러 게임이 공유하는 통합 계정 플랫폼을 운영.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>핵심 기능</h4><p>회원 가입·로그인, 소셜 SSO 연동, 토큰 발급, 세션 관리, 디바이스 관리, 계정 복구·삭제, 멀티 디바이스 정책, <strong>2FA·OTP</strong>, 감사 로그.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>관련 시스템</h4><p>결제 시스템(영수증을 계정에 귀속), 인벤토리·진행도(계정 단위), CS 백엔드(계정 식별), 텔레메트리(user_id), 어뷰징 탐지(다계정·계정 공유).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>실패 시 영향</h4><p>로그인 다운 → <strong>모든 게임 동시 접속 불가</strong>. 결제 영수증의 사용자 식별 실패 → 매출 정합성 깨짐. 토큰 검증 다운 → 모든 인증 API 거부. 가장 폭발 반경이 큰 플랫폼.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="why-unified"><h3>왜 통합 계정인가</h3>
+        <div class="cg">
+          <div class="card" style="border-left:3px solid var(--c-speed);"><h4 style="color:var(--c-speed)">① 멀티 게임 사용자 경험</h4><p>같은 퍼블리셔의 게임을 옮겨다닐 때 <strong>한 번만 로그인</strong>. 친구·길드·실적이 게임 간 연결되는 가능성도 열림.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">② 크로스 플랫폼</h4><p>모바일에서 시작한 진행을 PC(Steam)에서 이어가기. <strong>플랫폼 계정(Steam/Apple ID)과 통합 계정의 매핑</strong>이 있어야 가능. 자세한 운영은 P10 크로스 플랫폼.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">③ 보안·컴플라이언스 일원화</h4><p>비밀번호 정책·2FA·계정 복구·개인정보 보유 정책을 <strong>한 곳에서 관리</strong>. 게임마다 따로 만들면 보안 수준 편차가 생김.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">④ 어뷰징·CS 효율</h4><p>다계정·환불사기·매크로 탐지가 <strong>전 게임 통합으로 가능</strong>. CS도 한 계정으로 여러 게임 문의를 처리.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="sre-responsibility"><h3>SRE 관점의 책임</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>가용성</h4><p><strong>SLO를 매우 높게</strong>(예: 99.95%+). 로그인 다운 = 라인업 전체 다운. region별 multi-AZ 필수, DB 장애에도 토큰 검증은 살아있어야 함(read replica·캐시).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>정합성</h4><p>같은 user_id가 두 디바이스에서 동시 로그인하면 정책에 따라 처리(허용/이전 세션 무효화). <strong>분산 환경에서의 race condition</strong> 처리가 핵심.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>보안</h4><p>credential stuffing(타사 유출 비밀번호 대입), phishing, 토큰 탈취. <strong>인증 시스템은 항상 표적</strong>이라 평소에 보안 운영을 게을리하면 안 된다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>지연</h4><p>로그인은 <strong>게임 진입의 첫 화면</strong>. 3초 이상 걸리면 사용자가 떠난다. region별 latency 목표(국내 100ms·해외 500ms 등) 별도 관리.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUTH METHODS -->
+    <div class="tab-panel" id="panel-auth-methods">
+      <div class="panel-header"><div class="panel-badge badge-speed">● Authentication Methods</div><h2>인증 방식</h2><p>유저가 계정 플랫폼에 자신을 증명하는 다양한 방식. 게임은 보통 4가지 종류를 모두 지원하고, 유저가 게임 안에서 연결·전환할 수 있게 한다.</p></div>
+
+      <div class="sub" id="auth-types"><h3>인증 방식 분류</h3>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>방식</th><th>설명</th><th>장점</th><th>단점</th></tr></thead>
+            <tbody>
+              <tr><td>게스트 (Guest)</td><td>디바이스 ID 기반 자동 가입</td><td>마찰 0, 첫 진입 빠름</td><td>디바이스 변경 시 진행 손실, 어뷰징 쉬움</td></tr>
+              <tr><td>자체 회원</td><td>이메일·전화번호 + 비밀번호</td><td>퍼블리셔가 완전 통제</td><td>보안 운영 부담, 비밀번호 관리</td></tr>
+              <tr><td>소셜 SSO</td><td>LINE/Apple/Google/Facebook 등</td><td>마찰 낮음, 보안 위탁</td><td>외부 의존(스토어 정책 영향)</td></tr>
+              <tr><td>플랫폼 계정</td><td>Steamworks, Apple Game Center, Google Play Games</td><td>플랫폼 자체 신뢰, 도전과제 통합</td><td>플랫폼 외부에서는 사용 불가</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-info"><strong>★ TIP</strong><br>대부분 게임은 <strong>게스트 + 소셜 SSO 2~3개</strong>를 같이 운영. 게스트로 시작 → 진행도 쌓이면 소셜 연결 권유 → 디바이스 변경에도 진행 보호. 자체 회원은 한국 PC 게임 외엔 점점 줄어드는 추세.</div>
+      </div>
+
+      <div class="sub" id="social-sso"><h3>소셜 SSO 통합 (OAuth 2.0 + OIDC)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">대부분의 소셜 SSO는 OAuth 2.0 Authorization Code Grant + OpenID Connect 표준. 표준이 같아 SDK 구조도 비슷하다.</p>
+        <div class="flow">
+          <div class="flow-node" style="border-color:var(--c-speed);"><h4 style="color:var(--c-speed)">① 인가 요청</h4><p>클라가 IdP로<br>리다이렉트<br>+ PKCE</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-speed);"><h4 style="color:var(--c-speed)">② 사용자 동의</h4><p>IdP에서 로그인<br>+ scope 동의</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-stable);"><h4 style="color:var(--c-stable)">③ 인가 코드</h4><p>callback으로<br>code 반환</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-orange);"><h4 style="color:var(--c-orange)">④ 토큰 교환</h4><p>서버가 IdP에<br>code → tokens</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-green);"><h4 style="color:var(--c-green)">⑤ 자체 토큰</h4><p>퍼블리셔가<br>자체 access token<br>발급</p></div>
+        </div>
+        <div class="cg" style="margin-top:16px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>LINE Login v2.1</h4><p>OAuth 2.0 + OIDC 기반. 주요 scope: <code>openid</code>(필수, JWT ID Token 받기), <code>profile</code>(이름·프로필 이미지), <code>email</code>. ID Token은 JWT 형식. 한국·일본·동남아 라인업에 가장 자주 통합.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Sign in with Apple</h4><p>OIDC 기반. <strong>email 비공개 옵션</strong>(Apple이 relay 이메일 발급)을 지원해 사용자 프라이버시 강함. 자체 sub identifier는 앱별로 다름(같은 유저가 다른 앱에선 다른 sub).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Google Sign-In / Play Games Services</h4><p>모바일은 <strong>Google Play Games Services</strong>로 통합 (도전과제·랭킹·세이브 무료). 일반 Google Sign-In은 OIDC 표준이라 PC 웹 통합에 자주 사용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>공통 운영 포인트</h4><p>① IdP 장애 시 fallback(게스트로라도 진입 가능?), ② IdP rate limit 모니터링, ③ <strong>scope 최소 원칙</strong>(쓰지 않는 scope는 요청하지 말 것 — 사용자 동의율 떨어짐).</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="platform-auth"><h3>플랫폼 인증 — Steamworks Auth Ticket</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Steam에서 게임을 실행할 때, Steam이 발급한 ticket으로 사용자 검증. PC 게임에서 가장 흔한 인증.</p>
+        <div class="box"><div class="box-title">Steamworks Auth Ticket — Web API 검증 흐름</div>
+          <div class="code-block"><span class="cm"># 1. 클라이언트 (게임 안)에서 ticket 요청</span>
+<span class="kw">ISteamUser</span>::<span class="fn">GetAuthTicketForWebApi</span>(<span class="str">"identity_string"</span>)
+  <span class="cm"># identity_string = ticket 수신자 식별자 (서버 ID 등)</span>
+  <span class="cm"># 콜백 GetTicketForWebApiResponse_t 대기 후 hex 인코딩</span>
+
+<span class="cm"># 2. 클라이언트가 자체 게임 서버로 ticket 전송</span>
+<span class="kw">POST</span> /auth/steam
+{ <span class="str">"ticket"</span>: <span class="str">"abcdef0123..."</span>, <span class="str">"identity"</span>: <span class="str">"identity_string"</span> }
+
+<span class="cm"># 3. 서버가 Steam Web API에 검증 요청 (publisher API key 필요)</span>
+<span class="kw">GET</span> https://partner.steam-api.com/<span class="fn">ISteamUserAuth</span>/<span class="fn">AuthenticateUserTicket</span>/v1/
+  ?key=<span class="str">"PUBLISHER_API_KEY"</span>
+  &appid=<span class="num">123456</span>
+  &ticket=<span class="str">"abcdef0123..."</span>
+  &identity=<span class="str">"identity_string"</span>
+
+<span class="cm"># 4. 응답: 64-bit SteamID + ownership 정보</span>
+{ <span class="str">"response"</span>: { <span class="str">"params"</span>: {
+  <span class="str">"result"</span>: <span class="str">"OK"</span>,
+  <span class="str">"steamid"</span>: <span class="str">"7656119xxxxxxxxxx"</span>,
+  <span class="str">"ownersteamid"</span>: <span class="str">"7656119xxxxxxxxxx"</span>
+}}}</div>
+        </div>
+        <div class="note note-warn"><strong>⚠ CRITICAL</strong><br>① Web API 검증은 <strong>반드시 서버에서</strong>. 클라이언트가 직접 호출 절대 금지(API key 노출). ② <code>identity</code> 파라미터를 명시해 ticket이 다른 서버에서 재사용되지 않게 막을 것. ③ ticket은 짧은 수명이므로 발급 직후 검증 → 자체 세션 토큰 발급으로 전환.</div>
+      </div>
+
+      <div class="sub" id="apple-policy"><h3>Apple "Sign in with Apple" 정책 (2024년 1월 변경)</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>이전 (2019~2023)</h4><p>Google·Facebook 등 소셜 로그인을 쓰면 <strong>Sign in with Apple도 의무 제공</strong>. 위반 시 앱 심사 거절.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>현재 (2024-01~)</h4><p>의무가 완화됨. 소셜 로그인 사용 시 <strong>"동등한 프라이버시 보호 옵션"</strong> 1개 제공이면 OK. 조건: (1) 이름·이메일만 수집, (2) 이메일 비공개 가능, (3) 광고용 추적 동의 없이 안 함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>면제 케이스</h4><p>① 자체 회원 시스템만 사용, ② 특정 third-party 서비스의 클라이언트(예: Gmail 앱).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>실무 권장</h4><p>여전히 <strong>Sign in with Apple은 추가하는 게 안전</strong>. 사용자 프라이버시 친화·iOS 사용자 신뢰·Apple 심사 리스크 회피. 다른 옵션이 조건을 만족하는지 매번 검토 비용 < SiwA 한 번 통합.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOKENS -->
+    <div class="tab-panel" id="panel-tokens">
+      <div class="panel-header"><div class="panel-badge badge-stable">● Tokens & Sessions</div><h2>토큰 & 세션 관리</h2><p>인증이 끝난 뒤 발급되는 토큰의 구조·수명·갱신·무효화. OAuth 2.1(2026 표준)을 기준으로 운영.</p></div>
+
+      <div class="sub" id="token-structure"><h3>토큰 구조</h3>
+        <div class="cg">
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">Access Token</h4><p>API 호출 시 <strong>Authorization 헤더</strong>에 포함. 짧은 수명(보통 15분~1시간). 탈취 시 피해 한정 위해 짧을수록 좋음.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">Refresh Token</h4><p>Access Token이 만료되면 갱신 받기 위한 토큰. <strong>긴 수명</strong>(수일~수개월). 클라에 안전하게 저장(iOS Keychain, Android Keystore).</p></div>
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">JWT vs Opaque</h4><p><strong>JWT</strong>: 토큰 안에 사용자 정보 + 서명. 검증을 stateless로 가능 → 빠름. 단점: 한 번 발급되면 만료 전 무효화 어려움. <strong>Opaque</strong>: 의미 없는 random string. 검증 시 매번 토큰 store 조회. 즉시 무효화 가능. 게임은 보통 access는 JWT, refresh는 opaque.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">ID Token</h4><p>OIDC에서 사용. 사용자 정보가 담긴 JWT. 인증 직후 한 번만 검증하고 폐기. API 호출용이 아님(Access Token과 혼동 주의).</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="oauth21"><h3>OAuth 2.1 표준 (2026 권장)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">OAuth 2.0의 보안 베스트 프랙티스(RFC 9700)를 표준화한 새 버전. <strong>2026년 시점에서는 OAuth 2.1이 사실상 표준</strong>. 신규 시스템은 처음부터 2.1로 설계.</p>
+        <div class="cg">
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">① PKCE 의무</h4><p>OAuth 2.0에선 public client만 PKCE 권장이었으나, <strong>2.1에선 모든 클라이언트(public·confidential)에 의무</strong>. authorization code 가로채기 공격(intercept)을 차단.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">② Refresh Token Rotation</h4><p>Refresh Token 사용 시마다 <strong>새 토큰 발급 + 이전 토큰 무효화</strong>. 탈취된 토큰을 attacker가 재사용하면 서버가 "replay" 감지 → 전체 세션 종료.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">③ Sender-constrained Tokens</h4><p>토큰을 발급받은 클라이언트만 사용 가능하게 묶음(DPoP, mTLS). public client의 refresh token은 <strong>rotation 또는 sender-constrained 둘 중 하나는 필수</strong>.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">④ Implicit Grant 폐지</h4><p>OAuth 2.0의 implicit grant flow는 <strong>2.1에서 삭제</strong>. 모든 클라이언트는 Authorization Code + PKCE를 사용해야 함. SPA·모바일 앱 모두 동일.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ NOTE</strong><br>이미 운영 중인 시스템도 OAuth 2.1 권장 사항으로 점진 마이그레이션 권장. PKCE·refresh token rotation은 비교적 적은 변경으로 적용 가능. 2026 시점에서 PKCE 없는 신규 OAuth 구현은 보안 결함으로 간주된다.</div>
+      </div>
+
+      <div class="sub" id="session-policy"><h3>세션 정책 — 모바일 vs PC/Steam</h3>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>항목</th><th>모바일 게임</th><th>PC/Steam 게임</th></tr></thead>
+            <tbody>
+              <tr><td>Access Token 수명</td><td>15분~1시간</td><td>1~24시간</td></tr>
+              <tr><td>Refresh Token 수명</td><td>30~90일</td><td>14~30일</td></tr>
+              <tr><td>저장 위치</td><td>iOS Keychain / Android Keystore</td><td>OS Credential Store / Steam이 위임</td></tr>
+              <tr><td>강제 로그아웃</td><td>refresh token 무효화 (DB)</td><td>같음, Steam ticket은 별도 만료</td></tr>
+              <tr><td>멀티 디바이스</td><td>1개만 허용 흔함 (이전 세션 강제 로그아웃)</td><td>1개 허용 (다른 디바이스에서 게임 켜면 이전 종료)</td></tr>
+              <tr><td>오프라인 모드</td><td>토큰 만료 후 N일은 로컬 캐시로 동작 가능</td><td>Steam 오프라인 모드 활용</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-warn"><strong>⚠ NOTE</strong><br>같은 계정의 여러 동시 로그인 정책은 게임 디자인에 따라 다르다. MMO·실시간 PvP는 1개 강제(어뷰징 방지), 캐주얼은 여러 디바이스 허용(편의). <strong>정책 변경 시 사용자 안내 + 마이그레이션 기간 필요</strong>.</div>
+      </div>
+    </div>
+
+    <!-- ACCOUNT OPS -->
+    <div class="tab-panel" id="panel-account-ops">
+      <div class="panel-header"><div class="panel-badge badge-orange">● Account Operations</div><h2>계정 운영</h2><p>가입 이후의 라이프사이클 — 연결·해제, 디바이스 관리, 복구, 삭제. CS 문의의 큰 비중을 차지하므로 셀프서비스 자동화가 중요.</p></div>
+
+      <div class="sub" id="link-unlink"><h3>계정 연결 (linking) · 해제 (unlinking)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">유저가 게스트로 시작 후 소셜 SSO를 추가로 연결하거나, 다른 SSO를 추가하는 흐름. <strong>가장 사고가 많이 나는 영역</strong> — 진행도가 사라지거나 두 계정이 합쳐지는 일이 발생한다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>게스트 → 소셜 연결</h4><p>로그인 상태에서 소셜 SSO 인증 → 토큰 받기 → 같은 user_id에 social_id 매핑 추가. <strong>해당 social_id가 다른 user_id에 이미 연결되어 있으면 충돌</strong> — 정책에 따라 처리(거부 / 진행도 병합 / 사용자 선택).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>여러 SSO 동시 연결</h4><p>한 계정에 LINE + Apple + Google 모두 연결 가능. 어느 한 SSO로 로그인해도 같은 계정 진입. <strong>연결된 SSO 중 하나 이상은 항상 남아있어야 함</strong>(전부 해제하면 로그인 불가능).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>계정 병합 (account merge)</h4><p>두 계정을 하나로 합치는 것. <strong>매우 위험</strong> — 결제 내역·인벤토리·진행도 충돌 처리, 환불·CS 영향 큼. 보통 자동화하지 않고 CS 수동 처리.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>SRE 관점</h4><p>모든 link/unlink는 <strong>감사 로그 필수</strong>(누가·언제·어떤 SSO를 연결/해제). 분산 race condition 대비 — 같은 social_id를 두 user에 동시에 연결하는 시도는 트랜잭션·unique constraint로 차단.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="device-mgmt"><h3>디바이스 관리</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>디바이스 등록</h4><p>로그인 시 디바이스 핑거프린트(OS·모델·고유 ID·IP) 저장. 같은 계정의 디바이스 목록을 사용자가 마이페이지에서 볼 수 있게 함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>디바이스 차단</h4><p>탈취 의심 시 사용자가 특정 디바이스를 원격 차단(refresh token 무효화). CS 신청 또는 셀프서비스로 처리.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>새 디바이스 알림</h4><p>새 디바이스에서 로그인 시 기존 등록 디바이스에 알림 발송(이메일·푸시). 본인이 아니면 즉시 비밀번호 변경 + 디바이스 차단 유도.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>비밀번호 없는 게스트 보호</h4><p>게스트 계정은 디바이스 ID에 묶여 있어 디바이스 분실 = 진행도 분실. <strong>일정 시점에 소셜 연결 강제 권유</strong>(레벨 N 도달 시·결제 후 등).</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="recovery"><h3>계정 복구</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>비밀번호 복구</h4><p>이메일·전화번호로 OTP·재설정 링크 발송. 링크는 <strong>짧은 수명</strong>(15~30분), 1회용. 비밀번호 변경 시 모든 세션 강제 로그아웃.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>소셜 SSO 복구</h4><p>SSO 자체 복구 흐름(LINE·Apple·Google 비밀번호 찾기) — 퍼블리셔는 개입 못함. <strong>백업 SSO 추가 권유</strong>가 유일한 사전 대응.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>분실 계정 복구 (CS)</h4><p>모든 인증 수단을 잃은 경우 — CS가 본인 확인(결제 영수증, 캐릭터 정보, 가입 시점 등)으로 신원 확인 후 복구. <strong>매크로·사칭 시도가 많은 영역</strong>이라 신중한 매뉴얼 필요.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>SRE 책임</h4><p>OTP·복구 링크 발송 인프라 가용성, rate limit(같은 계정 OTP 발송 1분에 N회), 감사 로그(누가 언제 어떤 복구를 시도).</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="deletion"><h3>계정 삭제 (PIPA / GDPR)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">한국 PIPA·EU GDPR 모두 사용자의 <strong>삭제 요청권</strong>을 인정. 게임 운영에서 가장 까다로운 부분 — 결제·세무 보관 의무와 충돌하기도 한다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>한국 PIPA</h4><p>사용 목적 달성 시 즉시 삭제 의무. 보유 기간은 가입 시 명시 + 동의 받아야 함. 보유 사유 없이 보관하거나 만료 후 미삭제 시 과태료. <strong>게임 결제·과세 관련 데이터는 별도 보관 의무</strong>(전자상거래법 5년 등)로 예외.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>EU GDPR</h4><p>"Right to be forgotten" — 사용자가 삭제 요청 시 기본적으로 삭제. 단, 법적 의무·다른 사용자 권리 보호 등 예외 사유는 인정. <strong>30일 이내 처리</strong> 권고.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>게임 도메인 특수성</h4><p>인벤토리·결제 내역·길드 기여 등 <strong>다른 유저와 얽힌 데이터</strong>는 단순 삭제가 어려움. 보통 식별자만 익명화(anonymize)하고 게임 데이터는 유지.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>실무 처리</h4><p>① 삭제 요청 접수 → CS 검토 → 본인 확인 → ② 식별자 즉시 익명화 → ③ 결제·세무 데이터는 법적 보관 기간만큼 별도 보관 → ④ 기간 만료 시 자동 영구 삭제. <strong>유예 기간(7~30일) 내 취소 가능</strong>은 흔한 정책.</p></div>
+        </div>
+        <div class="note note-warn"><strong>⚠ NOTE</strong><br>"삭제했다"는 사용자 안내와 실제 처리 사이의 정합성에 주의. 사용자에게 "삭제 완료"라고 통보했는데 백업·로그·텔레메트리에 그대로 남아있으면 컴플라이언스 위반. <strong>삭제 범위와 보관 예외를 사용자에게 명확히 안내</strong>해야 함.</div>
+      </div>
+    </div>
+
+    <!-- SECURITY -->
+    <div class="tab-panel" id="panel-security">
+      <div class="panel-header"><div class="panel-badge badge-red">● Security</div><h2>보안</h2><p>인증 시스템은 항상 표적. credential stuffing·phishing·토큰 탈취 같은 흔한 공격을 방어하고, 어뷰징 패턴을 탐지·차단한다.</p></div>
+
+      <div class="sub" id="threats"><h3>위협 매트릭스</h3>
+        <div class="cg">
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">Credential Stuffing</h4><p>타사에서 유출된 비밀번호 목록으로 대규모 로그인 시도. <strong>가장 흔한 공격</strong>. 사용자가 비밀번호 재사용을 멈추지 않는 한 계속 발생.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">Phishing</h4><p>가짜 로그인 페이지·고객센터로 유도해 비밀번호·OTP 탈취. 게임 도메인은 가짜 이벤트·아이템 지급 미끼가 많음.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">토큰 탈취</h4><p>로컬 저장된 refresh token이나 JWT를 디바이스 해킹으로 탈취. 다른 기기에서 그대로 사용. <strong>OAuth 2.1 sender-constrained / rotation으로 방어</strong>.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">계정 공유 · 다계정</h4><p>한 계정을 여러 사람이 공유(rmt 거래)하거나, 한 사람이 여러 계정 운영(어뷰징·이벤트 보상 다중 수령). 게임 도메인 고유 위협.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">계정 탈취 → 결제 사기</h4><p>탈취된 계정으로 IAP 결제 후 아이템·캐시를 다른 계정으로 이전. 결제 chargeback 시 손해는 게임사.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">OTP 가로채기 (SIM swap)</h4><p>이동통신사에서 SIM 재발급받아 SMS OTP 가로채기. <strong>SMS OTP는 점점 신뢰 낮아지는 추세</strong>. TOTP·앱 푸시 인증·passkey가 대안.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="protection"><h3>방어 기법</h3>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>방어 기법</th><th>적용 영역</th><th>효과</th></tr></thead>
+            <tbody>
+              <tr><td>Rate Limiting</td><td>로그인·OTP·복구 엔드포인트</td><td>credential stuffing·brute force 1차 차단</td></tr>
+              <tr><td>CAPTCHA / hCaptcha</td><td>의심 트래픽 시 추가 인증</td><td>봇 자동화 공격 차단</td></tr>
+              <tr><td>이상 탐지 (Anomaly)</td><td>비정상 IP·디바이스·패턴</td><td>새 위치에서 로그인 시 추가 확인</td></tr>
+              <tr><td>2FA / MFA</td><td>고가치 계정·고액 결제 후</td><td>비밀번호 탈취만으로 계정 탈취 못함</td></tr>
+              <tr><td>Passkey (FIDO2)</td><td>SMS OTP 대체</td><td>phishing 자체 무력화. 2026 빠르게 보급 중</td></tr>
+              <tr><td>토큰 sender-constrained</td><td>refresh token (OAuth 2.1)</td><td>탈취 토큰의 다른 디바이스 사용 차단</td></tr>
+              <tr><td>지오 차단 / VPN 탐지</td><td>특정 국가만 운영하는 게임</td><td>외부 자동화 공격 차단</td></tr>
+              <tr><td>비밀번호 정책</td><td>가입·변경 시 강도 검증</td><td>약한 비밀번호 차단(있을 만한 비밀번호 사전 비교)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sub" id="audit"><h3>감사 (Audit) & 의심 활동 탐지</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>감사 로그 항목</h4><p>로그인 (성공·실패·IP·디바이스), 비밀번호 변경, 2FA 등록·해제, SSO 연결·해제, 디바이스 추가·삭제, 계정 삭제 신청. <strong>변경 가능한 모든 보안 액션</strong>은 기록.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>보관 기간</h4><p>최근 30~90일은 hot store(즉시 조회), 1~3년은 cold store(분석·법적 대응). 텔레메트리 인프라(P6)와 같이 운영하기도 함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>탐지 룰</h4><p>예: "1분에 같은 IP에서 100계정 로그인 시도", "다른 국가에서 5분 안에 두 번 로그인", "정상 시간대 외(예: 새벽 3시) 비밀번호 변경 후 즉시 결제". 룰 + ML 혼합.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>대응 흐름</h4><p>의심 활동 감지 → 사용자에게 알림 → 의심 시 디바이스 강제 로그아웃 + 비밀번호 재설정 요구. 심각하면 계정 일시 잠금 + CS 본인 확인.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ TIP</strong><br>감사 로그는 사용자가 직접 볼 수 있게 마이페이지에서 노출하는 게 효과적. "로그인 활동"·"디바이스 활동" 화면이 있으면 사용자가 자기 계정 이상을 빨리 발견한다 (Google·Apple 모두 제공).</div>
+      </div>
+    </div>
+
+    <!-- REFERENCES -->
+    <div class="tab-panel" id="panel-references">
+      <div class="panel-header"><div class="panel-badge badge-green">● References</div><h2>참고 자료</h2><p>2026년 5월 기준으로 검증된 표준·공식 문서·모범 사례. 정책은 변할 수 있으니 적용 시 출처 페이지를 다시 확인.</p></div>
+
+      <div class="sub" id="refs"><h3>분류별 참고 자료</h3>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-stable);"><span class="ref-cat" style="color:var(--c-stable);background:var(--c-stable-bg);">표준</span>OAuth · OIDC · 보안</h4>
+        <ul class="ref-list">
+          <li><a href="https://oauth.net/2.1/" target="_blank">OAuth 2.1 — 공식 사이트</a><div class="ref-desc">최신 명세 초안과 변경점 요약. PKCE 의무·refresh token rotation·implicit grant 폐지 등</div></li>
+          <li><a href="https://datatracker.ietf.org/doc/draft-ietf-oauth-v2-1/" target="_blank">IETF Draft — OAuth 2.1 Authorization Framework</a><div class="ref-desc">표준화 진행 중인 IETF draft. 신규 시스템 설계 reference</div></li>
+          <li><a href="https://datatracker.ietf.org/doc/rfc9700/" target="_blank">RFC 9700 — Best Current Practice for OAuth 2.0 Security</a><div class="ref-desc">OAuth 2.1의 기반이 되는 보안 베스트 프랙티스. 모든 OAuth 운영자 필독</div></li>
+          <li><a href="https://openid.net/specs/openid-connect-core-1_0.html" target="_blank">OpenID Connect Core 1.0 — 공식 명세</a><div class="ref-desc">OIDC의 기본 명세. ID Token 구조·scope·인증 흐름</div></li>
+          <li><a href="https://cheatsheetseries.owasp.org/cheatsheets/OAuth2_Cheat_Sheet.html" target="_blank">OWASP — OAuth 2.0 Cheat Sheet</a><div class="ref-desc">실무자용 보안 체크리스트. 흔한 함정과 방어 패턴</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-speed);"><span class="ref-cat" style="color:var(--c-speed);background:var(--c-speed-bg);">공식 문서</span>플랫폼 · SDK</h4>
+        <ul class="ref-list">
+          <li><a href="https://developers.line.biz/en/docs/line-login/integrate-line-login/" target="_blank">LINE Developers — LINE Login 통합 가이드</a><div class="ref-desc">LINE Login v2.1 공식 문서. OAuth 2.0 + OIDC 통합 흐름과 scope</div></li>
+          <li><a href="https://developers.line.biz/en/reference/line-login/" target="_blank">LINE Login v2.1 API Reference</a><div class="ref-desc">엔드포인트 명세, scope, ID Token 검증 방법</div></li>
+          <li><a href="https://developer.apple.com/sign-in-with-apple/" target="_blank">Apple — Sign in with Apple 공식 페이지</a><div class="ref-desc">통합 SDK·디자인 가이드라인·정책 요약</div></li>
+          <li><a href="https://developer.apple.com/app-store/review/guidelines/" target="_blank">Apple — App Review Guidelines</a><div class="ref-desc">2024년 1월 변경된 Sign in with Apple 의무 완화 조항 포함</div></li>
+          <li><a href="https://developers.google.com/games/services" target="_blank">Google Play Games Services — 공식 문서</a><div class="ref-desc">모바일 게임용 인증·도전과제·랭킹·세이브 통합</div></li>
+          <li><a href="https://partner.steamgames.com/doc/features/auth" target="_blank">Steamworks — User Authentication and Ownership</a><div class="ref-desc">Steam Auth Ticket 발급·검증 공식 가이드</div></li>
+          <li><a href="https://partner.steamgames.com/doc/webapi/ISteamUserAuth" target="_blank">Steamworks — ISteamUserAuth Web API</a><div class="ref-desc">AuthenticateUserTicket 엔드포인트 명세 및 응답 구조</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-orange);"><span class="ref-cat" style="color:var(--c-orange);background:var(--c-orange-bg);">한국 가이드</span>법령 · 컴플라이언스</h4>
+        <ul class="ref-list">
+          <li><a href="https://www.pipc.go.kr/np/default/page.do?mCode=H010000000" target="_blank">개인정보보호위원회 (PIPC) — 공식 사이트</a><div class="ref-desc">한국 개인정보보호법(PIPA) 주관 기관. 가이드·시정 사례·QnA</div></li>
+          <li><a href="https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B0%9C%EC%9D%B8%EC%A0%95%EB%B3%B4%EB%B3%B4%ED%98%B8%EB%B2%95" target="_blank">개인정보보호법 — 국가법령정보센터</a><div class="ref-desc">PIPA 법령 원문. 보유 기간·삭제·동의 의무</div></li>
+          <li><a href="https://easylaw.go.kr/CSP/CnpClsMain.laf?popMenu=ov&csmSeq=1257&ccfNo=2&cciNo=2&cnpClsNo=3" target="_blank">찾기쉬운 생활법령 — 개인정보의 파기</a><div class="ref-desc">실무자용 PIPA 파기 의무 해설. 보유 기간·예외 사유·과태료</div></li>
+          <li><a href="https://gdpr-info.eu/" target="_blank">GDPR — 공식 정보 페이지</a><div class="ref-desc">EU GDPR 전문 + 기사별 해설. Right to be forgotten(Art. 17) 포함</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-red);"><span class="ref-cat" style="color:var(--c-red);background:var(--c-red-bg);">보안 모범 사례</span>모범 사례 · 인증 운영</h4>
+        <ul class="ref-list">
+          <li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html" target="_blank">OWASP — Authentication Cheat Sheet</a><div class="ref-desc">로그인·비밀번호·세션 관리의 표준 베스트 프랙티스</div></li>
+          <li><a href="https://pages.nist.gov/800-63-3/" target="_blank">NIST SP 800-63 Digital Identity Guidelines</a><div class="ref-desc">미국 NIST의 디지털 신원 가이드. 비밀번호 정책·MFA·인증 보증 등급</div></li>
+          <li><a href="https://fidoalliance.org/passkeys/" target="_blank">FIDO Alliance — Passkeys</a><div class="ref-desc">차세대 비밀번호 대체 표준. SMS OTP 대체로 빠르게 보급 중</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-green);"><span class="ref-cat" style="color:var(--c-green);background:var(--c-green-bg);">참고서적</span>인증 시스템 설계</h4>
+        <ul class="ref-list">
+          <li><span style="font-weight:600;">OAuth 2 in Action</span><div class="ref-desc">Justin Richer · Antonio Sanso 저. OAuth 2.0의 완전한 실무 가이드. OIDC도 다룸</div></li>
+          <li><span style="font-weight:600;">Identity and Data Security for Web Development</span><div class="ref-desc">Jonathan LeBlanc 저. 인증·암호화·세션의 실무적 함정과 패턴</div></li>
+        </ul>
+
+        <div class="note note-info" style="margin-top:32px;"><strong>★ NOTE</strong><br>이 가이드의 정책·표준 정보는 <strong>2026년 5월 기준</strong>. 특히 OAuth 2.1은 현재 IETF draft 단계로 RFC 확정 시 세부가 바뀔 수 있고, Apple/Google/Steam 정책도 매년 갱신된다. 신규 통합 시 공식 문서 재확인.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + tabId).classList.add('active');
+    document.querySelector('.top-tab[data-tab="' + tabId + '"]').classList.add('active');
+
+    document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+    const firstLink = document.querySelector('.sb-nav li a[data-tab="' + tabId + '"]');
+    if (firstLink) firstLink.classList.add('active');
+  }
+
+  document.querySelectorAll('.sb-nav li a').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const tab = link.dataset.tab;
+      const section = link.dataset.section;
+      switchTab(tab);
+      setTimeout(() => {
+        const el = document.getElementById(section);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }, 50);
+    });
+  });
+</script>
+</body>
+</html>

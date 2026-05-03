@@ -10,6 +10,8 @@ import {
   Cpu,
   Container,
   Clock,
+  Gamepad2,
+  Joystick,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -21,7 +23,7 @@ import { cn } from '@/lib/cn';
 import type { Category } from '@/types/document';
 
 const iconMap: Record<string, LucideIcon> = {
-  BookOpen, Terminal, Network, BarChart3, GitBranch, Layers, Users, Cpu, Container,
+  BookOpen, Terminal, Network, BarChart3, GitBranch, Layers, Users, Cpu, Container, Gamepad2, Joystick,
 };
 
 function CategoryCard({ cat, docCount }: { cat: Category; docCount: number }) {

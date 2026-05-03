@@ -14,6 +14,8 @@ import {
   ChevronRight,
   Trash2,
   Undo2,
+  Gamepad2,
+  Joystick,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -24,7 +26,7 @@ import { cn } from '@/lib/cn';
 import type { Bookmark as BookmarkType } from '@/types/bookmark';
 
 const iconMap: Record<string, LucideIcon> = {
-  BookOpen, Terminal, Network, BarChart3, GitBranch, Layers, Users, Cpu, Container,
+  BookOpen, Terminal, Network, BarChart3, GitBranch, Layers, Users, Cpu, Container, Gamepad2, Joystick,
 };
 
 interface UndoState {

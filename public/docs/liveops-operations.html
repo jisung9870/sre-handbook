@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LiveOps 운영</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fb; --surface: #ffffff; --surface-2: #f0f2f5;
+    --sidebar-bg: #ffffff; --border: #e2e6eb; --border-strong: #d0d5dc;
+    --text: #1a1d23; --text-dim: #5c6370; --text-muted: #8b929e;
+    --c-speed: #0969b2; --c-speed-bg: #e8f4fd; --c-speed-border: #a2d2f5;
+    --c-stable: #8b5cf6; --c-stable-bg: #f3effe; --c-stable-border: #c4b5fd;
+    --c-green: #1a7f37; --c-green-bg: #ecf7ef; --c-green-border: #a6ddb5;
+    --c-orange: #c2600c; --c-orange-bg: #fef3eb; --c-orange-border: #f5cba7;
+    --c-red: #cf222e; --c-red-bg: #fdecea; --c-red-border: #f5a8a8;
+    --c-teal: #0e7c6b; --c-teal-bg: #e6f7f4; --c-teal-border: #8ed5c5;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 10px; --sidebar-w: 252px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-weight: 400; line-height: 1.75; }
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 28px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; box-shadow: 1px 0 8px rgba(0,0,0,0.03); }
+  .sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand h1 em { font-style: normal; color: var(--c-stable); }
+  .sb-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px 6px; font-weight: 600; }
+  .sb-nav { list-style: none; }
+  .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 22px; color: var(--text-dim); text-decoration: none; font-size: 13px; transition: all 0.15s; border-left: 2.5px solid transparent; cursor: pointer; }
+  .sb-nav li a:hover { color: var(--text); background: var(--surface-2); }
+  .sb-nav li a.active { color: var(--text); background: var(--c-stable-bg); border-left-color: var(--c-stable); font-weight: 600; }
+  .sb-nav li a .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 18px 22px 0; border-top: 1px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-muted); line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
+
+  .main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+  .top-tabs { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .top-tab { flex: 1; padding: 15px 16px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: none; cursor: pointer; position: relative; transition: all 0.2s; }
+  .top-tab:hover { color: var(--text); background: var(--surface-2); }
+  .top-tab::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2.5px; border-radius: 2px; transition: all 0.25s; }
+  .top-tab.active { color: var(--text); }
+  .top-tab[data-tab="overview"].active { color: var(--c-teal); }
+  .top-tab[data-tab="overview"].active::after { background: var(--c-teal); left: 12%; right: 12%; }
+  .top-tab[data-tab="maintenance"].active { color: var(--c-speed); }
+  .top-tab[data-tab="maintenance"].active::after { background: var(--c-speed); left: 12%; right: 12%; }
+  .top-tab[data-tab="announcements"].active { color: var(--c-stable); }
+  .top-tab[data-tab="announcements"].active::after { background: var(--c-stable); left: 12%; right: 12%; }
+  .top-tab[data-tab="hotfix"].active { color: var(--c-orange); }
+  .top-tab[data-tab="hotfix"].active::after { background: var(--c-orange); left: 12%; right: 12%; }
+  .top-tab[data-tab="external"].active { color: var(--c-red); }
+  .top-tab[data-tab="external"].active::after { background: var(--c-red); left: 12%; right: 12%; }
+  .top-tab[data-tab="references"].active { color: var(--c-green); }
+  .top-tab[data-tab="references"].active::after { background: var(--c-green); left: 12%; right: 12%; }
+
+  .tab-panel { display: none; padding: 40px 52px 80px; max-width: 980px; }
+  .tab-panel.active { display: block; }
+  .panel-header { margin-bottom: 36px; }
+  .panel-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px; font-weight: 600; }
+  .badge-teal { color: var(--c-teal); background: var(--c-teal-bg); border: 1px solid var(--c-teal-border); }
+  .badge-speed { color: var(--c-speed); background: var(--c-speed-bg); border: 1px solid var(--c-speed-border); }
+  .badge-stable { color: var(--c-stable); background: var(--c-stable-bg); border: 1px solid var(--c-stable-border); }
+  .badge-orange { color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .badge-red { color: var(--c-red); background: var(--c-red-bg); border: 1px solid var(--c-red-border); }
+  .badge-green { color: var(--c-green); background: var(--c-green-bg); border: 1px solid var(--c-green-border); }
+  .panel-header h2 { font-size: 27px; font-weight: 700; margin-bottom: 8px; }
+  .panel-header p { color: var(--text-dim); font-size: 15px; max-width: 720px; line-height: 1.7; }
+  .sub { margin-top: 44px; scroll-margin-top: 72px; }
+  .sub h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+  .card h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card p { color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+  .card code { font-family: 'JetBrains Mono', monospace; background: var(--c-green-bg); color: var(--c-green); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .card-full { grid-column: 1 / -1; }
+
+  .level-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .level-table th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+  .level-table td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: top; line-height: 1.55; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .level-table tr:hover td { background: var(--surface-2); }
+  .level-table td:first-child { font-weight: 700; }
+  .lvl-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+  .lvl-elite { color: var(--c-green); background: var(--c-green-bg); }
+  .lvl-high { color: var(--c-speed); background: var(--c-speed-bg); }
+  .lvl-medium { color: var(--c-orange); background: var(--c-orange-bg); }
+  .lvl-low { color: var(--c-red); background: var(--c-red-bg); }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 130px; box-shadow: var(--shadow-sm); }
+  .flow-node h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 3px; font-weight: 700; }
+  .flow-node p { font-size: 11px; color: var(--text-dim); }
+  .flow-arrow { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 22px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-top: 16px; overflow-x: auto; box-shadow: var(--shadow-sm); }
+  .box-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .note { background: var(--c-green-bg); border-left: 3px solid var(--c-green); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .note strong { color: var(--c-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .note-warn { background: var(--c-orange-bg); border-left-color: var(--c-orange); }
+  .note-warn strong { color: var(--c-orange); }
+  .note-info { background: var(--c-speed-bg); border-left-color: var(--c-speed); }
+  .note-info strong { color: var(--c-speed); }
+  .note-danger { background: var(--c-red-bg); border-left-color: var(--c-red); }
+  .note-danger strong { color: var(--c-red); }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .pipe-stage { padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; text-align: center; min-width: 110px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-left: -8px; }
+  .pipe-stage:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); margin-left: 0; }
+  .pipe-stage small { display: block; font-weight: 500; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+
+  .code-block { background: #1e2530; color: #e6edf3; border-radius: 8px; padding: 20px; margin-top: 12px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7; }
+  .code-block .cm { color: #8b949e; } .code-block .kw { color: #ff7b72; } .code-block .str { color: #a5d6ff; } .code-block .fn { color: #d2a8ff; } .code-block .num { color: #79c0ff; }
+
+  .template-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-top: 14px; font-size: 13px; line-height: 1.7; color: var(--text); }
+  .template-block .tpl-title { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-stable); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; margin-bottom: 10px; }
+  .template-block .tpl-content { background: var(--surface-2); border-radius: 6px; padding: 14px 16px; color: var(--text-dim); white-space: pre-wrap; font-family: 'Noto Sans KR', sans-serif; }
+
+  .ref-list { list-style: none; margin-top: 14px; }
+  .ref-list li { padding: 12px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; line-height: 1.6; }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list li a { color: var(--c-speed); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; }
+  .ref-list li a:hover { text-decoration: underline; }
+  .ref-list li .ref-desc { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .ref-cat { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-right: 8px; }
+
+  .mobile-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 18px; cursor: pointer; box-shadow: var(--shadow-md); }
+  @media (max-width: 768px) {
+    .mobile-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .tab-panel { padding: 32px 20px 60px; }
+    .cg, .cg3 { grid-template-columns: 1fr; }
+    .top-tab { font-size: 10px; padding: 12px 6px; }
+    .pipeline { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="label">LiveOps</div><h1><em>Live</em> Operations</h1></div>
+    <div class="sb-label">개요</div>
+    <ul class="sb-nav">
+      <li><a data-tab="overview" data-section="what-is-liveops" class="active"><span class="dot" style="background:var(--c-teal)"></span>LiveOps란?</a></li>
+      <li><a data-tab="overview" data-section="ops-cycle"><span class="dot" style="background:var(--c-teal)"></span>운영 사이클</a></li>
+      <li><a data-tab="overview" data-section="sre-role"><span class="dot" style="background:var(--c-teal)"></span>SRE 책임</a></li>
+    </ul>
+    <div class="sb-label">점검 운영</div>
+    <ul class="sb-nav">
+      <li><a data-tab="maintenance" data-section="maintenance-types"><span class="dot" style="background:var(--c-speed)"></span>점검 유형</a></li>
+      <li><a data-tab="maintenance" data-section="status-page"><span class="dot" style="background:var(--c-speed)"></span>점검 페이지 시스템</a></li>
+      <li><a data-tab="maintenance" data-section="window-design"><span class="dot" style="background:var(--c-speed)"></span>점검 윈도우 설계</a></li>
+      <li><a data-tab="maintenance" data-section="partial-maint"><span class="dot" style="background:var(--c-speed)"></span>부분 점검·세션 드레인</a></li>
+    </ul>
+    <div class="sb-label">공지 & 이벤트</div>
+    <ul class="sb-nav">
+      <li><a data-tab="announcements" data-section="announce-channels"><span class="dot" style="background:var(--c-stable)"></span>공지 채널</a></li>
+      <li><a data-tab="announcements" data-section="event-scheduler"><span class="dot" style="background:var(--c-stable)"></span>이벤트 스케줄러</a></li>
+      <li><a data-tab="announcements" data-section="reward-distribution"><span class="dot" style="background:var(--c-stable)"></span>보상 지급 자동화</a></li>
+      <li><a data-tab="announcements" data-section="kr-templates"><span class="dot" style="background:var(--c-stable)"></span>한국어 공지 템플릿</a></li>
+    </ul>
+    <div class="sb-label">핫픽스 & 데이터</div>
+    <ul class="sb-nav">
+      <li><a data-tab="hotfix" data-section="change-types"><span class="dot" style="background:var(--c-orange)"></span>변경 유형 매트릭스</a></li>
+      <li><a data-tab="hotfix" data-section="data-driven"><span class="dot" style="background:var(--c-orange)"></span>데이터 기반 변경</a></li>
+      <li><a data-tab="hotfix" data-section="feature-flag"><span class="dot" style="background:var(--c-orange)"></span>Feature Flag · Remote Config</a></li>
+      <li><a data-tab="hotfix" data-section="rollback"><span class="dot" style="background:var(--c-orange)"></span>롤백 정책</a></li>
+    </ul>
+    <div class="sb-label">외부 개발사 협업</div>
+    <ul class="sb-nav">
+      <li><a data-tab="external" data-section="joint-workflow"><span class="dot" style="background:var(--c-red)"></span>공동 운영 워크플로우</a></li>
+      <li><a data-tab="external" data-section="build-acceptance"><span class="dot" style="background:var(--c-red)"></span>빌드 검수·인수 테스트</a></li>
+      <li><a data-tab="external" data-section="time-sync"><span class="dot" style="background:var(--c-red)"></span>시차 동기화</a></li>
+    </ul>
+    <div class="sb-label">참고 자료</div>
+    <ul class="sb-nav">
+      <li><a data-tab="references" data-section="refs"><span class="dot" style="background:var(--c-green)"></span>모범 사례 / 도구 / 게임 사례</a></li>
+    </ul>
+    <div class="sidebar-footer"><p>LiveOps<br>= Continuous Game Service</p></div>
+  </aside>
+
+  <div class="main">
+    <div class="top-tabs">
+      <button class="top-tab active" data-tab="overview" onclick="switchTab('overview')">● 개요</button>
+      <button class="top-tab" data-tab="maintenance" onclick="switchTab('maintenance')">● 점검 운영</button>
+      <button class="top-tab" data-tab="announcements" onclick="switchTab('announcements')">● 공지/이벤트</button>
+      <button class="top-tab" data-tab="hotfix" onclick="switchTab('hotfix')">● 핫픽스</button>
+      <button class="top-tab" data-tab="external" onclick="switchTab('external')">● 외부 협업</button>
+      <button class="top-tab" data-tab="references" onclick="switchTab('references')">● 참고 자료</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="panel-header"><div class="panel-badge badge-teal">● Overview</div><h2>LiveOps 운영</h2><p>출시 후 게임이 살아있는 동안 매주·매일 반복되는 운영 활동의 총칭. 점검·공지·이벤트·핫픽스·콘텐츠 업데이트를 안정적으로 굴리는 일이 SRE의 핵심 일상 업무다.</p></div>
+
+      <div class="sub" id="what-is-liveops"><h3>LiveOps란?</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>정의</h4><p>Live Operations의 약자. 출시된 게임을 <strong>지속적으로 운영하며 콘텐츠·이벤트·밸런스를 갱신</strong>하는 모든 활동. 일회성이 아니라 매주/매일 반복되는 운영 사이클.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>왜 중요한가</h4><p>F2P 게임은 출시 자체보다 <strong>출시 후 운영이 매출의 90%</strong>를 만든다. LiveOps 품질이 게임 수명을 결정. 안정적 운영 = 신뢰 = 결제 = 매출.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>주요 활동</h4><p>점검·핫픽스, 공지·배너, 이벤트(시즌·기간 한정), 가챠·상품 변경, 보상 지급, 패치 노트 발행, A/B 테스트 (P6 참조), 사고 대응.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>SRE의 위치</h4><p>운영팀(GM)·기획·QA·CS 모두와 매주 협업. <strong>LiveOps의 안전망</strong>이자 자동화 책임자. 잘못된 데이터가 라이브에 적용되면 즉시 롤백할 수 있어야 함.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="ops-cycle"><h3>운영 사이클 (일·주·월)</h3>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>주기</th><th>활동</th><th>담당</th></tr></thead>
+            <tbody>
+              <tr><td>일일</td><td>대시보드 모니터링, 핫픽스 데이터 변경, CS 문의 대응, 어뷰징 검토</td><td>SRE·운영·CS</td></tr>
+              <tr><td>주간 (정기 점검)</td><td>주간 점검(보통 1~3시간), 콘텐츠 업데이트, 이벤트 시작/종료, 패치 노트</td><td>전 팀</td></tr>
+              <tr><td>월간</td><td>시즌 종료·시작, 메이저 이벤트, 가챠 신상 출시, KPI 리뷰</td><td>전 팀</td></tr>
+              <tr><td>분기/연간</td><td>대형 업데이트(신캐릭터·신지역), 주요 시스템 변경, 1주년 등 마일스톤</td><td>전 팀</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-info"><strong>★ NOTE</strong><br>장르마다 cadence가 다르다. PC MMO·MOBA는 1~2주 단위 패치(예: League of Legends는 14일 cadence, 2026년 24개 패치 예정), 모바일 RPG는 주간 점검 + 월간 신챕터, 캐주얼은 주간 이벤트 중심. 자기 게임의 패턴을 표준화하고 자동화하는 게 핵심.</div>
+      </div>
+
+      <div class="sub" id="sre-role"><h3>SRE 책임 (LiveOps 관점)</h3>
+        <div class="cg">
+          <div class="card" style="border-left:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">① 점검 인프라</h4><p>점검 페이지·점검 모드 토글·세션 드레인. 모든 게임이 같은 패턴으로 점검할 수 있게 표준화.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">② 공지·이벤트 시스템</h4><p>공지 CMS, 인앱 메시지·푸시 채널, 이벤트 스케줄러 운영. 운영팀이 코드 없이 작업할 수 있게 도구화.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">③ 변경의 안전망</h4><p>Feature Flag·remote config·롤백 자동화. 잘못된 변경이 라이브에 가도 즉시 되돌릴 수 있는 인프라.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">④ 외부 협업</h4><p>외부 개발사 빌드 검수·인수 테스트·점검 동기화. 시차·언어·도구 차이를 메우는 워크플로우.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAINTENANCE -->
+    <div class="tab-panel" id="panel-maintenance">
+      <div class="panel-header"><div class="panel-badge badge-speed">● Maintenance</div><h2>점검 운영</h2><p>게임 서비스를 일시 중단하고 변경을 적용하는 가장 흔한 LiveOps 활동. 사용자 영향과 변경 안정성의 균형이 핵심.</p></div>
+
+      <div class="sub" id="maintenance-types"><h3>점검 유형</h3>
+        <div class="cg">
+          <div class="card" style="border-top:3px solid var(--c-speed);"><h4 style="color:var(--c-speed)">정기 점검 (Scheduled)</h4><p>매주 같은 요일·시간(예: 매주 화요일 오전 6~9시). 사용자가 익숙해 영향 최소. 콘텐츠 업데이트·게임 데이터 변경의 기본 슬롯.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">긴급 점검 (Emergency)</h4><p>예상 못한 사고·치명 버그·결제 오류 등. 사전 공지가 짧거나 없음. <strong>사용자 신뢰에 큰 타격</strong>이라 최후의 수단.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">부분 점검 (Partial)</h4><p>특정 서비스만 (예: 매치메이킹·길드전·결제) 점검. 게임 본체는 계속 플레이 가능. 사용자 영향 적음.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-green);"><h4 style="color:var(--c-green)">무점검 운영 (Zero Downtime)</h4><p>롤링 배포·feature flag로 점검 없이 변경. 인프라가 받쳐줘야 가능. 모든 변경이 무점검은 어려움(DB 스키마 변경 등).</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="status-page"><h3>점검 페이지 시스템</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>역할</h4><p>점검 중 게임 부팅 시 사용자에게 보여주는 페이지. <strong>왜·언제까지·뭐가 바뀌는지</strong> 명확히. 점검 모드 토글로 자동 전환.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>다국어 지원</h4><p>글로벌 출시 게임은 region별 다국어 필수. 한국어·영어·일본어·중국어(번체/간체) 등. 운영팀이 코드 없이 입력 가능한 CMS.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>외부 도구</h4><p>Atlassian Statuspage, OneUptime, BetterStack 등 도입 가능. 게임은 자체 CMS도 흔함 (게임 클라가 직접 호출).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>점검 페이지 베스트 프랙티스</h4><p>① 명확한 시간(KST 시간대 명시), ② 무엇이 바뀌는지 1줄 요약, ③ 보상 안내(있으면), ④ 진행 중 업데이트, ⑤ 종료 시 명확한 복구 안내. 침묵은 가장 큰 적.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="window-design"><h3>점검 윈도우 설계</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">점검 시간 선택은 사용자 영향을 최소화하면서 작업 안정성을 확보하는 트레이드오프.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>요소</th><th>고려 사항</th></tr></thead>
+            <tbody>
+              <tr><td>시간대</td><td>해당 region의 사용자 수가 가장 적은 시간 (한국은 보통 새벽 5~9시). 글로벌 동시 출시 게임은 region별 점검 필요</td></tr>
+              <tr><td>요일</td><td>주말 회피(놀러 오는 사용자), 금요일·일요일 회피(주말 직전·당일 사고 시 대응 인력 부족)</td></tr>
+              <tr><td>예상 시간</td><td>"1시간 점검"이라 공지하고 30분 일찍 끝나는 게 좋음. <strong>지연은 사용자 신뢰를 크게 깎음</strong></td></tr>
+              <tr><td>마진</td><td>예상 시간의 1.5~2배를 윈도우로. 작업 실패 시 롤백·재시도 시간까지 확보</td></tr>
+              <tr><td>사전 공지</td><td>최소 24시간 전, 큰 변경은 일주일+ 전. 시작 직전 한 번 더 알림</td></tr>
+              <tr><td>복구 검증</td><td>점검 종료 전 핵심 시나리오(로그인·결제·매치) 자동 검증. 통과 후에 점검 페이지 내림</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-warn"><strong>⚠ PITFALL</strong><br>"점검 시간 30분 연장" 공지는 사용자 분노의 가장 큰 원인 중 하나. 차라리 처음부터 충분한 윈도우를 잡고 일찍 끝내는 게 신뢰에 좋음. 지연 시에도 <strong>침묵하지 말고 정직하게 새 ETA 안내</strong>가 원칙.</div>
+      </div>
+
+      <div class="sub" id="partial-maint"><h3>부분 점검 · 세션 드레인</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">전체 점검을 피하고 영향을 줄이는 기법. 인프라가 받쳐줘야 가능.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>세션 드레인</h4><p>새 사용자 접속을 막고, 기존 접속 세션은 자연 종료될 때까지 대기. <strong>롤링 배포·서버 교체</strong>의 표준 패턴. 보통 5~30분 소요.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>기능별 토글</h4><p>매치메이킹·결제·길드전 같은 개별 기능을 끄고 점검. 게임 본체는 계속 플레이 가능. <strong>해당 기능의 의존성</strong>(예: 결제는 인벤토리·계정에 의존)을 잘 끊어야 함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>region별 분할 점검</h4><p>한국 점검 → 일본 점검 → 글로벌 점검 식으로 region별 시차 활용. 인력 분산도 가능. 글로벌 게임에 흔함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>주의</h4><p>부분 점검 시에도 사용자에게 <strong>정확히 무엇이 막혔는지</strong> 안내. "결제만 점검 중"이라고 명확히 표시하지 않으면 사용자는 전체 다운으로 인식.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANNOUNCEMENTS -->
+    <div class="tab-panel" id="panel-announcements">
+      <div class="panel-header"><div class="panel-badge badge-stable">● Announcements & Events</div><h2>공지 & 이벤트</h2><p>사용자에게 새 콘텐츠·이벤트·점검을 알리는 채널과 시스템. 보상 지급 자동화로 운영팀 부담 최소화.</p></div>
+
+      <div class="sub" id="announce-channels"><h3>공지 채널</h3>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>채널</th><th>특성</th><th>활용</th></tr></thead>
+            <tbody>
+              <tr><td>인게임 공지</td><td>로그인 후 팝업·공지 게시판</td><td>사용자가 가장 많이 보는 채널. 핵심 정보</td></tr>
+              <tr><td>점검 페이지</td><td>로그인 전, 점검 시 표시</td><td>점검 안내 전용</td></tr>
+              <tr><td>인앱 메시지·배너</td><td>특정 화면·시간에 표시</td><td>이벤트 알림, 결제 유도, 신규 콘텐츠</td></tr>
+              <tr><td>푸시 알림 (FCM/APNs)</td><td>앱 외부에서 수신. 옵트아웃 가능</td><td>중요 알림, 이벤트 시작, 보상 도착</td></tr>
+              <tr><td>이메일</td><td>가장 격식 있는 채널</td><td>약관 변경·휴면 안내·계정 보안</td></tr>
+              <tr><td>홈페이지 / 카페 / 디스코드</td><td>외부 채널, 영구 게시</td><td>패치 노트, 자세한 안내, 커뮤니티 응대</td></tr>
+              <tr><td>SNS (X, 페이스북)</td><td>커뮤니케이션 + 마케팅</td><td>실시간 사고 안내·이벤트 홍보</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>중요 공지는 <strong>여러 채널 동시 발송</strong>. 사용자마다 보는 채널이 다르고, 한 채널이 다운돼도 다른 채널로 도달. 단, 메시지는 일관되게 — 채널마다 다른 내용이면 신뢰 잃음.</div>
+      </div>
+
+      <div class="sub" id="event-scheduler"><h3>이벤트 스케줄러</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>역할</h4><p>이벤트 시작·종료 시각·보상·조건을 사전 등록. 시간 도달 시 자동 활성화·종료. 운영팀이 코드 없이 등록 가능한 백오피스.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>구성 요소</h4><p>이벤트 정의(이름·기간·조건), 보상 정의(아이템·캐시·등급), 노출 대상(전체/세그먼트/개인), 진행률 추적(랭킹·누적), UI 리소스(배너·아이콘).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>주의 사항</h4><p>① 시간대(KST·UTC) 명확히, ② 시간이 지나도 자동 종료 안 되는 버그 (자주 발생), ③ 종료 직전 마지막 1분 트래픽 폭증 대비, ④ 시계 동기화 (서버 시간 기준).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>SRE 모니터링</h4><p>예약된 이벤트 누락 알림(스케줄러 다운 시), 이벤트 시작/종료 실패 알림, 보상 미지급 모니터링.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="reward-distribution"><h3>보상 지급 자동화</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">사고 보상·이벤트 보상·점검 보상 등 운영 중 보상을 일관된 워크플로우로. 수동 처리는 실수와 누락의 원인.</p>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable);">대상 조회<small>유저 세그먼트<br>또는 전체</small></div>
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed);">보상 정의<small>아이템·캐시·등급</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange);">우편함 발송<small>인게임 메일로<br>지급</small></div>
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green);">사용자 수령<small>로그인 후<br>수동 클릭</small></div>
+          <div class="pipe-stage" style="background:var(--c-teal-bg);color:var(--c-teal);">감사 로그<small>누가·언제·뭘<br>지급받았나</small></div>
+        </div>
+        <div class="note note-info"><strong>★ TIP</strong><br>"즉시 인벤토리 추가" 대신 <strong>인게임 우편함</strong>으로 보내는 게 표준. 사용자가 수동으로 수령해야 적용 — 인벤토리 가득 차거나 휴면 사용자 대비. 우편함 보관 기간(보통 30일)은 정책으로 안내.</div>
+      </div>
+
+      <div class="sub" id="kr-templates"><h3>한국어 공지 템플릿</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">실무에서 자주 쓰이는 점검·공지 메시지 템플릿. 게임마다 톤은 다르지만 정보 구조는 비슷하다.</p>
+
+        <div class="template-block">
+          <div class="tpl-title">정기 점검 사전 공지 (1주일 전 / 24시간 전)</div>
+          <div class="tpl-content">[정기 점검 안내] (게임 이름)
+
+안녕하세요. 더 안정적인 서비스 제공을 위해 아래와 같이 정기 점검을 진행할 예정입니다.
+
+▶ 점검 일시: 2026년 0월 0일(요일) 오전 06:00 ~ 09:00 (KST, 약 3시간)
+▶ 점검 내용:
+  • 신규 시즌 'OOO' 시작
+  • OO 캐릭터 밸런스 조정
+  • 일부 버그 수정
+
+▶ 점검 보상: 다이아 100개 (점검 종료 후 우편함으로 지급)
+
+점검 시간은 작업 진행 상황에 따라 변경될 수 있습니다. 변경 시 본 공지를 통해 안내드리겠습니다.
+
+이용에 불편을 드려 죄송합니다.</div>
+        </div>
+
+        <div class="template-block">
+          <div class="tpl-title">긴급 점검 시작 알림</div>
+          <div class="tpl-content">[긴급 점검 안내]
+
+현재 (서비스/기능명)에서 발생한 문제로 인해 긴급 점검이 진행됩니다.
+
+▶ 점검 시작: 2026년 0월 0일 00:00 (KST)
+▶ 예상 종료: 미정 (확인 후 공지)
+▶ 점검 사유: OOO 오류 발생
+
+점검 진행 상황은 30분마다 업데이트하여 공지드리겠습니다.
+점검 보상은 점검 종료 후 별도 안내드리겠습니다.
+
+갑작스러운 점검으로 불편을 드려 진심으로 사과드립니다.</div>
+        </div>
+
+        <div class="template-block">
+          <div class="tpl-title">점검 진행 중 업데이트 (지연 시)</div>
+          <div class="tpl-content">[점검 진행 안내]
+
+현재 진행 중인 점검 작업이 예상보다 길어지고 있어 안내드립니다.
+
+▶ 현재 진행 상황: OO 작업 진행 중 (전체의 약 70%)
+▶ 변경된 예상 종료: 2026년 0월 0일 11:00 (KST, 기존 09:00 대비 2시간 지연)
+▶ 지연 사유: OO 단계에서 추가 검증이 필요해 시간이 더 소요되고 있습니다
+
+차질 없이 안전한 오픈을 위해 신중히 진행하고 있습니다. 양해 부탁드리며, 다음 업데이트는 1시간 뒤에 안내드리겠습니다.</div>
+        </div>
+
+        <div class="template-block">
+          <div class="tpl-title">점검 종료 안내</div>
+          <div class="tpl-content">[점검 완료 안내]
+
+(게임 이름) 점검이 정상적으로 완료되어 서비스가 재개되었습니다.
+
+▶ 점검 종료: 2026년 0월 0일 08:30 (KST, 30분 일찍 종료)
+▶ 적용된 변경:
+  • 신규 시즌 시작
+  • OO 밸런스 조정 (자세한 패치 노트는 홈페이지 참조)
+
+▶ 점검 보상: 다이아 100개가 우편함에 지급되었습니다 (수령 기한 30일)
+
+다시 즐거운 게임 되시기 바랍니다. 감사합니다.</div>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>위 템플릿은 출발점. 게임 톤에 맞게 사내 표준화. 다국어 운영 시 영어·일본어·중국어 번역 템플릿도 함께 관리. 시간대(KST)는 반드시 명시 — 글로벌 사용자 혼동 방지.</div>
+      </div>
+    </div>
+
+    <!-- HOTFIX -->
+    <div class="tab-panel" id="panel-hotfix">
+      <div class="panel-header"><div class="panel-badge badge-orange">● Hotfix & Game Data</div><h2>핫픽스 & 게임 데이터</h2><p>긴급 변경을 라이브에 안전하게 적용하는 4가지 메커니즘 — 클라이언트 패치·서버 핫픽스·게임 데이터·Feature Flag.</p></div>
+
+      <div class="sub" id="change-types"><h3>변경 유형 매트릭스</h3>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>유형</th><th>적용 시간</th><th>롤백</th><th>예시</th></tr></thead>
+            <tbody>
+              <tr><td>클라이언트 패치</td><td>스토어 심사 수 시간~수 일 / Steam 즉시</td><td>이전 버전 강제 다운그레이드 어려움</td><td>UI 변경, 신캐릭터 리소스, 보안 패치</td></tr>
+              <tr><td>서버 핫픽스 (배포)</td><td>10분~1시간 (롤링)</td><td>이전 버전 재배포</td><td>로직 버그, 신기능, 성능 개선</td></tr>
+              <tr><td>게임 데이터 (테이블)</td><td>즉시 (config 갱신)</td><td>이전 데이터 재배포 즉시</td><td>아이템 가격, 드롭률, 이벤트 보상</td></tr>
+              <tr><td>Feature Flag</td><td>즉시 (토글)</td><td>토글 OFF</td><td>신기능 점진 노출, 긴급 차단</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-info"><strong>★ NOTE</strong><br><strong>가능하면 위에서 아래 순서로</strong> 변경을 우선. Feature Flag로 처리 가능 → 그게 안 되면 게임 데이터 → 그것도 안 되면 서버 배포 → 마지막으로 클라이언트 패치. 적용 시간·롤백 비용 모두 아래로 갈수록 유리.</div>
+      </div>
+
+      <div class="sub" id="data-driven"><h3>데이터 기반 변경 — 게임 데이터(테이블)</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>왜 데이터로?</h4><p>모바일은 스토어 심사가 끼어 클라 패치는 며칠. 그래서 <strong>아이템·드롭률·이벤트·캐릭터 능력치</strong> 등 자주 바뀌는 값은 서버에서 데이터로 내려주는 설계가 표준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>변경 워크플로우</h4><p>기획 작성 → 검수 PR → 스테이징 검증 → 라이브 적용 → 클라이언트 자동 갱신(다음 부팅 또는 polling). 모든 변경은 <strong>버전 관리 + 감사 로그</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>위험</h4><p>데이터 변경의 영향 범위를 정확히 파악하기 어려움. 한 값 변경이 다른 시스템(밸런스·매출)에 연쇄 영향. <strong>스테이징·QA·소수 사용자 카나리</strong> 단계 필수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>SRE 인프라</h4><p>데이터 적용 자동화, 검증 도구, 즉시 롤백 버튼, 변경 알림(슬랙·이메일). <strong>운영팀이 SRE 없이도 안전하게 작업할 수 있게 도구화</strong>가 SRE의 일.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="feature-flag"><h3>Feature Flag · Remote Config</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">코드 배포 없이 기능을 켜고 끄는 메커니즘. 신기능 점진 노출, 긴급 차단, A/B 테스트(P6)에 모두 사용.</p>
+        <div class="cg">
+          <div class="card" style="border-top:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">LaunchDarkly</h4><p>업계 표준 enterprise 플랫폼. <strong>Progressive Rollout</strong>(점진 비율 노출)·Guarded Rollout(메트릭 모니터링 + 회귀 시 자동 일시정지). 모바일 변경 즉시 반영.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">GrowthBook</h4><p>오픈소스, warehouse-native. 기존 데이터 웨어하우스 위에서 동작 → 비용 효율적. 게임·핀테크 등 컴플라이언스 강한 도메인에 적합. P6에서도 다룸.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">Firebase Remote Config</h4><p>Google 무료 (Firebase 생태계). AI 기반 personalization(예: 게임 난이도 자동 조정). CrazyLabs·Halfbrick 등 게임 사례 다수.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">AWS AppConfig</h4><p>AWS 생태계 통합. 배포 없이 config 변경 + 검증 + 모니터링. Pay-as-you-go (config 조회마다 과금). 큰 트래픽 시 비용 통제 주의.</p></div>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>"이 기능은 토글 가능하게 만들었나?"가 SRE의 새 기능 검토 체크리스트 1번. <strong>Feature Flag 없는 신기능은 사고 시 핫픽스 배포에 의존</strong>해야 함. 토글 가능 = 사고 시 즉시 차단 가능.</div>
+      </div>
+
+      <div class="sub" id="rollback"><h3>롤백 정책</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>롤백 결정 기준</h4><p>신규 기능 배포 후 <strong>임계 메트릭(에러율·결제 성공률·KPI)</strong> 모니터링. 임계 초과 시 자동 알림 → 1차 운영자 결정 → 즉시 롤백.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>롤백 vs 핫픽스</h4><p>"앞으로 가는 핫픽스" vs "뒤로 가는 롤백" 선택. 영향 범위·신뢰도·시간으로 판단. 의심스러우면 <strong>일단 롤백 → 분석 → 다시 정상 배포</strong>가 안전.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>데이터 변경 롤백</h4><p>이전 버전의 데이터 set을 별도 보관 → 즉시 재적용. <strong>변경 후 N분 동안은 이전 버전을 hot 상태로 유지</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>롤백 불가능 케이스</h4><p>DB 스키마 변경·데이터 마이그레이션 후. 이런 변경은 <strong>backward-compatible</strong>하게 설계해 롤백 가능성 확보.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXTERNAL -->
+    <div class="tab-panel" id="panel-external">
+      <div class="panel-header"><div class="panel-badge badge-red">● External Studio Collaboration</div><h2>외부 개발사 협업</h2><p>퍼블리싱하는 외부 IP는 개발사와 공동으로 LiveOps를 운영. 시차·언어·도구·정책 차이를 메우는 워크플로우가 핵심.</p></div>
+
+      <div class="sub" id="joint-workflow"><h3>공동 운영 워크플로우</h3>
+        <div class="flow">
+          <div class="flow-node" style="border-color:var(--c-red);"><h4 style="color:var(--c-red)">개발사</h4><p>빌드·핫픽스 작성<br>QA 1차</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-orange);"><h4 style="color:var(--c-orange)">전달</h4><p>빌드 / 데이터<br>전송</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-stable);"><h4 style="color:var(--c-stable)">퍼블리셔 검수</h4><p>인수 테스트·<br>SDK 통합 확인</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-speed);"><h4 style="color:var(--c-speed)">스테이징</h4><p>점검·롤백<br>리허설</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-green);"><h4 style="color:var(--c-green)">라이브 적용</h4><p>점검 동기화<br>+ 모니터링</p></div>
+        </div>
+        <div class="cg" style="margin-top:16px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>R&R 명확화</h4><p>계약 시점에 LiveOps R&R 명문화 (P1 가이드 참조). "긴급 핫픽스는 누가 결정?" 같은 질문이 매번 나오면 안 됨.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>공유 채널</h4><p>슬랙/디스코드 공동 채널, 공유 일정표(Notion·Confluence), 공동 점검 캘린더. 시차로 인한 정보 누락 방지.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="build-acceptance"><h3>빌드 검수 · 인수 테스트</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>인수 기준</h4><p>SDK 통합 확인(계정·결제·텔레메트리), 자동 회귀 테스트, 보안 스캔(악성코드·의존성 취약점), 성능 회귀 테스트. <strong>기준 미달이면 거부</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>스테이징 환경 제공</h4><p>외부 개발사가 빌드 검증할 수 있는 퍼블리셔 측 스테이징(통합 계정·결제·텔레메트리 다 연결된 환경). 운영 환경과 분리.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>긴급 핫픽스 fast track</h4><p>치명 버그 발생 시 검수 단계 일부 단축. <strong>최소 보안 + 통합 확인은 절대 스킵 안 함</strong>. 핫픽스 후 정밀 검수는 이후에.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>피드백 루프</h4><p>검수 결과를 개발사에 명확히 전달. 자주 발생하는 회귀 패턴은 사전 체크리스트로 표준화 → 검수 시간 단축.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="time-sync"><h3>시차 동기화</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">한국 퍼블리셔 + 일본·동남아·구미 개발사 협업 시 시차가 큰 변수. "한국 점검 시각이 개발사 새벽"인 상황이 자주 발생.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>점검 시각 협상</h4><p>점검은 사용자 시각 기준. 외부 개발사 인력이 새벽이라도 정기 점검은 한국 시간 기준으로 가는 경우가 흔함. <strong>긴급 핫픽스는 양사 인력이 동시에 가능한 시간</strong>으로 협상.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>온콜 분담</h4><p>퍼블리셔 영역(플랫폼 SDK·결제·계정)은 퍼블리셔 온콜, 게임서버 영역은 개발사 온콜. <strong>사고 발생 시 즉시 양사 워룸 가동</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>자동화 우선</h4><p>시차로 인한 인력 한계는 <strong>자동화로 해결</strong>. 점검 시작·종료, 보상 지급, 모니터링 알림 모두 자동화. 사람 개입 최소화가 시차 협업의 핵심.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>비동기 커뮤니케이션</h4><p>실시간 회의 줄이고 문서·티켓·녹화 영상으로 비동기 처리. <strong>"내가 자는 동안 일이 진행될 수 있게"</strong>가 글로벌 협업의 원칙.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REFERENCES -->
+    <div class="tab-panel" id="panel-references">
+      <div class="panel-header"><div class="panel-badge badge-green">● References</div><h2>참고 자료</h2><p>2026년 5월 기준으로 검증된 모범 사례·도구·게임 사례.</p></div>
+
+      <div class="sub" id="refs"><h3>분류별 참고 자료</h3>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-stable);"><span class="ref-cat" style="color:var(--c-stable);background:var(--c-stable-bg);">모범 사례</span>점검 · 사고 커뮤니케이션</h4>
+        <ul class="ref-list">
+          <li><a href="https://www.atlassian.com/incident-management/incident-communication" target="_blank">Atlassian — Incident Communication Best Practices</a><div class="ref-desc">사고·점검 커뮤니케이션의 표준 가이드. communicate early/often/precisely 원칙</div></li>
+          <li><a href="https://support.atlassian.com/statuspage/docs/incident-communication-tips/" target="_blank">Atlassian Statuspage — Incident Communication Tips</a><div class="ref-desc">실무자용 팁. 채널 일관성·문제 소유·post-incident 가이드</div></li>
+          <li><a href="https://incipulse.com/blog/best-practices-for-scheduled-maintenance-communication/" target="_blank">Incipulse — Scheduled Maintenance Communication Best Practices</a><div class="ref-desc">사전 공지 시점·시간대 명시·다채널 알림 등 실무 팁</div></li>
+          <li><a href="https://cloud.google.com/blog/products/management-tools/sre-error-budgets-and-maintenance-windows" target="_blank">Google Cloud — SRE Error Budgets and Maintenance Windows</a><div class="ref-desc">SRE 관점에서 점검 윈도우 설계와 error budget 활용</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-orange);"><span class="ref-cat" style="color:var(--c-orange);background:var(--c-orange-bg);">도구</span>Feature Flag · Remote Config · Status Page</h4>
+        <ul class="ref-list">
+          <li><a href="https://launchdarkly.com/docs/home/releases/progressive-rollouts" target="_blank">LaunchDarkly — Progressive Rollouts</a><div class="ref-desc">점진 노출·Guarded Rollout(메트릭 모니터링 + 자동 일시정지) 공식 문서</div></li>
+          <li><a href="https://www.growthbook.io/" target="_blank">GrowthBook — 오픈소스 Feature Flag & A/B 테스트</a><div class="ref-desc">warehouse-native, 게임·핀테크 등 컴플라이언스 도메인에 적합</div></li>
+          <li><a href="https://firebase.google.com/docs/remote-config" target="_blank">Firebase Remote Config — 공식 문서</a><div class="ref-desc">무료, AI 기반 personalization. 모바일 게임에 가장 흔한 첫 도구</div></li>
+          <li><a href="https://firebase.google.com/docs/remote-config/case-studies" target="_blank">Firebase Remote Config — Game Case Studies</a><div class="ref-desc">CrazyLabs·Halfbrick 등 실 게임 사례. 자동 테스트·ad frequency 최적화</div></li>
+          <li><a href="https://docs.aws.amazon.com/appconfig/latest/userguide/what-is-appconfig.html" target="_blank">AWS AppConfig — 공식 문서</a><div class="ref-desc">AWS 생태계 통합 config 관리. 검증·모니터링·롤백 내장</div></li>
+          <li><a href="https://www.atlassian.com/software/statuspage" target="_blank">Atlassian Statuspage</a><div class="ref-desc">사고·점검 안내 표준 도구. 다채널 알림·subscriber 관리</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-speed);"><span class="ref-cat" style="color:var(--c-speed);background:var(--c-speed-bg);">게임 사례</span>라이브 게임 운영 cadence</h4>
+        <ul class="ref-list">
+          <li><a href="https://support-leagueoflegends.riotgames.com/hc/en-us/articles/360018987893-Patch-Schedule-League-of-Legends" target="_blank">Riot Games — League of Legends Patch Schedule</a><div class="ref-desc">14일 cadence, 수요일(PT) 릴리스. 2026년 24개 패치 (26.01 ~ 26.24). 지연 시 48시간 전 통지 정책</div></li>
+          <li><a href="https://supercell.com/en/games/clashroyale/blog/release-notes/" target="_blank">Supercell — Clash Royale Release Notes</a><div class="ref-desc">월간 업데이트 릴리스 노트 패턴. 시즌 + 이벤트 cadence 구조</div></li>
+          <li><a href="https://www.leagueoflegends.com/en-us/news/game-updates/" target="_blank">League of Legends Game Updates</a><div class="ref-desc">패치 노트·이벤트·점검 안내의 표준 형식. 게임 사이트 reference</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-teal);"><span class="ref-cat" style="color:var(--c-teal);background:var(--c-teal-bg);">SRE 일반</span>변경 관리 · 배포</h4>
+        <ul class="ref-list">
+          <li><a href="https://sre.google/workbook/release-engineering/" target="_blank">Google SRE Workbook — Release Engineering</a><div class="ref-desc">SRE 관점의 릴리스·핫픽스·롤백 표준. 카나리·점진 배포 패턴</div></li>
+          <li><a href="https://sre.google/sre-book/managing-incidents/" target="_blank">Google SRE Book — Managing Incidents</a><div class="ref-desc">사고·긴급 점검 대응의 표준. IC(Incident Commander) 역할</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-green);"><span class="ref-cat" style="color:var(--c-green);background:var(--c-green-bg);">참고서적</span>변경 관리 · 라이브 운영</h4>
+        <ul class="ref-list">
+          <li><span style="font-weight:600;">The Art of Game Design (3rd Ed.)</span><div class="ref-desc">Jesse Schell 저. 게임 디자인 전반. LiveOps의 디자인적 측면(이벤트·시즌 설계) 이해에 도움</div></li>
+          <li><span style="font-weight:600;">Continuous Delivery</span><div class="ref-desc">Jez Humble · David Farley 저. 무중단 배포·롤백·feature flag의 기반서</div></li>
+        </ul>
+
+        <div class="note note-info" style="margin-top:32px;"><strong>★ NOTE</strong><br>이 가이드의 도구·정책 정보는 <strong>2026년 5월 기준</strong>. Feature Flag 도구 가격·정책, Riot 패치 일정 등은 갱신된다. 도입 전 공식 자료 재확인.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + tabId).classList.add('active');
+    document.querySelector('.top-tab[data-tab="' + tabId + '"]').classList.add('active');
+
+    document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+    const firstLink = document.querySelector('.sb-nav li a[data-tab="' + tabId + '"]');
+    if (firstLink) firstLink.classList.add('active');
+  }
+
+  document.querySelectorAll('.sb-nav li a').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const tab = link.dataset.tab;
+      const section = link.dataset.section;
+      switchTab(tab);
+      setTimeout(() => {
+        const el = document.getElementById(section);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }, 50);
+    });
+  });
+</script>
+</body>
+</html>
