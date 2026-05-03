@@ -142,6 +142,8 @@ const COLOR_MAP: Record<string, string> = {
   'var(--c-stable)': 'var(--color-green)',
   'var(--c-green)': 'var(--color-green)',
   'var(--accent-raid)': 'var(--color-teal)',
+  'var(--accent-lvm)': 'var(--color-blue)',
+  'var(--accent-purple)': 'var(--color-purple)',
 };
 
 function extractAccentColor(styleText: string, tabId: string): string {

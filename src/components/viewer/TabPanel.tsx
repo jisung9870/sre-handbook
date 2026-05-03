@@ -48,6 +48,32 @@ export function TabPanel({ html, isActive }: TabPanelProps) {
           .replace(/\s+/g, '-') ?? '';
       }
     });
+
+    // inner-tab 클릭 이벤트 바인딩 (원본 HTML의 switchInner 대체)
+    const innerTabBtns = ref.current.querySelectorAll<HTMLButtonElement>('.inner-tab');
+    innerTabBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const container = btn.closest('.cmd-box') ?? btn.closest('.inner-tabs')?.parentElement;
+        if (!container) return;
+
+        // 모든 inner-tab에서 active 제거
+        container.querySelectorAll('.inner-tab').forEach((b) => b.classList.remove('active'));
+        // 모든 inner-panel에서 active 제거
+        container.querySelectorAll('.inner-panel').forEach((p) => p.classList.remove('active'));
+
+        // 클릭된 버튼 active
+        btn.classList.add('active');
+
+        // onclick 속성에서 panelId 추출: onclick="switchInner(this,'pv-cmds')"
+        const onclickAttr = btn.getAttribute('onclick') ?? '';
+        const match = onclickAttr.match(/switchInner\s*\(\s*this\s*,\s*['"]([^'"]+)['"]\s*\)/);
+        if (match) {
+          const panelId = match[1];
+          const panel = container.querySelector(`#${panelId}`) ?? document.getElementById(panelId);
+          panel?.classList.add('active');
+        }
+      });
+    });
   }, [isActive, html]);
 
   if (!isActive) return null;
