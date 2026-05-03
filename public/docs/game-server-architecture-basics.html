@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>게임 서버 아키텍처 기초</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fb; --surface: #ffffff; --surface-2: #f0f2f5;
+    --sidebar-bg: #ffffff; --border: #e2e6eb; --border-strong: #d0d5dc;
+    --text: #1a1d23; --text-dim: #5c6370; --text-muted: #8b929e;
+    --c-speed: #0969b2; --c-speed-bg: #e8f4fd; --c-speed-border: #a2d2f5;
+    --c-stable: #8b5cf6; --c-stable-bg: #f3effe; --c-stable-border: #c4b5fd;
+    --c-green: #1a7f37; --c-green-bg: #ecf7ef; --c-green-border: #a6ddb5;
+    --c-orange: #c2600c; --c-orange-bg: #fef3eb; --c-orange-border: #f5cba7;
+    --c-red: #cf222e; --c-red-bg: #fdecea; --c-red-border: #f5a8a8;
+    --c-teal: #0e7c6b; --c-teal-bg: #e6f7f4; --c-teal-border: #8ed5c5;
+    --c-indigo: #3f51b5; --c-indigo-bg: #eaecf8; --c-indigo-border: #b5bce4;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 10px; --sidebar-w: 252px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-weight: 400; line-height: 1.75; }
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 28px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; box-shadow: 1px 0 8px rgba(0,0,0,0.03); }
+  .sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand h1 em { font-style: normal; color: var(--c-speed); }
+  .sb-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px 6px; font-weight: 600; }
+  .sb-nav { list-style: none; }
+  .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 22px; color: var(--text-dim); text-decoration: none; font-size: 13px; transition: all 0.15s; border-left: 2.5px solid transparent; cursor: pointer; }
+  .sb-nav li a:hover { color: var(--text); background: var(--surface-2); }
+  .sb-nav li a.active { color: var(--text); background: var(--c-speed-bg); border-left-color: var(--c-speed); font-weight: 600; }
+  .sb-nav li a .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 18px 22px 0; border-top: 1px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-muted); line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
+
+  .main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+  .top-tabs { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .top-tab { flex: 1; padding: 15px 16px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: none; cursor: pointer; position: relative; transition: all 0.2s; }
+  .top-tab:hover { color: var(--text); background: var(--surface-2); }
+  .top-tab::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2.5px; border-radius: 2px; transition: all 0.25s; }
+  .top-tab.active { color: var(--text); }
+  .top-tab[data-tab="overview"].active { color: var(--c-teal); }
+  .top-tab[data-tab="overview"].active::after { background: var(--c-teal); left: 12%; right: 12%; }
+  .top-tab[data-tab="game-loop"].active { color: var(--c-speed); }
+  .top-tab[data-tab="game-loop"].active::after { background: var(--c-speed); left: 12%; right: 12%; }
+  .top-tab[data-tab="session"].active { color: var(--c-stable); }
+  .top-tab[data-tab="session"].active::after { background: var(--c-stable); left: 12%; right: 12%; }
+  .top-tab[data-tab="state-sync"].active { color: var(--c-indigo); }
+  .top-tab[data-tab="state-sync"].active::after { background: var(--c-indigo); left: 12%; right: 12%; }
+  .top-tab[data-tab="network"].active { color: var(--c-orange); }
+  .top-tab[data-tab="network"].active::after { background: var(--c-orange); left: 12%; right: 12%; }
+  .top-tab[data-tab="ops"].active { color: var(--c-red); }
+  .top-tab[data-tab="ops"].active::after { background: var(--c-red); left: 12%; right: 12%; }
+  .top-tab[data-tab="references"].active { color: var(--c-green); }
+  .top-tab[data-tab="references"].active::after { background: var(--c-green); left: 12%; right: 12%; }
+
+  .tab-panel { display: none; padding: 40px 52px 80px; max-width: 980px; }
+  .tab-panel.active { display: block; }
+  .panel-header { margin-bottom: 36px; }
+  .panel-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px; font-weight: 600; }
+  .badge-teal { color: var(--c-teal); background: var(--c-teal-bg); border: 1px solid var(--c-teal-border); }
+  .badge-speed { color: var(--c-speed); background: var(--c-speed-bg); border: 1px solid var(--c-speed-border); }
+  .badge-stable { color: var(--c-stable); background: var(--c-stable-bg); border: 1px solid var(--c-stable-border); }
+  .badge-green { color: var(--c-green); background: var(--c-green-bg); border: 1px solid var(--c-green-border); }
+  .badge-orange { color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .badge-red { color: var(--c-red); background: var(--c-red-bg); border: 1px solid var(--c-red-border); }
+  .badge-indigo { color: var(--c-indigo); background: var(--c-indigo-bg); border: 1px solid var(--c-indigo-border); }
+  .panel-header h2 { font-size: 27px; font-weight: 700; margin-bottom: 8px; }
+  .panel-header p { color: var(--text-dim); font-size: 15px; max-width: 720px; line-height: 1.7; }
+  .sub { margin-top: 44px; scroll-margin-top: 72px; }
+  .sub h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+  .card h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card p { color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+  .card code { font-family: 'JetBrains Mono', monospace; background: var(--c-green-bg); color: var(--c-green); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .card-full { grid-column: 1 / -1; }
+
+  .level-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .level-table th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+  .level-table td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: top; line-height: 1.55; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .level-table tr:hover td { background: var(--surface-2); }
+  .level-table td:first-child { font-weight: 700; }
+  .lvl-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+  .lvl-elite { color: var(--c-green); background: var(--c-green-bg); }
+  .lvl-high { color: var(--c-speed); background: var(--c-speed-bg); }
+  .lvl-medium { color: var(--c-orange); background: var(--c-orange-bg); }
+  .lvl-low { color: var(--c-red); background: var(--c-red-bg); }
+  .lvl-self { color: var(--c-teal); background: var(--c-teal-bg); }
+  .lvl-pub { color: var(--c-stable); background: var(--c-stable-bg); }
+  .lvl-indigo { color: var(--c-indigo); background: var(--c-indigo-bg); }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 140px; box-shadow: var(--shadow-sm); }
+  .flow-node h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 3px; font-weight: 700; }
+  .flow-node p { font-size: 11px; color: var(--text-dim); }
+  .flow-arrow { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 22px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-top: 16px; overflow-x: auto; box-shadow: var(--shadow-sm); }
+  .box-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .note { background: var(--c-green-bg); border-left: 3px solid var(--c-green); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .note strong { color: var(--c-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .note-warn { background: var(--c-orange-bg); border-left-color: var(--c-orange); }
+  .note-warn strong { color: var(--c-orange); }
+  .note-info { background: var(--c-speed-bg); border-left-color: var(--c-speed); }
+  .note-info strong { color: var(--c-speed); }
+
+  .gauge-row { display: flex; gap: 14px; margin: 20px 0; }
+  .gauge-item { flex: 1; text-align: center; }
+  .gauge-bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin-bottom: 8px; }
+  .gauge-fill { height: 100%; border-radius: 4px; }
+  .gauge-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+  .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .pipe-stage { padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; text-align: center; min-width: 110px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-left: -8px; }
+  .pipe-stage:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); margin-left: 0; }
+  .pipe-stage small { display: block; font-weight: 500; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+
+  .ref-list { list-style: none; margin-top: 14px; }
+  .ref-list li { padding: 12px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; line-height: 1.6; }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list li a { color: var(--c-speed); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; }
+  .ref-list li a:hover { text-decoration: underline; }
+  .ref-list li .ref-desc { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .ref-cat { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; padding: 3px 10px; background: var(--c-teal-bg); border-radius: 12px; display: inline-block; margin-right: 8px; }
+
+  .tick-line { display: flex; gap: 0; margin: 16px 0; align-items: stretch; height: 56px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--surface); }
+  .tick-cell { flex: 1; border-right: 1px dashed var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim); padding: 4px 2px; }
+  .tick-cell:last-child { border-right: none; }
+  .tick-cell.t-input { background: var(--c-speed-bg); color: var(--c-speed); }
+  .tick-cell.t-sim { background: var(--c-indigo-bg); color: var(--c-indigo); }
+  .tick-cell.t-snap { background: var(--c-orange-bg); color: var(--c-orange); }
+  .tick-cell strong { font-size: 11px; font-weight: 700; }
+
+  .mobile-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 18px; cursor: pointer; box-shadow: var(--shadow-md); }
+  @media (max-width: 768px) {
+    .mobile-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .tab-panel { padding: 32px 20px 60px; }
+    .cg, .cg3 { grid-template-columns: 1fr; }
+    .top-tab { font-size: 10px; padding: 12px 6px; }
+    .gauge-row { flex-wrap: wrap; }
+    .pipeline { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="label">Game Fundamentals</div><h1><em>Game Server</em> Architecture Basics</h1></div>
+    <div class="sb-label">개요</div>
+    <ul class="sb-nav">
+      <li><a data-tab="overview" data-section="why-publisher-sre" class="active"><span class="dot" style="background:var(--c-teal)"></span>왜 퍼블리셔 SRE도 알아야 하나</a></li>
+      <li><a data-tab="overview" data-section="topology-types"><span class="dot" style="background:var(--c-teal)"></span>토폴로지 분류</a></li>
+      <li><a data-tab="overview" data-section="auth-vs-replicated"><span class="dot" style="background:var(--c-teal)"></span>Authoritative vs Replicated</a></li>
+      <li><a data-tab="overview" data-section="dedicated-vs-listen"><span class="dot" style="background:var(--c-teal)"></span>Dedicated vs Listen vs Relay</a></li>
+      <li><a data-tab="overview" data-section="genre-matrix"><span class="dot" style="background:var(--c-teal)"></span>장르별 아키텍처 매트릭스</a></li>
+      <li><a data-tab="overview" data-section="sre-scope"><span class="dot" style="background:var(--c-teal)"></span>퍼블리셔 SRE 관여 범위</a></li>
+    </ul>
+    <div class="sb-label">게임 루프 & 시뮬레이션</div>
+    <ul class="sb-nav">
+      <li><a data-tab="game-loop" data-section="server-loop"><span class="dot" style="background:var(--c-speed)"></span>서버 게임 루프</a></li>
+      <li><a data-tab="game-loop" data-section="tick-rate"><span class="dot" style="background:var(--c-speed)"></span>틱 레이트 (20·30·60Hz)</a></li>
+      <li><a data-tab="game-loop" data-section="fixed-vs-variable"><span class="dot" style="background:var(--c-speed)"></span>Fixed vs Variable timestep</a></li>
+      <li><a data-tab="game-loop" data-section="determinism"><span class="dot" style="background:var(--c-speed)"></span>Deterministic 시뮬레이션</a></li>
+      <li><a data-tab="game-loop" data-section="aoi"><span class="dot" style="background:var(--c-speed)"></span>AOI / 그리드 / 옥트리</a></li>
+      <li><a data-tab="game-loop" data-section="ecs"><span class="dot" style="background:var(--c-speed)"></span>ECS — 운영 관점</a></li>
+      <li><a data-tab="game-loop" data-section="tick-budget"><span class="dot" style="background:var(--c-speed)"></span>틱 budget & 메트릭</a></li>
+    </ul>
+    <div class="sb-label">세션 · 룸 · 인스턴스</div>
+    <ul class="sb-nav">
+      <li><a data-tab="session" data-section="session-lifecycle"><span class="dot" style="background:var(--c-stable)"></span>세션 lifecycle</a></li>
+      <li><a data-tab="session" data-section="room-vs-world"><span class="dot" style="background:var(--c-stable)"></span>인스턴스 매치 vs Persistent world</a></li>
+      <li><a data-tab="session" data-section="sharding"><span class="dot" style="background:var(--c-stable)"></span>Sharding · 채널 · 인스턴싱</a></li>
+      <li><a data-tab="session" data-section="orchestrators"><span class="dot" style="background:var(--c-stable)"></span>Agones / GameLift / Multiplay</a></li>
+      <li><a data-tab="session" data-section="allocator"><span class="dot" style="background:var(--c-stable)"></span>Allocator · Drain · Reservation</a></li>
+      <li><a data-tab="session" data-section="autoscaling"><span class="dot" style="background:var(--c-stable)"></span>Fleet 오토스케일링</a></li>
+    </ul>
+    <div class="sb-label">상태 동기화 & 일관성</div>
+    <ul class="sb-nav">
+      <li><a data-tab="state-sync" data-section="snapshot-interp"><span class="dot" style="background:var(--c-indigo)"></span>Snapshot interpolation</a></li>
+      <li><a data-tab="state-sync" data-section="prediction-recon"><span class="dot" style="background:var(--c-indigo)"></span>Prediction + Reconciliation</a></li>
+      <li><a data-tab="state-sync" data-section="lockstep-rollback"><span class="dot" style="background:var(--c-indigo)"></span>Lockstep & Rollback</a></li>
+      <li><a data-tab="state-sync" data-section="player-vs-world"><span class="dot" style="background:var(--c-indigo)"></span>Player state vs World state</a></li>
+      <li><a data-tab="state-sync" data-section="persistence"><span class="dot" style="background:var(--c-indigo)"></span>World state persistence</a></li>
+      <li><a data-tab="state-sync" data-section="consistency-class"><span class="dot" style="background:var(--c-indigo)"></span>일관성 등급 분리</a></li>
+    </ul>
+    <div class="sb-label">글로벌 분산 & 네트워크</div>
+    <ul class="sb-nav">
+      <li><a data-tab="network" data-section="region-strategy"><span class="dot" style="background:var(--c-orange)"></span>Region 선택 전략</a></li>
+      <li><a data-tab="network" data-section="edge-relay"><span class="dot" style="background:var(--c-orange)"></span>Edge / PoP relay (SDR · Photon)</a></li>
+      <li><a data-tab="network" data-section="cross-region-mm"><span class="dot" style="background:var(--c-orange)"></span>Cross-region matchmaking</a></li>
+      <li><a data-tab="network" data-section="anycast-geodns"><span class="dot" style="background:var(--c-orange)"></span>Anycast vs GeoDNS</a></li>
+      <li><a data-tab="network" data-section="latency-budget"><span class="dot" style="background:var(--c-orange)"></span>Latency budget breakdown</a></li>
+      <li><a data-tab="network" data-section="mobile-vs-pc"><span class="dot" style="background:var(--c-orange)"></span>모바일 vs PC 네트워크</a></li>
+    </ul>
+    <div class="sb-label">운영 & 관측</div>
+    <ul class="sb-nav">
+      <li><a data-tab="ops" data-section="metrics"><span class="dot" style="background:var(--c-red)"></span>SRE 메트릭 (CCU·MS/tick·RTT)</a></li>
+      <li><a data-tab="ops" data-section="health"><span class="dot" style="background:var(--c-red)"></span>게임 특화 헬스체크</a></li>
+      <li><a data-tab="ops" data-section="crash-replay"><span class="dot" style="background:var(--c-red)"></span>Crash · Replay · Desync</a></li>
+      <li><a data-tab="ops" data-section="patch-rollback"><span class="dot" style="background:var(--c-red)"></span>점검 · 핫픽스 · 롤백</a></li>
+      <li><a data-tab="ops" data-section="capacity"><span class="dot" style="background:var(--c-red)"></span>Capacity 모델</a></li>
+      <li><a data-tab="ops" data-section="collab"><span class="dot" style="background:var(--c-red)"></span>퍼블리셔 ↔ 게임사 협업</a></li>
+    </ul>
+    <div class="sb-label">참고 자료</div>
+    <ul class="sb-nav">
+      <li><a data-tab="references" data-section="refs"><span class="dot" style="background:var(--c-green)"></span>공식 문서 / 모범 사례</a></li>
+    </ul>
+    <div class="sidebar-footer"><p>Game Server Architecture<br>= Loop × Session × State × Network</p></div>
+  </aside>
+
+  <div class="main">
+    <div class="top-tabs">
+      <button class="top-tab active" data-tab="overview" onclick="switchTab('overview')">● 개요</button>
+      <button class="top-tab" data-tab="game-loop" onclick="switchTab('game-loop')">● 게임 루프</button>
+      <button class="top-tab" data-tab="session" onclick="switchTab('session')">● 세션 관리</button>
+      <button class="top-tab" data-tab="state-sync" onclick="switchTab('state-sync')">● 상태 동기화</button>
+      <button class="top-tab" data-tab="network" onclick="switchTab('network')">● 글로벌 분산</button>
+      <button class="top-tab" data-tab="ops" onclick="switchTab('ops')">● 운영 & 관측</button>
+      <button class="top-tab" data-tab="references" onclick="switchTab('references')">● 참고 자료</button>
+    </div>
+
+    <!-- ============ OVERVIEW ============ -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="panel-header"><div class="panel-badge badge-teal">● Overview</div><h2>게임 서버 아키텍처 — 퍼블리셔 SRE의 진입점</h2><p>퍼블리셔 SRE는 보통 게임사가 만든 서버 코드를 직접 수정하진 않지만, <strong>장르·토폴로지·세션 모델·동기화 방식</strong>에 따라 운영 방식이 완전히 달라진다. 이 문서는 게임사와 협업할 때 필요한 최소한의 게임 서버 구조 지식을 정리한다. (2026-05 기준)</p></div>
+
+      <div class="sub" id="why-publisher-sre">
+        <h3>왜 퍼블리셔 SRE도 게임 서버 구조를 알아야 하나</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>운영 SLA가 다르다</h4><p>MMO는 한 region에서 24/7 운영, FPS 매치는 5~30분짜리 짧은 인스턴스. 같은 다운타임이라도 영향이 완전히 다름.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>스파이크 패턴이 다르다</h4><p>MOBA·FPS는 "큐 진입 → 매칭 → 인스턴스 생성"의 갈고리형 트래픽, MMO 신규 서버 오픈은 채널/필드 동시 진입 폭증.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>롤백·핫픽스 방식이 다르다</h4><p>인스턴스 매치는 신규 인스턴스부터 새 빌드 적용 가능, persistent world는 점검 + 전체 롤아웃 강제.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>관측 메트릭 자체가 다르다</h4><p>HTTP 5xx로 게임 서버 health 못 잡음. ms-per-tick, AOI 부하, 패킷 손실, 큐 대기시간 같은 게임 도메인 메트릭이 핵심.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-teal)"></span>퍼블리셔의 위치</h4><p>대부분의 한국 퍼블리셔는 (1) 게임사가 빌드한 dedicated 서버 바이너리를 받아 (2) 자사 클러스터(또는 매니지드: Agones/GameLift/Multiplay)에 배포하고 (3) 트래픽 매칭·결제·CDN·텔레메트리 같은 공통 플랫폼과 연동한다. 게임 코드를 못 고쳐도 "어떤 토폴로지의 게임이냐"에 따라 캐파시티·관측·온콜 전략을 바꿔야 한다.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="topology-types">
+        <h3>토폴로지 분류 — Client-Server vs P2P</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Client-Server (C/S)</h4><p>중앙 서버가 권위(authoritative)를 가지고 모든 클라이언트의 입력을 검증·시뮬레이션. 대다수 상용 게임의 표준. 부정행위 방어와 일관성에 유리하지만 서버 비용·연산 부담이 크다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Peer-to-Peer (P2P)</h4><p>클라이언트끼리 직접 연결. 중앙 서버가 없어 비용이 낮고 latency가 가장 낮을 수 있지만 부정행위·NAT traversal·호스트 마이그레이션 문제. 격투(롤백 netcode)·소규모 협동·콘솔 LAN에 주로 사용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Hosted Relay</h4><p>P2P처럼 보이지만 중간에 클라우드 relay가 패킷을 중계 (예: Photon Cloud, Steam SDR P2P 모드). NAT 문제 해결 + IP 은닉. 권위는 호스트 클라이언트가 가짐 — Listen server 변형.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Hybrid</h4><p>로비·매칭·인벤토리는 클라우드 C/S, 인게임 입력만 P2P/Relay (예: Among Us, 일부 격투). 비용 vs 보안 절충안.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ 퍼블리셔 관점</strong><br>P2P 게임을 운영해도 <strong>로비·매칭·결제·통계</strong>는 무조건 클라우드 인프라가 필요. "P2P니까 우리 서버 부담 없다"는 오해 — relay·NAT punching 실패율, 호스트 마이그레이션 사용자 경험 모두 SRE가 챙겨야 한다.</p></div>
+      </div>
+
+      <div class="sub" id="auth-vs-replicated">
+        <h3>Authoritative vs Replicated 모델</h3>
+        <table class="level-table">
+          <thead><tr><th>구분</th><th>Server-Authoritative</th><th>Client-Authoritative</th><th>Deterministic Replicated</th></tr></thead>
+          <tbody>
+            <tr><td>의미</td><td>서버가 진짜 상태를 가진다. 클라는 입력만 보내고 결과를 받음</td><td>클라가 결과를 보내고 서버는 단순 중계</td><td>모든 피어가 같은 입력으로 같은 시뮬레이션 → 결과 일치 보장</td></tr>
+            <tr><td>치팅 저항</td><td><span class="lvl-badge lvl-elite">강함</span></td><td><span class="lvl-badge lvl-low">매우 약함</span></td><td><span class="lvl-badge lvl-medium">중간 — desync로 잡힘</span></td></tr>
+            <tr><td>대표 장르</td><td>FPS · MOBA · MMO · 모바일 RPG</td><td>(과거 캐주얼 게임) · 일부 모바일 클리커</td><td>RTS · 격투 · 카드</td></tr>
+            <tr><td>퍼블리셔 SRE 관점</td><td>서버 캐파시티·tick 부하 모니터링 핵심</td><td>운영 권장 안 함 — 어뷰징 폭주</td><td>desync 로그 수집 → 게임사 디버깅 지원</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-warn"><strong>★ 주의</strong><br>"Client-authoritative"는 학습용으로만 등장. 상용 라이브 게임에서 채택 시 결제·랭킹 어뷰징이 필연. 모바일 캐주얼이라도 핵심 보상 결정은 반드시 서버 검증.</div>
+      </div>
+
+      <div class="sub" id="dedicated-vs-listen">
+        <h3>Dedicated vs Listen vs Relay 서버</h3>
+        <div class="flow">
+          <div class="flow-node" style="border-color:var(--c-speed-border);background:var(--c-speed-bg)"><h4 style="color:var(--c-speed)">Dedicated</h4><p>전용 게임 서버<br>퍼블리셔 클러스터<br>FPS·MOBA·MMO</p></div>
+          <span class="flow-arrow">|</span>
+          <div class="flow-node" style="border-color:var(--c-orange-border);background:var(--c-orange-bg)"><h4 style="color:var(--c-orange)">Listen</h4><p>플레이어 1인이 호스트<br>P2P 변형<br>협동·캐주얼 멀티</p></div>
+          <span class="flow-arrow">|</span>
+          <div class="flow-node" style="border-color:var(--c-indigo-border);background:var(--c-indigo-bg)"><h4 style="color:var(--c-indigo)">Relay</h4><p>클라우드 relay 중계<br>P2P + DDoS 방어<br>SDR · Photon</p></div>
+        </div>
+        <div class="cg" style="margin-top:18px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Dedicated 운영 포인트</h4><p>오토스케일링 fleet, drain·rolling update, 노드 장애시 인스턴스 마이그레이션 필요. 장애 영향: 한 인스턴스 = 한 매치(수~수십 명). MMO는 한 채널 = 수백~수천 명.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Listen 운영 포인트</h4><p>호스트 클라가 떠나면 호스트 마이그레이션 또는 매치 종료. 퍼블리셔는 서버 캐파시티는 안 들지만 "호스트 이탈 시 사용자 경험" 메트릭(매치 중단율) 추적 필요.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Relay 운영 포인트</h4><p>Steam SDR 사용 시 Valve 백본이 알아서 routing. 자체 relay (Photon Bolt 등)면 PoP별 capacity·latency 모니터링.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>혼합</h4><p>FPS도 매칭/로비는 dedicated 서버 + 매치는 dedicated, 친구방은 listen, 외부 노출 IP는 SDR로 가리는 식의 조합이 일반적.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="genre-matrix">
+        <h3>장르별 아키텍처 매트릭스</h3>
+        <table class="level-table">
+          <thead><tr><th>장르</th><th>전형 토폴로지</th><th>틱 레이트</th><th>세션 수명</th><th>퍼블리셔 SRE 핵심</th></tr></thead>
+          <tbody>
+            <tr><td>MMORPG</td><td>Dedicated · Persistent world · 채널/필드 분할</td><td>10~20Hz</td><td>영구 (수년)</td><td>채널 캐파시티, DB 부하, 오픈/이전 점검</td></tr>
+            <tr><td>MOBA</td><td>Dedicated · 매치 인스턴스</td><td>30~60Hz</td><td>20~50분/매치</td><td>매칭 큐 latency, 인스턴스 fleet 스케일</td></tr>
+            <tr><td>FPS · BR</td><td>Dedicated + SDR · 매치 인스턴스</td><td>60~128Hz</td><td>10~30분/매치</td><td>tick rate 부하, anti-cheat 통합, region routing</td></tr>
+            <tr><td>RTS · 격투</td><td>P2P/Relay · Deterministic lockstep · Rollback</td><td>가변 (입력 단위)</td><td>15~40분/매치</td><td>desync 추적, 매치 메이킹 latency</td></tr>
+            <tr><td>모바일 RPG</td><td>Dedicated · HTTP+WebSocket · 비실시간</td><td>없음 (request-driven)</td><td>요청 단위 / 영구 데이터</td><td>API gateway, 결제·인벤토리 정합성, 일일 점검</td></tr>
+            <tr><td>모바일 협동 멀티</td><td>Photon Realtime · Listen/Relay</td><td>10~20Hz</td><td>5~30분/방</td><td>Photon CCU·region 분산, NAT 실패율</td></tr>
+            <tr><td>캐주얼·하이퍼캐주얼</td><td>HTTP 단방향 (랭킹·이벤트)</td><td>없음</td><td>요청 단위</td><td>API 캐싱·CDN·BI 파이프라인</td></tr>
+            <tr><td>샌드박스/생존</td><td>Dedicated · 소규모 persistent world</td><td>20~30Hz</td><td>서버당 영구 (월~년)</td><td>월드 백업, 모드 호환성, 사용자 호스팅 vs 공식</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub" id="sre-scope">
+        <h3>퍼블리셔 SRE의 관여 범위</h3>
+        <div class="cg3">
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>퍼블리셔 책임</h4><p>인프라 (k8s/VM/매니지드), 네트워크·CDN, 매칭·로비, 통합 계정, 결제·CS·BI, 모니터링·알림, 점검·공지, anti-cheat 통합</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>게임사 책임</h4><p>게임 서버 코드, 시뮬레이션·물리, AOI·인벤토리 로직, 게임 DB 스키마, 패치 빌드, 게임 내 밸런싱</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>공동 책임 (회색지대)</h4><p>매치메이킹 룰, 캐파시티 산정, 점검 윈도우 결정, 핫픽스 판단, 장애 RCA, 글로벌 region 운영 정책</p></div>
+        </div>
+        <div class="note"><strong>★ 협업 원칙</strong><br>게임 코드를 못 고쳐도 "어떤 모양의 트래픽인지"는 반드시 알아야 capacity·관측·온콜 전략이 나온다. 게임사와의 첫 미팅에서 (1) 토폴로지 (2) 틱 레이트 (3) 평균 세션 수명 (4) 매칭 정책 (5) 영속 데이터 모델 — 5가지를 반드시 확인하자.</div>
+      </div>
+    </div>
+
+    <!-- ============ GAME LOOP ============ -->
+    <div class="tab-panel" id="panel-game-loop">
+      <div class="panel-header"><div class="panel-badge badge-speed">● Simulation</div><h2>게임 루프 & 시뮬레이션</h2><p>게임 서버는 일반 백엔드와 다른 "시간 모델"을 가진다. tick 단위로 모든 것이 굴러가고, 한 tick 안에 끝나야 할 일을 못 끝내면 시뮬레이션이 밀린다. 이 섹션은 SRE가 알아야 할 최소한의 시뮬레이션 모델을 다룬다.</p></div>
+
+      <div class="sub" id="server-loop">
+        <h3>서버 게임 루프 — 한 tick 안에서 일어나는 일</h3>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed)">Recv Input<small>네트워크 큐</small></div>
+          <div class="pipe-stage" style="background:var(--c-indigo-bg);color:var(--c-indigo)">Validate<small>입력 검증</small></div>
+          <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable)">Simulate<small>물리·AI·게임 로직</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange)">AOI Cull<small>가시 영역 추출</small></div>
+          <div class="pipe-stage" style="background:var(--c-red-bg);color:var(--c-red)">Snapshot<small>스냅샷 직렬화</small></div>
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green)">Send<small>플레이어별 송신</small></div>
+        </div>
+        <div class="note note-info"><strong>★ 핵심</strong><br>이 6단계가 <strong>한 tick (예: 30Hz면 33ms)</strong> 안에 끝나야 한다. 60Hz면 16ms, 128Hz는 7.8ms. 못 끝내면 다음 tick이 밀리며 클라에서는 lag·rubberbanding으로 보인다.</div>
+      </div>
+
+      <div class="sub" id="tick-rate">
+        <h3>틱 레이트 — 20 / 30 / 60 / 128Hz 트레이드오프</h3>
+        <table class="level-table">
+          <thead><tr><th>틱 레이트</th><th>한 tick 시간</th><th>전형 장르</th><th>대역폭 (CCU 100명 기준)</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><span class="lvl-badge lvl-self">10Hz</span></td><td>100ms</td><td>모바일 협동, MMO 필드</td><td>매우 낮음</td><td>레이턴시 체감 큼, 모바일 데이터 절약</td></tr>
+            <tr><td><span class="lvl-badge lvl-high">20Hz</span></td><td>50ms</td><td>MMO 전투</td><td>낮음</td><td>일반 RPG 표준</td></tr>
+            <tr><td><span class="lvl-badge lvl-pub">30Hz</span></td><td>33ms</td><td>MOBA</td><td>중간</td><td>대중적 표준 (LoL 30Hz)</td></tr>
+            <tr><td><span class="lvl-badge lvl-elite">60Hz</span></td><td>16ms</td><td>FPS · BR</td><td>높음</td><td>일반 FPS (Apex·Fortnite 영역)</td></tr>
+            <tr><td><span class="lvl-badge lvl-indigo">64Hz</span></td><td>15.6ms</td><td>FPS 경쟁</td><td>높음</td><td>CS2 기본</td></tr>
+            <tr><td><span class="lvl-badge lvl-low">128Hz</span></td><td>7.8ms</td><td>FPS e스포츠</td><td>매우 높음</td><td>FACEIT·ESEA·일부 대회 환경</td></tr>
+          </tbody>
+        </table>
+        <div class="note"><strong>★ 운영 영향</strong><br>틱 레이트 2배 = CPU 비용 2배 + 대역폭 2배. 60→128Hz 전환은 캐파시티·비용 모두 두 배. 게임사가 "128Hz로 갈게요"라고 하면 SRE는 즉시 캐파시티/비용 영향 계산서 들고 협의 들어가야 한다.</div>
+      </div>
+
+      <div class="sub" id="fixed-vs-variable">
+        <h3>Fixed vs Variable timestep</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Fixed timestep</h4><p>매 tick 정확히 같은 시간(예: 16.67ms) 진행. 결정성 보장, 디버깅 쉬움. 서버는 거의 모두 fixed timestep. 부하가 몰려도 "한 tick 분량은 정해져 있다".</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Variable timestep</h4><p>실제 경과 시간만큼 진행. 클라이언트 렌더링에 주로 사용. 서버에서 사용 시 빠른 머신은 더 자주 시뮬레이션 → 결정성 깨짐. 거의 사용 안 함.</p></div>
+        </div>
+        <div class="box" style="margin-top:18px;">
+          <div class="box-title">Fixed timestep 의사 코드</div>
+<pre style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;color:var(--text-dim);">accumulator = 0
+TICK_DT = 1/30      <span style="color:var(--text-muted)"># 30Hz</span>
+while running:
+    delta = now() - last
+    accumulator += delta
+    while accumulator >= TICK_DT:
+        simulate(TICK_DT)        <span style="color:var(--text-muted)"># 항상 같은 dt</span>
+        accumulator -= TICK_DT
+    render_or_send()</pre>
+        </div>
+      </div>
+
+      <div class="sub" id="determinism">
+        <h3>Deterministic 시뮬레이션</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">같은 입력 → 같은 결과를 모든 머신에서 보장. RTS·격투·롤백 netcode의 전제 조건.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>왜 어려운가</h4><p>부동소수점(float) 비결정성, 컴파일러 최적화 차이, 멀티스레드 실행 순서, OS 콜 차이. CPU 아키텍처 (x86 vs ARM) 차이까지.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>해결책</h4><p>Fixed-point 산술 사용, 단일 스레드 시뮬레이션, 시드 고정 RNG. Photon Quantum이 이 모델의 대표 — Unity Verified Solution.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>장점</h4><p>대역폭 극소 (입력만 전송), 리플레이 = 입력 로그, 치팅 검출 강력 (모든 피어가 desync 발견).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>단점</h4><p>구현 난이도 매우 높음, "한 명 입력 안 오면 전체 대기" → lockstep 변형 (rollback) 필수.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="aoi">
+        <h3>AOI (Area of Interest) — 그리드 · 셀 · 옥트리</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">100명이 한 월드에 있어도 한 플레이어가 "보는" 건 주변 20~30명뿐. 전부 보내면 대역폭 폭발. AOI는 "이 플레이어에게 의미있는 다른 객체"만 추려내는 자료구조.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Grid (격자)</h4><p>2D/3D 공간을 균일한 셀로 분할. 객체는 자기 셀 + 인접 8셀 검사. 구현 단순, MMO 평면 월드에 적합.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Quadtree / Octree</h4><p>밀도에 따라 동적 분할. 객체가 한쪽에 몰려있으면 효율적. 구현 복잡, 동적 객체 갱신 비용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Spatial Hash</h4><p>좌표 → 해시 셀. O(1) 조회. 동적 환경 친화적, 충돌 처리에도 사용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Interest Group</h4><p>공간이 아닌 "그룹" (파티·길드·채팅방) 단위 관심. MMO에서 채팅·길드 알림에 사용.</p></div>
+        </div>
+        <div class="note note-warn"><strong>★ 운영 시 보는 메트릭</strong><br>AOI 결과 객체 수의 평균·max·p99. 한 플레이어가 인지하는 객체가 폭증 (예: 공성전 한 곳 모임)하면 송신 패킷이 폭증 → 서버 CPU·대역폭 동시 폭증. 알림 임계 설정 필수.</div>
+      </div>
+
+      <div class="sub" id="ecs">
+        <h3>ECS (Entity-Component-System) — SRE가 알아야 할 만큼만</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">대규모 게임 서버의 표준 아키텍처. 객체(Entity)는 ID, 데이터(Component)는 별도 테이블, 로직(System)은 일괄 처리. 캐시 친화적이라 수만 entity 시뮬레이션에 유리.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>운영 관점 1</h4><p>"한 system이 한 번에 모든 entity 처리" → 처리 시간이 entity 수에 비례. 캐파시티 모델링이 직관적.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>운영 관점 2</h4><p>System별로 시간 측정 가능 → 어떤 게임 로직이 무거운지 SRE가 게임사에 피드백 줄 때 유용.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ 코드 못 봐도</strong><br>"이 system이 평균 8ms / p99 25ms 걸린다"는 메트릭만 있으면 SRE는 캐파시티 한계 추산 가능. 게임사에 "system별 prometheus 메트릭 노출해 달라" 요청은 합리적이다.</div>
+      </div>
+
+      <div class="sub" id="tick-budget">
+        <h3>틱 budget & 핵심 메트릭</h3>
+        <div class="gauge-row">
+          <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:30%;background:var(--c-green)"></div></div><div class="gauge-label">CPU/tick</div><div class="gauge-value" style="color:var(--c-green)">10ms</div></div>
+          <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:55%;background:var(--c-orange)"></div></div><div class="gauge-label">p95/tick</div><div class="gauge-value" style="color:var(--c-orange)">18ms</div></div>
+          <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:90%;background:var(--c-red)"></div></div><div class="gauge-label">p99/tick</div><div class="gauge-value" style="color:var(--c-red)">29ms</div></div>
+          <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:100%;background:var(--c-stable)"></div></div><div class="gauge-label">budget (30Hz)</div><div class="gauge-value" style="color:var(--c-stable)">33ms</div></div>
+        </div>
+        <p style="color:var(--text-dim);font-size:14px;margin-top:14px;">위 예시: 30Hz 게임에서 평균 10ms 시뮬레이션, p99이 29ms로 budget 33ms에 거의 닿음. 이 상태에서 동접이 늘면 곧 budget 초과 → SRE 알림.</p>
+        <div class="note"><strong>★ SRE가 추적할 4가지</strong><br>① <strong>ms-per-tick (avg/p95/p99)</strong> — 시뮬레이션 부하 ② <strong>tick drift / late tick 비율</strong> — 밀린 tick 수 ③ <strong>send queue depth</strong> — 송신 적체 ④ <strong>send bandwidth/CCU</strong> — 인당 대역폭 추세</div>
+      </div>
+    </div>
+
+    <!-- ============ SESSION ============ -->
+    <div class="tab-panel" id="panel-session">
+      <div class="panel-header"><div class="panel-badge badge-stable">● Session Mgmt</div><h2>세션 · 룸 · 인스턴스 관리</h2><p>"한 게임 서버 = 한 매치"인 인스턴스 모델부터 "한 서버 = 채널 = 수천 명"인 persistent world까지, 운영 모델이 완전히 다르다. 이 섹션은 게임 세션 lifecycle과 fleet 운영 도구를 정리한다.</p></div>
+
+      <div class="sub" id="session-lifecycle">
+        <h3>게임 세션 lifecycle</h3>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed)">Queue<small>매칭 큐 진입</small></div>
+          <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable)">Match<small>플레이어 매칭</small></div>
+          <div class="pipe-stage" style="background:var(--c-indigo-bg);color:var(--c-indigo)">Allocate<small>서버 할당</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange)">Connect<small>클라 접속</small></div>
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green)">Play<small>인게임</small></div>
+          <div class="pipe-stage" style="background:var(--c-red-bg);color:var(--c-red)">End<small>결과 저장 · 종료</small></div>
+        </div>
+        <div class="cg" style="margin-top:18px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Queue → Match latency</h4><p>매치 메이킹 큐 평균 대기시간. 사용자 체감 1순위 메트릭. 보통 30초~3분 목표. 시간대별·MMR별 분포 추적.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Allocate latency</h4><p>매치가 만들어진 뒤 서버 인스턴스 할당까지의 시간. Agones/GameLift는 sub-second 목표. 1초 넘으면 사용자 이탈.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Connect → Play</h4><p>클라가 서버에 붙고 게임 시작까지. 로딩 화면 시간. CDN·맵 데이터 캐시·로딩 최적화 영향.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>End → Settle</h4><p>매치 결과 → BI/랭킹/보상 DB 반영 완료. 결제·인벤토리 일관성 보장 필요.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="room-vs-world">
+        <h3>인스턴스 매치 vs Persistent world</h3>
+        <table class="level-table">
+          <thead><tr><th>구분</th><th>인스턴스 매치</th><th>Persistent World</th></tr></thead>
+          <tbody>
+            <tr><td>대표 장르</td><td>FPS · MOBA · BR · 격투</td><td>MMORPG · 샌드박스 · 생존</td></tr>
+            <tr><td>서버당 플레이어</td><td>2~150명</td><td>수백~수천 (채널 단위)</td></tr>
+            <tr><td>서버 수명</td><td>매치당 (분 단위)</td><td>영구 (수년)</td></tr>
+            <tr><td>스케일링 모델</td><td>매치당 인스턴스 새로 생성, fleet 오토스케일</td><td>채널/필드 추가, DB 샤딩 확장</td></tr>
+            <tr><td>패치 적용</td><td>새 매치부터 새 빌드 (rolling)</td><td>전체 점검 + 핫픽스 어려움</td></tr>
+            <tr><td>대표 운영 도구</td><td>Agones · GameLift Servers · Multiplay</td><td>자체 채널 관리자 · DB 마스터/샤드</td></tr>
+            <tr><td>실패 영향 범위</td><td>한 매치 (수~수십 명)</td><td>한 채널 = 수백~수천 명</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub" id="sharding">
+        <h3>Sharding · 채널 · 인스턴싱</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Sharding (서버군 분리)</h4><p>"카루나 서버", "테라 서버"처럼 사용자가 명시적으로 선택. 서버 간 데이터 분리. 클래식 MMORPG 패턴.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Channel (한 서버 안 채널 분할)</h4><p>한 월드를 채널 1·2·3으로 나눠 부하 분산. 사용자가 채널 이동 가능. 한국 MMORPG 표준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Instancing (영역 동적 인스턴스)</h4><p>특정 던전/레이드 진입 시 임시 인스턴스 생성. 인원 차면 새 인스턴스. WoW·로스트아크 패턴.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Megaserver (메가서버)</h4><p>모든 사용자가 한 풀에 들어가고 백엔드가 동적으로 sharding. ESO·GW2 패턴. 운영 복잡성 ↑.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="orchestrators">
+        <h3>Game Server Orchestrator — Agones · GameLift · Multiplay</h3>
+        <table class="level-table">
+          <thead><tr><th>도구</th><th>운영 모델</th><th>핵심 특징</th><th>2026-05 현황</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Agones</strong></td><td>오픈소스, 자체 k8s 클러스터에 배포</td><td>k8s CRD 기반 GameServer/Fleet, Counter feature, init/sidecar 컨테이너 지원</td><td>K8s 1.33~1.35 지원. Google for Games 후원, 커뮤니티 활발</td></tr>
+            <tr><td><strong>AWS GameLift Servers</strong></td><td>AWS 매니지드 (관리형 fleet)</td><td>FlexMatch, FleetIQ (Spot 최적화), Anywhere (자체 인프라 통합)</td><td>"Amazon GameLift Servers"로 리브랜딩, FlexMatch 단독 사용 시 player package 과금</td></tr>
+            <tr><td><strong>Unity Multiplay</strong></td><td>Unity 매니지드 → Rocket Science 이전</td><td>Unity 게임 통합 강점</td><td><strong>2026-03-31 Unity 직접 지원 종료</strong>, Rocket Science Group으로 라이선스 이전</td></tr>
+            <tr><td><strong>Open Match (1.x / 2)</strong></td><td>오픈소스 매치메이킹 framework (orchestrator 아님)</td><td>OM1: production용, OM2: 단일 OpenMatchService gRPC, streaming 결과</td><td>OM2는 public preview 단계, OM1은 production에서 계속 사용</td></tr>
+            <tr><td><strong>Azure PlayFab Multiplayer Servers</strong></td><td>Azure 매니지드</td><td>크로스 플랫폼·익명 인증 + 게임 서버 호스팅 결합</td><td>꾸준히 운영 중, MS Game Stack 일부</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-warn"><strong>★ Multiplay 변경 영향</strong><br>2026-03-31에 Unity가 Multiplay 직접 운영을 종료하고 Rocket Science Group으로 이전. 기존 사용 중이면 마이그레이션 가이드를 확인하고, Unity Matchmaker는 이제 GameLift / PlayFab / Agones / Multiplay(Rocket Science) 멀티 호스팅을 지원한다.</div>
+      </div>
+
+      <div class="sub" id="allocator">
+        <h3>Allocator · Drain · Reservation 패턴</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Allocate</h4><p>매칭이 끝나면 fleet에서 "준비된 GameServer 인스턴스 1개 잡아줘". Agones는 GameServerAllocation CRD로 sub-second에 처리.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Reserve (예약)</h4><p>매치가 만들어지기 전에 미리 인스턴스 예약. cold start 회피용. Agones 1.x부터 지원.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Drain (배수)</h4><p>특정 노드의 GameServer를 새로 받지 않게 막고, 끝나는 대로 종료. 노드 점검·롤링 업그레이드 필수 패턴.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Counter / List</h4><p>(Agones 신규) GameServer 내 상태(현재 플레이어 수 등)를 k8s API로 노출. 외부 매처가 "남은 자리 있는 서버" 검색 가능.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="autoscaling">
+        <h3>Fleet 오토스케일링</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">웹 서비스의 CPU 기반 HPA로는 게임 서버를 못 다룬다. 핵심 신호는 "비어있는 인스턴스 수 (Ready 상태)" — 신규 매치 수요를 흡수할 buffer.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Buffer-based</h4><p>Ready 인스턴스가 N개 미만이면 fleet replicas 증가. Agones BufferPolicy 표준 패턴. 항상 일정한 매칭 수용 capacity 유지.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Capacity-based</h4><p>전체 fleet의 사용률(allocated/total)이 임계 넘으면 확장. MOBA·BR처럼 매치 수명 짧으면 변동 큼.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Schedule-based</h4><p>이벤트·런칭·평일 저녁 피크 등 시간대별 스케줄 기반 사전 확장. 신규 콘텐츠 패치일에 필수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Spot/Preemptible 혼합</h4><p>FleetIQ는 Spot으로 비용 70% 절감 가능. 단 매치 진행 중 회수되면 매치 종료 → critical 매치 (랭크전)는 on-demand fleet 분리.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ Cold start 함정</strong><br>Container 이미지 풀, 게임 데이터(asset) 로딩, 초기화 스크립트까지 합치면 한 GameServer가 Ready되는데 30초~수 분. Buffer 부족하면 매치 들어왔는데 서버 없는 상황. 항상 Ready 인스턴스를 buffer로 미리 띄워라.</div>
+      </div>
+    </div>
+
+    <!-- ============ STATE SYNC ============ -->
+    <div class="tab-panel" id="panel-state-sync">
+      <div class="panel-header"><div class="panel-badge badge-indigo">● State Sync</div><h2>상태 동기화 & 일관성</h2><p>실시간 게임은 "서버 진실"을 클라에 어떻게 전파하느냐의 문제다. Snapshot, Prediction, Reconciliation, Lockstep, Rollback 같은 용어가 무엇이고, 어떤 게임 데이터에는 strong consistency가 필요한지 정리한다.</p></div>
+
+      <div class="sub" id="snapshot-interp">
+        <h3>Snapshot Interpolation</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">서버는 일정 주기(예: 30Hz)로 "월드 상태 스냅샷"을 모든 클라에 보낸다. 클라는 두 스냅샷 사이를 보간해 부드럽게 표현 — Quake III가 도입, 현재 FPS 표준.</p>
+        <div class="tick-line">
+          <div class="tick-cell t-snap"><strong>S0</strong><span>0ms</span></div>
+          <div class="tick-cell">interpolating</div>
+          <div class="tick-cell t-snap"><strong>S1</strong><span>33ms</span></div>
+          <div class="tick-cell">interpolating</div>
+          <div class="tick-cell t-snap"><strong>S2</strong><span>66ms</span></div>
+          <div class="tick-cell">interpolating</div>
+          <div class="tick-cell t-snap"><strong>S3</strong><span>100ms</span></div>
+        </div>
+        <div class="cg" style="margin-top:18px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>장점</h4><p>네트워크 jitter 흡수, 부드러운 움직임. 단순한 모델.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>단점</h4><p>본질적 latency 추가 (보간을 위해 한 tick 정도 지연). 본인 캐릭터에는 부적합.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="prediction-recon">
+        <h3>Client Prediction + Server Reconciliation</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">"내 캐릭터 입력은 즉시 반응"이 필요. 클라가 입력을 서버로 보냄과 동시에 자기 시점에서 미리 시뮬레이션 → 서버 응답 오면 차이 보정. Source 엔진(HL2·CS) 이래 표준.</p>
+        <div class="flow">
+          <div class="flow-node" style="border-color:var(--c-speed-border);background:var(--c-speed-bg)"><h4 style="color:var(--c-speed)">입력</h4><p>WASD 누름<br>→ 서버 송신</p></div>
+          <span class="flow-arrow">+</span>
+          <div class="flow-node" style="border-color:var(--c-stable-border);background:var(--c-stable-bg)"><h4 style="color:var(--c-stable)">Predict</h4><p>클라가 즉시<br>이동 시뮬레이션</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-indigo-border);background:var(--c-indigo-bg)"><h4 style="color:var(--c-indigo)">Server</h4><p>실제 시뮬레이션<br>결과 반환</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-orange-border);background:var(--c-orange-bg)"><h4 style="color:var(--c-orange)">Reconcile</h4><p>차이 있으면<br>위치 보정</p></div>
+        </div>
+        <div class="note note-warn"><strong>★ Lag compensation</strong><br>FPS에서 "내 화면에 적이 보일 때 쏘면 맞춰주는 것"은 서버가 과거 시점(예: 80ms 전) 적 위치를 기억해 hit detection 해주는 별도 메커니즘. 사용자 ping이 들쭉날쭉하면 효과가 약해진다.</div>
+      </div>
+
+      <div class="sub" id="lockstep-rollback">
+        <h3>Deterministic Lockstep & Rollback Netcode</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Lockstep</h4><p>모든 피어가 같은 입력 받고 동시 진행. RTS·MOBA 일부 (StarCraft·LoL 일부 변형). 한 명 입력 안 오면 전체 대기 → 가장 느린 사람 기준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Rollback</h4><p>입력 안 와도 추정해서 진행, 늦게 도착하면 시점 되감기 후 재시뮬레이션. 격투 게임 표준 (GGPO, SF6, Tekken 8). 부드러운 경험, 결정성 필수.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ Photon Quantum</strong><br>Photon Quantum은 fully deterministic predict/rollback 엔진. e-sport·격투·RTS 같이 frame-perfect 동기화가 필요한 장르 대상. Photon Fusion(state transfer + client prediction)과는 정반대 방식 — 같은 회사 두 제품의 용도 차이 이해 필요.</div>
+      </div>
+
+      <div class="sub" id="player-vs-world">
+        <h3>Player state vs World state — 분리해서 사고하라</h3>
+        <table class="level-table">
+          <thead><tr><th>구분</th><th>Player State</th><th>World State</th></tr></thead>
+          <tbody>
+            <tr><td>예시</td><td>인벤토리, 캐릭터 레벨, 골드, 친구 목록</td><td>몬스터 위치, 길드 점령, 채널 내 객체</td></tr>
+            <tr><td>저장 방식</td><td>Player DB (RDB·KV) — 영구</td><td>인메모리, 주기 스냅샷, 일부 영구</td></tr>
+            <tr><td>일관성</td><td>Strong (결제·재화는 트랜잭션)</td><td>Eventual (위치·잡음 데이터)</td></tr>
+            <tr><td>스케일</td><td>플레이어 수 비례</td><td>월드/채널 수 비례</td></tr>
+            <tr><td>SRE 관심사</td><td>DB 정합성·복구·백업</td><td>채널 OOM, snapshot lag</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub" id="persistence">
+        <h3>World state persistence — 언제, 얼마나 자주 저장하나</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Per-action</h4><p>모든 액션을 DB 저장. 정합성 최강, DB 부하 최대. 결제·아이템 획득에만 사용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Periodic snapshot</h4><p>5~30초마다 캐릭터 상태 일괄 저장. 일반 MMO 표준. 짧은 시간 손실 가능 (서버 크래시 시 30초 전으로 롤백).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Write-behind queue</h4><p>액션을 큐에 쌓고 batch insert. throughput 극대, 큐 장애 시 손실 위험. Kafka·Pulsar 활용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Event sourcing</h4><p>모든 사건을 이벤트로 append-only 저장 후 read model 구성. 감사·롤백 강력, 복잡도 높음.</p></div>
+        </div>
+        <div class="note note-warn"><strong>★ 운영 함정</strong><br>"5초마다 저장"이라고 해도 동시 1만 명이면 초당 2,000 write 평균. 보스 처치 같은 이벤트 동시 발생하면 spike. DB write IOPS와 게임 서버의 batching 전략 SRE가 같이 봐야 한다.</div>
+      </div>
+
+      <div class="sub" id="consistency-class">
+        <h3>일관성 등급 분리 — 데이터 종류별 SLA</h3>
+        <table class="level-table">
+          <thead><tr><th>데이터 클래스</th><th>일관성</th><th>저장소</th><th>장애 시 영향</th></tr></thead>
+          <tbody>
+            <tr><td>결제·재화 트랜잭션</td><td><span class="lvl-badge lvl-elite">Strong (ACID)</span></td><td>RDB (PostgreSQL·MySQL)</td><td>금전 손실 → 사용자 클레임 → 보상 비용</td></tr>
+            <tr><td>인벤토리·계정 데이터</td><td><span class="lvl-badge lvl-elite">Strong</span></td><td>RDB or Strong KV</td><td>아이템 복제·소실</td></tr>
+            <tr><td>캐릭터 위치·체력</td><td><span class="lvl-badge lvl-medium">Eventual</span></td><td>인메모리 + 주기 snapshot</td><td>몇 초 롤백 (수용 가능)</td></tr>
+            <tr><td>채팅 메시지</td><td><span class="lvl-badge lvl-medium">Eventual</span></td><td>Pub/Sub (Redis·Kafka)</td><td>메시지 순서·일부 손실</td></tr>
+            <tr><td>랭킹·통계</td><td><span class="lvl-badge lvl-self">Eventual (지연 OK)</span></td><td>Read Replica · ETL</td><td>랭킹 갱신 지연 (수 분~시간)</td></tr>
+            <tr><td>로그·텔레메트리</td><td><span class="lvl-badge lvl-self">At-least-once</span></td><td>Kafka → S3 / BigQuery</td><td>중복 가능, 손실은 BI 영향</td></tr>
+          </tbody>
+        </table>
+        <div class="note"><strong>★ SRE 원칙</strong><br>"모든 데이터를 strong consistency로"는 재앙. 데이터 클래스별로 SLA를 분리하고, 결제·인벤토리에만 집중적으로 투자하라. 위치 데이터를 strong으로 만들면 게임 자체가 못 돌아간다.</div>
+      </div>
+    </div>
+
+    <!-- ============ NETWORK ============ -->
+    <div class="tab-panel" id="panel-network">
+      <div class="panel-header"><div class="panel-badge badge-orange">● Global Network</div><h2>글로벌 분산 & 네트워크 토폴로지</h2><p>플레이어와 서버가 같은 region에 있다고 보장 못 한다. 글로벌 라이브 게임은 region 선택, edge relay, cross-region matchmaking 모두 SRE가 설계한다.</p></div>
+
+      <div class="sub" id="region-strategy">
+        <h3>Region 선택 전략 — 어떻게 결정하나</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Latency-based</h4><p>클라가 후보 region에 ping 보내고 가장 빠른 곳으로. FPS·격투·MOBA 표준. 클라가 측정·결정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Geo-IP</h4><p>클라 IP의 GeoIP 조회로 자동 매핑. 단순, 부정확 가능 (VPN·모바일 캐리어 NAT).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Player-choice</h4><p>"한국 / 일본 / 동남아" 명시 선택. MMO 표준. 친구와 같은 서버 보장.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Hybrid (latency + queue health)</h4><p>가장 빠른 region이 큐가 길면 차순위로 라우팅. FPS·BR에서 매칭 시간 vs latency 트레이드오프.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="edge-relay">
+        <h3>Edge / PoP relay — Steam Datagram Relay · Photon Cloud</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Steam Datagram Relay (SDR)</h4><p>Valve 백본을 통해 게임 트래픽 라우팅. 클라는 IP 모름 (DDoS 방어). 클라가 가까운 PoP 선택 → Valve 사설망 → 서버. 단, 서버는 AWS·Azure·GCP 데이터센터 안에 있어야 함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Photon Cloud</h4><p>Photon Realtime/Fusion이 글로벌 region cluster 운영. 클라는 region selector로 가장 빠른 곳 자동 선택. 모바일 협동 게임 사실상 표준 (Among Us·일부 한국 모바일).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>AWS GameLift FleetIQ</h4><p>Spot 인스턴스 가용성·가격을 region·zone별 추적해 최적 fleet 자동 할당. 비용 최적화에 강점.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Anycast (Cloudflare Spectrum 등)</h4><p>같은 IP가 전 세계 여러 PoP에 advertise되어 BGP가 최적 경로로 라우팅. 일반 웹은 표준이지만 게임 UDP는 sticky session 보장 어려움.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ SDR 활용 패턴</strong><br>Steam에 출시하는 PvP 게임은 SDR 통합이 사실상 의무. (1) IP 노출 차단 → DDoS 방어 (2) 잡음 많은 ISP 라우팅 우회 → ping 개선. 단점: AWS/Azure/GCP 데이터센터에만 호스팅 가능 (베어메탈·온프레미스 직접 사용 어려움).</div>
+      </div>
+
+      <div class="sub" id="cross-region-mm">
+        <h3>Cross-region matchmaking — 글로벌 매칭의 함정</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">한국·일본·동남아 사용자를 한 매치에 묶을 것인가? 매칭 시간 vs latency 영원한 트레이드오프.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Region-locked</h4><p>같은 region 사용자끼리만. 매칭 시간 길어질 수 있음, latency 일정. 경쟁전 표준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Adjacent region 허용</h4><p>한국+일본, EU 내부 등 인접 region 매치. 매칭 풀 확장, 최대 RTT 80~100ms 정도 보장.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Global pool</h4><p>전 세계 한 풀. 매칭 시간 가장 짧음, latency 무보장. 캐주얼·이벤트 모드.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Time-based 확장</h4><p>큐 대기 시간이 일정 임계 넘으면 매칭 풀 확장. FlexMatch·Open Match에서 룰로 표현.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="anycast-geodns">
+        <h3>Anycast vs GeoDNS — 트래픽 라우팅 비교</h3>
+        <table class="level-table">
+          <thead><tr><th>방식</th><th>원리</th><th>장점</th><th>단점</th><th>게임 적합성</th></tr></thead>
+          <tbody>
+            <tr><td>GeoDNS</td><td>DNS 응답이 클라 IP 위치별 다름</td><td>구현 단순, 잘 알려진 패턴</td><td>DNS 캐싱·해상력 차이로 부정확</td><td>로그인·로비에 적합. 매치 IP는 따로 결정</td></tr>
+            <tr><td>Anycast (BGP)</td><td>같은 IP를 여러 PoP에서 advertise</td><td>장애 시 자동 fail-over, 글로벌 단일 IP</td><td>UDP 게임 stick 보장 어려움</td><td>로비·매칭 API에 적합. 인게임 UDP는 SDR/직접 IP</td></tr>
+            <tr><td>Steam SDR</td><td>Valve 사설망 가상 주소</td><td>IP 은닉, 백본 품질</td><td>AWS/Azure/GCP만, Valve 의존</td><td>Steam PvP 게임에 최적</td></tr>
+            <tr><td>Cloudflare Spectrum</td><td>L4 프록시 + Anycast</td><td>DDoS 방어 강력</td><td>비용·UDP 한계</td><td>로비·웹 API DDoS 보호용</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub" id="latency-budget">
+        <h3>Latency budget breakdown — 30ms 안에 무엇이 들어있나</h3>
+        <div class="box">
+          <div class="box-title">서울→도쿄 FPS 매치 latency 분해 예시</div>
+<pre style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:var(--text-dim);">클라 → ISP last-mile           ~5ms
+ISP → IXP/PoP                  ~3ms
+PoP → 서버 region (KR→JP)      ~30ms
+서버 입력 큐 대기              ~2ms (혼잡 시 ↑)
+시뮬레이션 (한 tick 안)        ~16ms (60Hz 기준)
+스냅샷 송신 → 클라             ~30ms
+클라 입력 → 화면 반영          ~16ms (60fps 모니터)
+─────────────────────────────────────
+체감 RTT (round-trip)          ~100ms
+</pre>
+        </div>
+        <div class="note"><strong>★ SRE가 통제 가능한 부분</strong><br>네트워크 경로(region 선택, edge PoP)와 서버 처리(시뮬레이션·송신 큐)만이 SRE 통제 영역. 클라 모니터·라스트마일은 못 건드림. 따라서 region 배치·tick 부하 관리가 가장 큰 레버.</div>
+      </div>
+
+      <div class="sub" id="mobile-vs-pc">
+        <h3>모바일 vs PC 네트워크 차이</h3>
+        <table class="level-table">
+          <thead><tr><th>항목</th><th>모바일 (LTE/5G/Wi-Fi)</th><th>PC (유선/Wi-Fi)</th></tr></thead>
+          <tbody>
+            <tr><td>평균 RTT</td><td>30~80ms (5G), 80~200ms (LTE 혼잡)</td><td>10~50ms (유선)</td></tr>
+            <tr><td>jitter</td><td>큼 — 모바일 셀 핸드오프</td><td>안정</td></tr>
+            <tr><td>패킷 손실</td><td>1~5%</td><td>0.1~1%</td></tr>
+            <tr><td>NAT</td><td>캐리어 CGNAT — P2P 어려움</td><td>홈 라우터 NAT — UPnP·STUN 가능</td></tr>
+            <tr><td>대역폭 비용</td><td>사용자 데이터 부담 — 패킷 절약 필수</td><td>무제한 일반</td></tr>
+            <tr><td>백그라운드 동작</td><td>OS가 죽임 — heartbeat·재접속 핵심</td><td>안정 백그라운드</td></tr>
+            <tr><td>적정 tick rate</td><td>10~20Hz 권장</td><td>30~60Hz 표준</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-warn"><strong>★ 모바일 특화 운영</strong><br>모바일 게임은 (1) 패킷 size 최소화 (2) 잦은 재접속 graceful 처리 (3) 백그라운드 재진입 시 상태 빠른 복원 — 이 3가지가 SRE+게임사 공통 책임. 백그라운드 5분 후 자동 종료(disconnect) 정책은 사용자 경험에 큰 영향.</div>
+      </div>
+    </div>
+
+    <!-- ============ OPS ============ -->
+    <div class="tab-panel" id="panel-ops">
+      <div class="panel-header"><div class="panel-badge badge-red">● Ops</div><h2>운영 & 관측</h2><p>HTTP 5xx만 보면 게임 서버 health 못 잡는다. ms-per-tick, AOI 부하, RTT 분포, 매칭 큐 대기 같은 게임 도메인 메트릭을 SRE가 직접 정의·계측해야 한다.</p></div>
+
+      <div class="sub" id="metrics">
+        <h3>게임 서버 SRE 메트릭 — 무조건 잡을 것</h3>
+        <table class="level-table">
+          <thead><tr><th>메트릭</th><th>의미</th><th>임계 (예시)</th><th>알림 우선순위</th></tr></thead>
+          <tbody>
+            <tr><td>CCU / PCU</td><td>동시 접속·피크 동시 접속</td><td>capacity 80%</td><td><span class="lvl-badge lvl-medium">P2</span></td></tr>
+            <tr><td>ms-per-tick (p99)</td><td>한 tick 시뮬레이션 시간</td><td>budget 80% (30Hz면 26ms)</td><td><span class="lvl-badge lvl-low">P1</span></td></tr>
+            <tr><td>tick drift / late tick</td><td>예정 tick 못 맞춘 비율</td><td>1% 초과</td><td><span class="lvl-badge lvl-low">P1</span></td></tr>
+            <tr><td>Send queue depth</td><td>클라 송신 적체</td><td>p99 100 패킷 초과</td><td><span class="lvl-badge lvl-medium">P2</span></td></tr>
+            <tr><td>RTT (서버 측 측정)</td><td>플레이어별 RTT</td><td>p95 150ms 초과</td><td><span class="lvl-badge lvl-medium">P2</span></td></tr>
+            <tr><td>Packet loss</td><td>UDP 송수신 손실율</td><td>p95 3% 초과</td><td><span class="lvl-badge lvl-medium">P2</span></td></tr>
+            <tr><td>Match queue wait</td><td>매칭 큐 대기 시간</td><td>p95 2분 초과</td><td><span class="lvl-badge lvl-low">P1</span></td></tr>
+            <tr><td>Allocate latency</td><td>매치 → 서버 할당</td><td>p99 1초 초과</td><td><span class="lvl-badge lvl-low">P1</span></td></tr>
+            <tr><td>Ready buffer</td><td>fleet 내 Ready 인스턴스 수</td><td>buffer policy 미달</td><td><span class="lvl-badge lvl-low">P1</span></td></tr>
+            <tr><td>Crash rate</td><td>매치당 crash 비율</td><td>0.5% 초과</td><td><span class="lvl-badge lvl-low">P1</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub" id="health">
+        <h3>게임 특화 헬스체크 — Liveness/Readiness 게임 버전</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Liveness</h4><p>"프로세스가 살아있나" — 단순 ping은 부족. <strong>tick loop가 돌고 있나</strong>를 확인. 마지막 tick 타임스탬프가 N초 이전이면 dead로 간주.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Readiness</h4><p>"새 매치 받을 준비 됐나" — 게임 데이터 로드 완료, anti-cheat 핸드셰이크 OK, 외부 서비스(매치메이킹·로비) 연결 확인까지.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Allocated 상태</h4><p>매치 진행 중. k8s가 Pod 죽이면 매치 강제 종료 → 사용자 incident. Agones는 GameServer 상태 머신으로 이를 명시적 보호.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Drain 상태</h4><p>새 매치 안 받음, 진행 중인 매치 끝나면 종료. 점검·롤링 업그레이드 패턴. Agones GameServer 상태 머신 표준.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ k8s liveness 함정</strong><br>일반 웹 서비스의 readinessProbe(HTTP 200)로 게임 서버 health를 잡으면 매치 중에 readiness 떨어졌다고 traffic 끊는 사고 발생. 게임 서버는 일반 webserver와 health 모델이 다르다 — Agones GameServer SDK가 표준 인터페이스 제공.</div>
+      </div>
+
+      <div class="sub" id="crash-replay">
+        <h3>Crash · Replay · Desync 분석</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Crash dump 수집</h4><p>매치 진행 중 서버 프로세스 죽으면 core dump + 매치 ID·플레이어 ID·최근 tick 로그를 같이 저장. 원인 분석에 결정적.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Replay 시스템</h4><p>매치 입력 로그를 저장하면 결정성 게임은 그대로 재현 가능. 어뷰징·어그로 분석·CS 응대에 사용. e-sport 송출용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Desync 추적</h4><p>Lockstep 게임에서 한 피어가 다른 결과 → 게임 종료. 발생 시 모든 피어의 상태 해시·입력 로그 수집해 원인 추적. 부동소수·플랫폼 차이 등.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>플레이어 신고 → 매치 ID 연동</h4><p>플레이어 신고가 매치 ID·시각·당사자 ID로 즉시 매치 로그 검색 가능해야 함. 운영자 도구 핵심.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="patch-rollback">
+        <h3>점검 · 핫픽스 · 롤백 — 게임 서버 vs 클라 버전 정합</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>인스턴스 매치 게임</h4><p>새 빌드는 신규 fleet에 배포 → 점차 라우팅 비율 증가 (canary). 기존 매치는 끝까지 구버전. <strong>점검 없이 롤링 업데이트 가능</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Persistent world 게임</h4><p>채널 단위 점검, DB 마이그레이션 동반 시 전체 점검. 점검 시간 = 매출 손실 = 사용자 이탈 → 점검 시간 단축이 SRE KPI.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>클라 버전 강제 매칭</h4><p>매칭 룰에 클라 버전 강제 — 구버전 클라는 신규 매치 못 들어감. 자동 패치 안내.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>긴급 롤백</h4><p>핫픽스가 더 큰 사고 만들면 즉시 이전 빌드로 fleet 교체. <strong>새 빌드 배포 전 이전 빌드 이미지 보관</strong>은 기본.</p></div>
+        </div>
+        <div class="note note-warn"><strong>★ 클라-서버 버전 매트릭스</strong><br>"클라 v5.2.1 ~ v5.2.5는 서버 v5.2.x와 호환" 같은 호환 매트릭스를 명시 관리. 새 서버 배포가 구 클라를 끊어먹는 사고가 가장 흔한 incident. 점검 직후 사용자 폭증 시 OAuth·로비 부하도 따로 관찰.</div>
+      </div>
+
+      <div class="sub" id="capacity">
+        <h3>Capacity 모델 — CCU per node, instance per region</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">"우리 게임은 한 노드에 몇 명 들어가나?"는 모든 capacity 산정의 출발. 게임사가 부하 테스트 데이터로 알려주는 게 정상.</p>
+        <div class="box">
+          <div class="box-title">캐파시티 산정 공식 (FPS·MOBA 인스턴스 모델)</div>
+<pre style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:var(--text-dim);">예측 동시 매치 수 = (PCU × 매치 평균 수명) / (매치당 인원 × 60)
+필요 인스턴스 수  = 예측 동시 매치 × (1 + buffer ratio)
+필요 노드 수       = 필요 인스턴스 × (1 + 여유) / 노드당 인스턴스
+권장 region 분산  = 필요 노드 × region별 PCU 비율
+
+<span style="color:var(--text-muted)"># 예: BR 게임, PCU 100,000명, 매치당 100명, 평균 수명 25분</span>
+동시 매치 ≈ (100000 × 25) / (100 × 60) ≈ 417개
+buffer 30% 적용 → 542 인스턴스
+한 노드 8 인스턴스 → 68 노드
+KR 50% / JP 30% / SEA 20% 비율로 분산
+</pre>
+        </div>
+        <div class="note"><strong>★ MMO 캐파시티는 또 다르다</strong><br>MMO는 채널당 동시 인원 (예: 500명)이 핵심. 한 채널 = 한 프로세스. 채널 수 = ceil(PCU / 채널당 인원) × 채널 capacity buffer. 채널 추가는 "노드 한 대 더" 수준이 아니라 게임사 운영 결정 사항.</div>
+      </div>
+
+      <div class="sub" id="collab">
+        <h3>퍼블리셔 운영팀 ↔ 게임 개발사 협업 모델</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>역할 분리</h4><p>퍼블리셔 SRE = 인프라·플랫폼·통합 모니터링. 게임사 = 게임 코드·시뮬레이션·게임 DB·anti-cheat 룰. 회색지대는 RACI 명문화.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>장애 핸드오프</h4><p>1차 트리아지: 퍼블리셔 SRE (인프라·네트워크 원인 배제). 게임 코드 의심이면 게임사 온콜에 핸드오프. 핸드오프 SLA 명시 (예: 평일 30분, 야간 2시간).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>공통 관측</h4><p>Grafana·BI 대시보드는 양사 공유. "각자 보는 메트릭이 다르면 협업 불가". 매치 ID·플레이어 ID로 양 시스템 로그 추적 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>런칭 전 합동 훈련</h4><p>부하 테스트 + 인시던트 시나리오 합동 훈련. 게임사 코드의 한계를 미리 파악해야 capacity·온콜 인원 산정 가능.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ 협업의 첫 단추</strong><br>킥오프 미팅에서 (1) 토폴로지 (2) 틱 레이트 (3) 평균 세션 수명 (4) 매칭 정책 (5) 영속 데이터 모델 + (6) 운영 도구(Agones/GameLift/Multiplay/자체) — 6가지를 표로 정리해 양사가 합의하는 데서 시작. 이게 capacity·관측·온콜 전부의 기반.</div>
+      </div>
+    </div>
+
+    <!-- ============ REFERENCES ============ -->
+    <div class="tab-panel" id="panel-references">
+      <div class="panel-header"><div class="panel-badge badge-green">● References</div><h2>참고 자료</h2><p>2026년 5월 기준. 매니지드 솔루션·도구는 빠르게 변하므로 (특히 Unity Multiplay 변경) 실제 도입 전 공식 문서를 다시 확인할 것.</p></div>
+
+      <div class="sub" id="refs">
+        <div class="ref-cat">공식 문서 — Game Server Orchestrator</div>
+        <ul class="ref-list">
+          <li><a href="https://agones.dev/site/docs/overview/" target="_blank">agones.dev/site/docs/overview/</a><div class="ref-desc">Agones 공식 문서. Kubernetes 기반 dedicated game server orchestration. GameServer/Fleet/Allocation CRD 표준</div></li>
+          <li><a href="https://agones.dev/site/docs/reference/gameserver/" target="_blank">agones.dev/site/docs/reference/gameserver/</a><div class="ref-desc">GameServer spec — health·port·container·counter 설정. Fleet 운영 기본</div></li>
+          <li><a href="https://docs.aws.amazon.com/gameliftservers/latest/flexmatchguide/match-intro.html" target="_blank">docs.aws.amazon.com — GameLift Servers FlexMatch</a><div class="ref-desc">FlexMatch 매치메이킹 룰·backfill·latency-based matching 가이드</div></li>
+          <li><a href="https://aws.amazon.com/blogs/aws/introducing-amazon-gamelift-anywhere-run-your-game-servers-on-your-own-infrastructure/" target="_blank">aws.amazon.com/blogs — GameLift Anywhere</a><div class="ref-desc">Anywhere fleet — 자체 인프라/온프레미스 + GameLift 도구 결합</div></li>
+          <li><a href="https://aws.amazon.com/gamelift/servers/pricing/fleetiq-pricing/" target="_blank">aws.amazon.com — GameLift FleetIQ Pricing</a><div class="ref-desc">FleetIQ 가격 — Spot 기반 비용 최적화 (시간당 인스턴스 + EC2)</div></li>
+          <li><a href="https://docs.unity.com/en-us/multiplay-hosting/concepts/matchmaker-integration" target="_blank">docs.unity.com — Multiplay Matchmaker Integration</a><div class="ref-desc">Unity Multiplay (2026-03 Rocket Science 이전) + Matchmaker 통합 마이그레이션 가이드</div></li>
+          <li><a href="https://github.com/googleforgames/open-match" target="_blank">github.com/googleforgames/open-match</a><div class="ref-desc">Open Match 1.x — production용 매치메이킹 framework</div></li>
+          <li><a href="https://github.com/googleforgames/open-match2" target="_blank">github.com/googleforgames/open-match2</a><div class="ref-desc">Open Match 2 (public preview) — 단일 OpenMatchService gRPC, streaming match 결과</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-speed-bg);color:var(--c-speed)">공식 문서 — Network / Relay</div>
+        <ul class="ref-list">
+          <li><a href="https://partner.steamgames.com/doc/features/multiplayer/steamdatagramrelay" target="_blank">partner.steamgames.com — Steam Datagram Relay</a><div class="ref-desc">Steam SDR 공식 문서. Valve 백본 라우팅·IP 은닉·DDoS 방어. AWS/Azure/GCP 데이터센터 호스팅 필수</div></li>
+          <li><a href="https://developer.valvesoftware.com/wiki/Steam_Datagram_Relay" target="_blank">developer.valvesoftware.com — SDR Wiki</a><div class="ref-desc">Steam SDR 동작 방식·구성 가이드 (커뮤니티 문서)</div></li>
+          <li><a href="https://www.photonengine.com/fusion" target="_blank">photonengine.com/fusion</a><div class="ref-desc">Photon Fusion — state transfer + client prediction (FPS·MOBA·RPG)</div></li>
+          <li><a href="https://blog.photonengine.com/the-evolution-of-deterministic-multiplayer-photon-quantum-now-a-unity-verified-solution/" target="_blank">blog.photonengine.com — Quantum Unity Verified</a><div class="ref-desc">Photon Quantum — fully deterministic predict/rollback 엔진 (격투·RTS·e-sport)</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-stable-bg);color:var(--c-stable)">모범 사례 — 엔지니어링 블로그</div>
+        <ul class="ref-list">
+          <li><a href="https://technology.riotgames.com/" target="_blank">technology.riotgames.com</a><div class="ref-desc">Riot Games 엔지니어링 블로그. League of Legends 글로벌 운영, 매칭, 게임 서버 인프라 사례</div></li>
+          <li><a href="https://discord.com/blog/category/engineering" target="_blank">discord.com/blog/category/engineering</a><div class="ref-desc">Discord 엔지니어링 블로그. 음성·세션·실시간 통신 — 게임 인접 영역</div></li>
+          <li><a href="https://supercell.com/en/blog/" target="_blank">supercell.com — Engineering Stories</a><div class="ref-desc">Supercell의 글로벌 모바일 게임 운영 사례 (Clash·Brawl Stars)</div></li>
+          <li><a href="https://www.gabrielgambetta.com/client-server-game-architecture.html" target="_blank">gabrielgambetta.com — Fast-Paced Multiplayer</a><div class="ref-desc">Client-server game architecture·prediction·reconciliation의 표준 학습 자료. 모든 게임 서버 엔지니어 필독</div></li>
+          <li><a href="https://www.gafferongames.com/" target="_blank">gafferongames.com</a><div class="ref-desc">Glenn Fiedler의 게임 네트워킹 시리즈. UDP·snapshot·delta encoding·rollback 모두 다룸</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-orange-bg);color:var(--c-orange)">한국 게임사 발표·블로그</div>
+        <ul class="ref-list">
+          <li><a href="https://ndcreplay.nexon.com/" target="_blank">ndcreplay.nexon.com</a><div class="ref-desc">NEXON Developers Conference 발표 아카이브. 한국 게임 서버 운영·SRE 사례 풍부</div></li>
+          <li><a href="https://engineering.linecorp.com/ko/blog" target="_blank">engineering.linecorp.com/ko/blog</a><div class="ref-desc">LINE 엔지니어링 블로그. 게임 인접 (메시징·실시간·결제) 인프라 사례</div></li>
+          <li><a href="https://tech.kakaopay.com/" target="_blank">tech.kakaopay.com</a><div class="ref-desc">결제·실시간 트랜잭션 운영 사례 (게임 결제와 인접)</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-red-bg);color:var(--c-red)">책 · 학술 자료</div>
+        <ul class="ref-list">
+          <li><span style="font-weight:600;">Multiplayer Game Programming (Joshua Glazer · Sanjay Madhav)</span><div class="ref-desc">멀티플레이어 게임 네트워크 프로그래밍의 표준 입문서. 토폴로지·동기화·NAT 모두 다룸</div></li>
+          <li><span style="font-weight:600;">Game Engine Architecture (3rd ed., Jason Gregory)</span><div class="ref-desc">게임 엔진의 전체 구조 — 게임 서버 도메인의 기반 지식. 시뮬레이션·ECS 챕터 추천</div></li>
+          <li><span style="font-weight:600;">Networked Graphics: Building Networked Games and Virtual Environments (Anthony Steed et al.)</span><div class="ref-desc">분산 가상 환경·동기화·일관성 모델의 학술적 기반. MMO 설계 참고</div></li>
+          <li><span style="font-weight:600;">Site Reliability Engineering (Google)</span><div class="ref-desc">일반 SRE 기본서. 게임 도메인 메트릭에 SLO·error budget 적용할 때 기준</div></li>
+        </ul>
+
+        <div class="note note-info" style="margin-top:32px;"><strong>★ NOTE</strong><br>이 가이드는 <strong>2026년 5월 기준</strong>. 특히 (1) Unity Multiplay → Rocket Science Group 이전 (2026-03-31), (2) Open Match 2 public preview 단계, (3) GameLift "Servers" 리브랜딩 — 이 3가지는 현 시점 변동 정보다. 실제 도입 결정 시 위 공식 문서를 다시 확인할 것. 또한 Photon·SDR 등 외부 솔루션의 가격·정책은 매년 변경되므로 계약 시점에 별도 확인 필요.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + tabId).classList.add('active');
+    document.querySelector('.top-tab[data-tab="' + tabId + '"]').classList.add('active');
+
+    document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+    const firstLink = document.querySelector('.sb-nav li a[data-tab="' + tabId + '"]');
+    if (firstLink) firstLink.classList.add('active');
+  }
+
+  document.querySelectorAll('.sb-nav li a').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const tab = link.dataset.tab;
+      const section = link.dataset.section;
+      switchTab(tab);
+      setTimeout(() => {
+        const el = document.getElementById(section);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }, 50);
+    });
+  });
+</script>
+</body>
+</html>

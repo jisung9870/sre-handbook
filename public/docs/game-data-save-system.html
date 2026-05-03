@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>게임 데이터 & 세이브 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fb; --surface: #ffffff; --surface-2: #f0f2f5;
+    --sidebar-bg: #ffffff; --border: #e2e6eb; --border-strong: #d0d5dc;
+    --text: #1a1d23; --text-dim: #5c6370; --text-muted: #8b929e;
+    --c-speed: #0969b2; --c-speed-bg: #e8f4fd; --c-speed-border: #a2d2f5;
+    --c-stable: #8b5cf6; --c-stable-bg: #f3effe; --c-stable-border: #c4b5fd;
+    --c-green: #1a7f37; --c-green-bg: #ecf7ef; --c-green-border: #a6ddb5;
+    --c-orange: #c2600c; --c-orange-bg: #fef3eb; --c-orange-border: #f5cba7;
+    --c-red: #cf222e; --c-red-bg: #fdecea; --c-red-border: #f5a8a8;
+    --c-teal: #0e7c6b; --c-teal-bg: #e6f7f4; --c-teal-border: #8ed5c5;
+    --c-indigo: #3f51b5; --c-indigo-bg: #eaecf8; --c-indigo-border: #b5bce4;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 10px; --sidebar-w: 252px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-weight: 400; line-height: 1.75; }
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 28px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; box-shadow: 1px 0 8px rgba(0,0,0,0.03); }
+  .sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-indigo); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand h1 em { font-style: normal; color: var(--c-indigo); }
+  .sb-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px 6px; font-weight: 600; }
+  .sb-nav { list-style: none; }
+  .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 22px; color: var(--text-dim); text-decoration: none; font-size: 13px; transition: all 0.15s; border-left: 2.5px solid transparent; cursor: pointer; }
+  .sb-nav li a:hover { color: var(--text); background: var(--surface-2); }
+  .sb-nav li a.active { color: var(--text); background: var(--c-indigo-bg); border-left-color: var(--c-indigo); font-weight: 600; }
+  .sb-nav li a .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 18px 22px 0; border-top: 1px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-muted); line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
+
+  .main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+  .top-tabs { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .top-tab { flex: 1; padding: 15px 16px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: none; cursor: pointer; position: relative; transition: all 0.2s; }
+  .top-tab:hover { color: var(--text); background: var(--surface-2); }
+  .top-tab::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2.5px; border-radius: 2px; transition: all 0.25s; }
+  .top-tab.active { color: var(--text); }
+  .top-tab[data-tab="overview"].active { color: var(--c-teal); }
+  .top-tab[data-tab="overview"].active::after { background: var(--c-teal); left: 12%; right: 12%; }
+  .top-tab[data-tab="save-patterns"].active { color: var(--c-speed); }
+  .top-tab[data-tab="save-patterns"].active::after { background: var(--c-speed); left: 12%; right: 12%; }
+  .top-tab[data-tab="db-design"].active { color: var(--c-stable); }
+  .top-tab[data-tab="db-design"].active::after { background: var(--c-stable); left: 12%; right: 12%; }
+  .top-tab[data-tab="consistency"].active { color: var(--c-indigo); }
+  .top-tab[data-tab="consistency"].active::after { background: var(--c-indigo); left: 12%; right: 12%; }
+  .top-tab[data-tab="backup-recovery"].active { color: var(--c-orange); }
+  .top-tab[data-tab="backup-recovery"].active::after { background: var(--c-orange); left: 12%; right: 12%; }
+  .top-tab[data-tab="ops-governance"].active { color: var(--c-red); }
+  .top-tab[data-tab="ops-governance"].active::after { background: var(--c-red); left: 12%; right: 12%; }
+  .top-tab[data-tab="references"].active { color: var(--c-green); }
+  .top-tab[data-tab="references"].active::after { background: var(--c-green); left: 12%; right: 12%; }
+
+  .tab-panel { display: none; padding: 40px 52px 80px; max-width: 980px; }
+  .tab-panel.active { display: block; }
+  .panel-header { margin-bottom: 36px; }
+  .panel-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px; font-weight: 600; }
+  .badge-teal { color: var(--c-teal); background: var(--c-teal-bg); border: 1px solid var(--c-teal-border); }
+  .badge-speed { color: var(--c-speed); background: var(--c-speed-bg); border: 1px solid var(--c-speed-border); }
+  .badge-stable { color: var(--c-stable); background: var(--c-stable-bg); border: 1px solid var(--c-stable-border); }
+  .badge-green { color: var(--c-green); background: var(--c-green-bg); border: 1px solid var(--c-green-border); }
+  .badge-orange { color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .badge-red { color: var(--c-red); background: var(--c-red-bg); border: 1px solid var(--c-red-border); }
+  .badge-indigo { color: var(--c-indigo); background: var(--c-indigo-bg); border: 1px solid var(--c-indigo-border); }
+  .panel-header h2 { font-size: 27px; font-weight: 700; margin-bottom: 8px; }
+  .panel-header p { color: var(--text-dim); font-size: 15px; max-width: 720px; line-height: 1.7; }
+  .sub { margin-top: 44px; scroll-margin-top: 72px; }
+  .sub h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+  .card h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card p { color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+  .card code { font-family: 'JetBrains Mono', monospace; background: var(--c-green-bg); color: var(--c-green); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .card-full { grid-column: 1 / -1; }
+
+  .level-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .level-table th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+  .level-table td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: top; line-height: 1.55; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .level-table tr:hover td { background: var(--surface-2); }
+  .level-table td:first-child { font-weight: 700; }
+  .lvl-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+  .lvl-elite { color: var(--c-green); background: var(--c-green-bg); }
+  .lvl-high { color: var(--c-speed); background: var(--c-speed-bg); }
+  .lvl-medium { color: var(--c-orange); background: var(--c-orange-bg); }
+  .lvl-low { color: var(--c-red); background: var(--c-red-bg); }
+  .lvl-self { color: var(--c-teal); background: var(--c-teal-bg); }
+  .lvl-pub { color: var(--c-stable); background: var(--c-stable-bg); }
+  .lvl-indigo { color: var(--c-indigo); background: var(--c-indigo-bg); }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 140px; box-shadow: var(--shadow-sm); }
+  .flow-node h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 3px; font-weight: 700; }
+  .flow-node p { font-size: 11px; color: var(--text-dim); }
+  .flow-arrow { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 22px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-top: 16px; overflow-x: auto; box-shadow: var(--shadow-sm); }
+  .box-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .note { background: var(--c-green-bg); border-left: 3px solid var(--c-green); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .note strong { color: var(--c-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .note-warn { background: var(--c-orange-bg); border-left-color: var(--c-orange); }
+  .note-warn strong { color: var(--c-orange); }
+  .note-info { background: var(--c-speed-bg); border-left-color: var(--c-speed); }
+  .note-info strong { color: var(--c-speed); }
+  .note-danger { background: var(--c-red-bg); border-left-color: var(--c-red); }
+  .note-danger strong { color: var(--c-red); }
+
+  .gauge-row { display: flex; gap: 14px; margin: 20px 0; }
+  .gauge-item { flex: 1; text-align: center; }
+  .gauge-bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin-bottom: 8px; }
+  .gauge-fill { height: 100%; border-radius: 4px; }
+  .gauge-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+  .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .pipe-stage { padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; text-align: center; min-width: 110px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-left: -8px; }
+  .pipe-stage:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); margin-left: 0; }
+  .pipe-stage small { display: block; font-weight: 500; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+
+  .ref-list { list-style: none; margin-top: 14px; }
+  .ref-list li { padding: 12px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; line-height: 1.6; }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list li a { color: var(--c-speed); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; }
+  .ref-list li a:hover { text-decoration: underline; }
+  .ref-list li .ref-desc { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .ref-cat { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; padding: 3px 10px; background: var(--c-teal-bg); border-radius: 12px; display: inline-block; margin-right: 8px; }
+
+  .timeline { display: grid; grid-template-columns: 100px 1fr; gap: 10px 14px; margin: 18px 0; padding: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+  .timeline .t-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--c-indigo); }
+  .timeline .t-desc { font-size: 13px; color: var(--text-dim); line-height: 1.55; }
+
+  .checklist { list-style: none; margin: 14px 0; }
+  .checklist li { padding: 8px 0 8px 26px; position: relative; font-size: 13px; color: var(--text-dim); line-height: 1.55; border-bottom: 1px solid var(--surface-2); }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist li::before { content: '✓'; position: absolute; left: 4px; top: 8px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--c-green); }
+
+  .mobile-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 18px; cursor: pointer; box-shadow: var(--shadow-md); }
+  @media (max-width: 768px) {
+    .mobile-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .tab-panel { padding: 32px 20px 60px; }
+    .cg, .cg3 { grid-template-columns: 1fr; }
+    .top-tab { font-size: 10px; padding: 12px 6px; }
+    .gauge-row { flex-wrap: wrap; }
+    .pipeline { justify-content: center; }
+    .timeline { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="label">Game Fundamentals</div><h1><em>Game Data</em> & Save System</h1></div>
+    <div class="sb-label">개요</div>
+    <ul class="sb-nav">
+      <li><a data-tab="overview" data-section="why-matters" class="active"><span class="dot" style="background:var(--c-teal)"></span>데이터 손실의 게임 사업 영향</a></li>
+      <li><a data-tab="overview" data-section="data-classification"><span class="dot" style="background:var(--c-teal)"></span>게임 데이터 4대 분류</a></li>
+      <li><a data-tab="overview" data-section="consistency-grades"><span class="dot" style="background:var(--c-teal)"></span>일관성 등급 매트릭스</a></li>
+      <li><a data-tab="overview" data-section="sre-scope"><span class="dot" style="background:var(--c-teal)"></span>퍼블리셔 SRE 책임 범위</a></li>
+    </ul>
+    <div class="sb-label">세이브 시스템 패턴</div>
+    <ul class="sb-nav">
+      <li><a data-tab="save-patterns" data-section="autosave-vs-manual"><span class="dot" style="background:var(--c-speed)"></span>Autosave vs Manual vs Checkpoint</a></li>
+      <li><a data-tab="save-patterns" data-section="snapshot"><span class="dot" style="background:var(--c-speed)"></span>Periodic snapshot</a></li>
+      <li><a data-tab="save-patterns" data-section="delta-save"><span class="dot" style="background:var(--c-speed)"></span>Delta save (변경분만)</a></li>
+      <li><a data-tab="save-patterns" data-section="event-sourcing"><span class="dot" style="background:var(--c-speed)"></span>Event sourcing</a></li>
+      <li><a data-tab="save-patterns" data-section="write-behind"><span class="dot" style="background:var(--c-speed)"></span>Write-behind queue (Kafka batching)</a></li>
+      <li><a data-tab="save-patterns" data-section="pattern-selection"><span class="dot" style="background:var(--c-speed)"></span>패턴 선택 매트릭스</a></li>
+    </ul>
+    <div class="sb-label">게임 DB 설계</div>
+    <ul class="sb-nav">
+      <li><a data-tab="db-design" data-section="player-db"><span class="dot" style="background:var(--c-stable)"></span>Player DB (RDB·Strong KV)</a></li>
+      <li><a data-tab="db-design" data-section="world-db"><span class="dot" style="background:var(--c-stable)"></span>World DB (Redis + RDB hybrid)</a></li>
+      <li><a data-tab="db-design" data-section="event-store"><span class="dot" style="background:var(--c-stable)"></span>Event store (Kafka·Pulsar)</a></li>
+      <li><a data-tab="db-design" data-section="analytics-warehouse"><span class="dot" style="background:var(--c-stable)"></span>Analytics warehouse 분리</a></li>
+      <li><a data-tab="db-design" data-section="sharding"><span class="dot" style="background:var(--c-stable)"></span>샤딩 전략 (player_id hash)</a></li>
+      <li><a data-tab="db-design" data-section="multi-region"><span class="dot" style="background:var(--c-stable)"></span>멀티 region replication</a></li>
+    </ul>
+    <div class="sb-label">결제·인벤토리 일관성</div>
+    <ul class="sb-nav">
+      <li><a data-tab="consistency" data-section="acid"><span class="dot" style="background:var(--c-indigo)"></span>ACID 트랜잭션 (RDB)</a></li>
+      <li><a data-tab="consistency" data-section="idempotency"><span class="dot" style="background:var(--c-indigo)"></span>Idempotency key 패턴</a></li>
+      <li><a data-tab="consistency" data-section="saga"><span class="dot" style="background:var(--c-indigo)"></span>Saga 패턴 (분산 트랜잭션)</a></li>
+      <li><a data-tab="consistency" data-section="outbox"><span class="dot" style="background:var(--c-indigo)"></span>Outbox 패턴</a></li>
+      <li><a data-tab="consistency" data-section="refund"><span class="dot" style="background:var(--c-indigo)"></span>환불 처리 (compensation)</a></li>
+      <li><a data-tab="consistency" data-section="dedup"><span class="dot" style="background:var(--c-indigo)"></span>중복 방지 (deduplication)</a></li>
+    </ul>
+    <div class="sb-label">백업·복구·Migration</div>
+    <ul class="sb-nav">
+      <li><a data-tab="backup-recovery" data-section="pitr"><span class="dot" style="background:var(--c-orange)"></span>PITR (Point-In-Time Recovery)</a></li>
+      <li><a data-tab="backup-recovery" data-section="snapshot-backup"><span class="dot" style="background:var(--c-orange)"></span>Snapshot 백업 주기</a></li>
+      <li><a data-tab="backup-recovery" data-section="aurora-backtrack"><span class="dot" style="background:var(--c-orange)"></span>Aurora Backtrack</a></li>
+      <li><a data-tab="backup-recovery" data-section="cross-region-backup"><span class="dot" style="background:var(--c-orange)"></span>Cross-region backup</a></li>
+      <li><a data-tab="backup-recovery" data-section="migration"><span class="dot" style="background:var(--c-orange)"></span>Schema migration (zero-downtime)</a></li>
+      <li><a data-tab="backup-recovery" data-section="rollback"><span class="dot" style="background:var(--c-orange)"></span>Rollback 시나리오</a></li>
+      <li><a data-tab="backup-recovery" data-section="rpo-rto"><span class="dot" style="background:var(--c-orange)"></span>RPO · RTO 정의</a></li>
+    </ul>
+    <div class="sb-label">운영 & 거버넌스</div>
+    <ul class="sb-nav">
+      <li><a data-tab="ops-governance" data-section="char-transfer"><span class="dot" style="background:var(--c-red)"></span>캐릭터 이전 · 서버 통합</a></li>
+      <li><a data-tab="ops-governance" data-section="data-loss-incident"><span class="dot" style="background:var(--c-red)"></span>데이터 손실 사고 대응</a></li>
+      <li><a data-tab="ops-governance" data-section="cloud-saves"><span class="dot" style="background:var(--c-red)"></span>Steam · PSN · Xbox 클라우드 세이브</a></li>
+      <li><a data-tab="ops-governance" data-section="gdpr-pipa"><span class="dot" style="background:var(--c-red)"></span>GDPR · PIPA · CCPA 거버넌스</a></li>
+      <li><a data-tab="ops-governance" data-section="minor-protection"><span class="dot" style="background:var(--c-red)"></span>미성년자 데이터 특별 보호</a></li>
+      <li><a data-tab="ops-governance" data-section="data-retention"><span class="dot" style="background:var(--c-red)"></span>데이터 보존·삭제·이동권</a></li>
+    </ul>
+    <div class="sb-label">참고 자료</div>
+    <ul class="sb-nav">
+      <li><a data-tab="references" data-section="refs"><span class="dot" style="background:var(--c-green)"></span>공식 문서 · 학술 · 법률</a></li>
+    </ul>
+    <div class="sidebar-footer"><p>Game Data System<br>= Save × DB × Trust × Govern</p></div>
+  </aside>
+
+  <div class="main">
+    <div class="top-tabs">
+      <button class="top-tab active" data-tab="overview" onclick="switchTab('overview')">● 개요</button>
+      <button class="top-tab" data-tab="save-patterns" onclick="switchTab('save-patterns')">● 세이브 패턴</button>
+      <button class="top-tab" data-tab="db-design" onclick="switchTab('db-design')">● DB 설계</button>
+      <button class="top-tab" data-tab="consistency" onclick="switchTab('consistency')">● 결제 일관성</button>
+      <button class="top-tab" data-tab="backup-recovery" onclick="switchTab('backup-recovery')">● 백업·복구</button>
+      <button class="top-tab" data-tab="ops-governance" onclick="switchTab('ops-governance')">● 운영·거버넌스</button>
+      <button class="top-tab" data-tab="references" onclick="switchTab('references')">● 참고 자료</button>
+    </div>
+
+    <!-- ============ OVERVIEW ============ -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="panel-header"><div class="panel-badge badge-teal">● Overview</div><h2>게임 데이터 — 모든 게임 사업의 기반</h2><p>치팅·매치메이킹·anti-cheat가 어떻게 정교해도 결국 <strong>데이터 손실 한 번에 사용자 신뢰가 무너진다</strong>. F1~F4가 토폴로지·네트워크·매치메이킹·보안이었다면 F5는 게임의 <strong>영속성·일관성·복구</strong>를 다룬다. Phase 3의 마지막 가이드. (2026-05 기준)</p></div>
+
+      <div class="sub" id="why-matters">
+        <h3>데이터 손실의 게임 사업 영향</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>사용자 신뢰 즉시 붕괴</h4><p>"3시간 진행이 날아갔다" 한 번이면 게임 중단. SNS 확산 → 신규 사용자 차단. 단일 incident이 retention 폭락.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>법적·재무 책임</h4><p>결제·인벤토리 손실 → 환불 의무·집단 소송 가능성. F2P 게임은 사용자 누적 결제액이 수십·수백 달러.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>규제 위험</h4><p><strong>한국 PIPA 2026 개정 — 회사 총 매출의 10%까지 벌금</strong>. GDPR도 매출 4%·€20M 중 큰 금액. 데이터 사고는 게임 사업 전체 위험.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>운영 비용 폭증</h4><p>CS 폭주·매뉴얼 보상·법률 대응. 한 번의 incident이 수개월 운영 인력 잡아먹음.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="data-classification">
+        <h3>게임 데이터 4대 분류</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>1. Player Data (영구·strong)</h4><p>계정·캐릭터·인벤토리·결제·진척. ACID 트랜잭션 RDB. 손실 시 사용자 신뢰 즉시 붕괴.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>2. World Data (영속·eventual)</h4><p>몬스터·NPC 위치·길드 점령·채널 상태. 인메모리 + 주기 snapshot. 일부 손실 (몇 초~분) 수용 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>3. Log/Event Data (불변·at-least-once)</h4><p>매치 결과·전투 로그·게임 이벤트. Kafka·Pulsar append-only. BI·anti-cheat·정산 입력.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>4. Analytics Data (집계·eventual)</h4><p>사용자 행동·KPI·매출 분석. BigQuery·Snowflake 같은 warehouse. 시간 단위·일 단위 ETL.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ 분리의 가치</strong><br>4가지를 같은 DB에 두면 (1) 트랜잭션·log·analytics 부하가 서로 영향 (2) 일관성 등급 다름 → 절충 불가능 (3) 백업·복구 정책 다름. <strong>4가지 데이터를 분리된 저장소로 명확히 나눠야 게임 DB가 확장 가능</strong>.</div>
+      </div>
+
+      <div class="sub" id="consistency-grades">
+        <h3>일관성 등급 매트릭스</h3>
+        <table class="level-table">
+          <thead><tr><th>데이터 종류</th><th>일관성</th><th>저장소</th><th>장애 시 영향</th><th>SLA</th></tr></thead>
+          <tbody>
+            <tr><td>결제·재화 트랜잭션</td><td><span class="lvl-badge lvl-elite">Strong (ACID)</span></td><td>RDB (PostgreSQL·MySQL)</td><td>금전 손실 → 환불 폭주</td><td>RPO=0, RTO 분</td></tr>
+            <tr><td>인벤토리·캐릭터</td><td><span class="lvl-badge lvl-elite">Strong</span></td><td>RDB / Strong KV</td><td>아이템 복제·소실</td><td>RPO=0, RTO 분</td></tr>
+            <tr><td>캐릭터 위치·체력</td><td><span class="lvl-badge lvl-medium">Eventual</span></td><td>인메모리 + snapshot</td><td>몇 초 롤백 (수용)</td><td>RPO 30s, RTO 5분</td></tr>
+            <tr><td>채팅 메시지</td><td><span class="lvl-badge lvl-medium">Eventual</span></td><td>Pub/Sub (Redis·Kafka)</td><td>일부 손실</td><td>RPO 1분, RTO 분</td></tr>
+            <tr><td>랭킹·통계</td><td><span class="lvl-badge lvl-self">Eventual (지연 OK)</span></td><td>Read Replica · ETL</td><td>갱신 지연</td><td>RPO 10분, RTO 시간</td></tr>
+            <tr><td>로그·텔레메트리</td><td><span class="lvl-badge lvl-self">At-least-once</span></td><td>Kafka → BigQuery</td><td>중복 가능, 손실 = BI 영향</td><td>RPO 1분, RTO 시간</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-warn"><strong>★ 모든 데이터를 strong consistency로 만드는 함정</strong><br>위치 데이터를 strong으로 강요 → 매 tick DB write → IOPS 폭증, 게임 자체가 못 돌아감. <strong>데이터 클래스별 SLA를 분리하고 결제·인벤토리에만 집중 투자</strong>가 정답.</div>
+      </div>
+
+      <div class="sub" id="sre-scope">
+        <h3>퍼블리셔 SRE의 데이터 책임 범위</h3>
+        <div class="cg3">
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>SRE 책임</h4><p>DB 인프라·HA·백업·복구, 모니터링·알림, 이벤트 파이프라인 (Kafka·BigQuery), schema migration 도구, 데이터 거버넌스 (백업·삭제·이동), 사고 대응</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>게임사 책임</h4><p>게임 데이터 모델 설계, 세이브 로직·트랜잭션, 게임 비즈니스 룰, schema 변경 결정</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>공동 (회색지대)</h4><p>대규모 migration 시점, capacity 산정, 일관성 등급 결정, 정산·환불 시스템, 데이터 손실 사고 RCA</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ SAVE PATTERNS ============ -->
+    <div class="tab-panel" id="panel-save-patterns">
+      <div class="panel-header"><div class="panel-badge badge-speed">● Save Patterns</div><h2>세이브 시스템 패턴</h2><p>"언제 저장하나"가 게임 운영의 첫 결정. autosave·manual·checkpoint·snapshot·delta save·event sourcing·write-behind queue — 각 패턴의 동작·트레이드오프·운영 영향.</p></div>
+
+      <div class="sub" id="autosave-vs-manual">
+        <h3>Autosave vs Manual save vs Checkpoint</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Autosave</h4><p>일정 주기 자동 저장 (싱글 RPG·콘솔 게임). 사용자 부담 0, DB 부하 ↑, 잘못된 상태 저장 위험.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Manual save</h4><p>사용자가 명시적 저장 (복잡 RPG). DB 부하 ↓, 사용자 책임 ↑. 모바일·온라인엔 부적합.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Checkpoint</h4><p>특정 지점 (스테이지 클리어·도시 입장) 자동 저장. 게임 디자인과 결합. 액션 게임 표준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Hybrid (온라인 게임)</h4><p>대부분 온라인 게임은 hybrid — 중요 액션 (결제·아이템) = 즉시, 위치·진척 = autosave 5~30s, 매치 종료 = checkpoint.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="snapshot">
+        <h3>Periodic Snapshot — 5~30초 주기 저장</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">F1에서 개요만 다룬 패턴. 일반 MMO 표준. 5~30초마다 캐릭터 상태를 일괄 DB 저장. 짧은 시간 손실 (서버 크래시 시 30초 전으로) 수용.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>장점</h4><p>구현 단순, 일관된 저장 부하 (예측 가능), DB write IOPS 제어 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>단점</h4><p>최대 N초 손실 가능. 보스 처치·아이템 획득 같은 중요 사건 직후 크래시 시 보상 손실.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>완화 1</h4><p>중요 사건 (결제·아이템·레벨업) 즉시 별도 저장 + 일반 진척은 snapshot.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>완화 2</h4><p>Snapshot 주기 짧게 (5s) → 사용자 영향 ↓, DB 부하 ↑. 트레이드오프.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="delta-save">
+        <h3>Delta Save — 변경분만 저장</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">전체 캐릭터 상태 (수십 KB)를 매번 저장 대신, 직전 snapshot 대비 차이 (수백 byte)만 저장. write 부하·전송량 대폭 절감.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>구현 방식</h4><p>각 필드의 dirty flag 관리. snapshot 저장 시 dirty 필드만 update. ORM·diff 라이브러리 활용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>적용 시점</h4><p>한 캐릭터 데이터가 큰 게임 (MMORPG 인벤토리 100+ 슬롯). 캐주얼 게임은 효과 적음.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>주의</h4><p>중간 update 누락 시 desync 가능. 정기적 full snapshot으로 baseline 재설정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>데이터 패킷에도 동일</h4><p>F2의 delta encoding과 같은 컨셉. 네트워크 전송 + DB 저장 모두 delta 패턴.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="event-sourcing">
+        <h3>Event Sourcing — 모든 사건을 append-only로</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">"현재 상태"를 저장 대신 "모든 사건"을 영구 저장. 현재 상태는 이벤트 재생으로 derive. 감사·롤백·재생 강력하지만 구현 복잡.</p>
+        <div class="box">
+          <div class="box-title">Event Sourcing 패턴 예시 (캐릭터 상태)</div>
+<pre style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:var(--text-dim);"><span style="color:var(--c-green"># 전통적 (state-based)</span>
+character_state = { hp: 80, gold: 1500, items: [...] }
+<span style="color:var(--text-muted)"># DB write: row 통째로 update</span>
+
+<span style="color:var(--c-green"># Event Sourcing</span>
+events = [
+  { type: HP_LOSS, amount: 20, ts: ... },
+  { type: GOLD_GAIN, amount: 100, ts: ... },
+  { type: ITEM_ADD, item: 'sword', ts: ... },
+  ...
+]
+<span style="color:var(--text-muted)"># DB write: append-only</span>
+<span style="color:var(--text-muted)"># 현재 상태 = events 재생</span>
+<span style="color:var(--text-muted)"># 스냅샷 캐싱으로 성능 최적화</span></pre>
+        </div>
+        <div class="cg" style="margin-top:18px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>장점</h4><p>완전한 audit trail, 임의 시점 복원 가능, 시간 여행 디버깅, 분석 신호 풍부.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>단점</h4><p>구현·이벤트 모델 복잡, 현재 상태 derive 비용, 스냅샷 캐싱 필수, 학습 곡선 가파름.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="write-behind">
+        <h3>Write-behind Queue — Kafka batching</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">DB write 직접 대신 Kafka·Pulsar 같은 큐에 적재 → 별도 consumer가 batch insert. throughput 극대화.</p>
+        <div class="flow">
+          <div class="flow-node" style="border-color:var(--c-speed-border);background:var(--c-speed-bg)"><h4 style="color:var(--c-speed)">게임 서버</h4><p>이벤트 발생<br>Kafka produce</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-stable-border);background:var(--c-stable-bg)"><h4 style="color:var(--c-stable)">Kafka</h4><p>대용량 큐<br>partition·replication</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-indigo-border);background:var(--c-indigo-bg)"><h4 style="color:var(--c-indigo)">Consumer</h4><p>Batch insert<br>1000 events/batch</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-orange-border);background:var(--c-orange-bg)"><h4 style="color:var(--c-orange)">DB</h4><p>RDB·Analytics</p></div>
+        </div>
+        <div class="cg" style="margin-top:18px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>장점</h4><p>DB write IOPS 부담 ↓, peak 흡수, retry·dead letter queue 활용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>단점</h4><p>큐 장애 시 손실 위험, eventual consistency, 운영 복잡 (Kafka 자체 운영).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>적용</h4><p>로그·텔레메트리·분석 데이터엔 표준. <strong>결제·인벤토리엔 부적합 (즉시 일관성 필요)</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>혼합</h4><p>중요 데이터 = 직접 write, 로그·BI = Kafka. 데이터 종류별 분리.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="pattern-selection">
+        <h3>패턴 선택 매트릭스</h3>
+        <table class="level-table">
+          <thead><tr><th>데이터 종류</th><th>추천 패턴</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td>결제 트랜잭션</td><td>즉시 ACID write</td><td>금전 데이터, RPO=0 필요</td></tr>
+            <tr><td>인벤토리 (중요 변화)</td><td>즉시 write + idempotency</td><td>아이템 복제·소실 방지</td></tr>
+            <tr><td>인벤토리 (시간성 변화)</td><td>Periodic snapshot 5~30s</td><td>일반적 변경, 약간 손실 OK</td></tr>
+            <tr><td>캐릭터 위치·체력</td><td>Periodic snapshot 5~30s</td><td>최신성보다 효율</td></tr>
+            <tr><td>매치 결과·전투 로그</td><td>Write-behind (Kafka)</td><td>고 throughput, 분석 입력</td></tr>
+            <tr><td>금융 audit·법률 감사</td><td>Event sourcing</td><td>완전한 trail 필요</td></tr>
+            <tr><td>캐주얼 게임 진척</td><td>Autosave (간단)</td><td>구현 단순 우선</td></tr>
+            <tr><td>채팅 메시지</td><td>Pub/Sub + 일부 archive</td><td>real-time + 검색 가능 archive</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ DB DESIGN ============ -->
+    <div class="tab-panel" id="panel-db-design">
+      <div class="panel-header"><div class="panel-badge badge-stable">● DB Design</div><h2>게임 DB 설계 — 4대 분류 분리 운영</h2><p>Player·World·Log·Analytics를 한 DB에 두지 말 것. 각 데이터의 일관성·throughput·접근 패턴이 너무 다르다. 분리된 저장소·독립 스케일이 게임 DB의 핵심.</p></div>
+
+      <div class="sub" id="player-db">
+        <h3>Player DB — RDB·Strong KV</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>저장소</h4><p>PostgreSQL·MySQL·Aurora·CockroachDB. ACID 보장 + 트랜잭션 성능. 일부 게임은 Strong KV (DynamoDB·Spanner) 사용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>스키마</h4><p>account · character · inventory · payment · achievement · social · setting. 각 테이블 분리, FK 명확.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>접근 패턴</h4><p>Read 많음 (로그인·조회), Write는 중요 사건 + snapshot. 캐싱 (Redis) 필수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>스케일</h4><p>샤딩 (player_id hash) 또는 region별 분리. 단일 DB 한계는 보통 수백만 PCU.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="world-db">
+        <h3>World DB — Redis + RDB hybrid</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">월드 상태 (몬스터·NPC·길드 점령·환경)는 자주 변하지만 strong consistency 불필요. 인메모리 (Redis) + 주기 snapshot (RDB) 패턴.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>인메모리 layer</h4><p>Redis·Hazelcast. 모든 read·write 1순위. ms 응답.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>RDB layer</h4><p>Snapshot 5~30s 저장. 서버 재시작·장애 복구용. RDB는 source of truth.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>채널·서버 분리</h4><p>한 채널 = 한 Redis·게임 서버 인스턴스. 스케일 = 채널·서버 추가.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>장애 시</h4><p>Redis 손실 → RDB snapshot 시점부터 복원. 최대 30초 손실. 사용자에게 명확 안내 + 보상.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="event-store">
+        <h3>Event Store — Kafka · Pulsar (append-only log)</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Apache Kafka</h4><p>가장 표준. 게임 텔레메트리·매치 로그·anti-cheat 신호 모두 Kafka. partition·replication·retention 설정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Apache Pulsar</h4><p>Kafka 대안. 다중 tenant·geographic replication 강점. 한국 일부 게임사 도입.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>AWS Kinesis</h4><p>매니지드. 운영 부담 ↓. 비용·throughput 한계 트레이드오프.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>활용</h4><p>게임 서버 → Kafka → consumer (BI ETL·anti-cheat 분석·결제 정산·BI 등). Pub/Sub fanout.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="analytics-warehouse">
+        <h3>Analytics Warehouse — BigQuery·Snowflake</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">실시간 게임 DB 부하 보호 + 분석 쿼리 자유. ETL로 운영 DB → 분석 DB 동기화.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>BigQuery</h4><p>GCP. 한국 게임사 다수 도입. 페타바이트급 분석. SQL 친화적.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>Snowflake</h4><p>멀티 cloud. 데이터 sharing 강점. 글로벌 게임 BI에 표준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>AWS Redshift</h4><p>AWS 통합 우선 시. 비용 효율적이나 운영 복잡.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>ClickHouse</h4><p>self-hosted. 초고속 분석 OLAP. 게임 텔레메트리 자체 운영 사례.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="sharding">
+        <h3>샤딩 전략 — Player ID hash</h3>
+        <table class="level-table">
+          <thead><tr><th>샤딩 방식</th><th>키</th><th>장점</th><th>단점</th></tr></thead>
+          <tbody>
+            <tr><td>Hash sharding</td><td><code>hash(player_id) % N</code></td><td>균등 분포</td><td>샤드 추가 시 rebalancing</td></tr>
+            <tr><td>Range sharding</td><td>player_id range</td><td>직관적, range query 효율</td><td>hot shard 위험 (인기 시기 신규 가입자 몰림)</td></tr>
+            <tr><td>Geographic</td><td>region 별</td><td>데이터 locality, GDPR 친화</td><td>region 간 매칭 어려움</td></tr>
+            <tr><td>Consistent hashing</td><td>hash ring</td><td>샤드 추가·삭제 시 영향 최소</td><td>구현 복잡</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-info"><strong>★ 샤딩 후 트랜잭션 함정</strong><br>다른 샤드 player 간 트랜잭션 (선물·거래) 어려움. <strong>Saga 패턴 또는 distributed transaction (XA)</strong>가 필요. 다음 탭에서 자세히.</div>
+      </div>
+
+      <div class="sub" id="multi-region">
+        <h3>멀티 region replication</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Active-Passive</h4><p>한 region이 primary, 다른 region은 read-only replica + DR. 단순, write latency 안정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Active-Active</h4><p>모든 region이 write 가능. 복잡 (conflict 해결), 글로벌 게임에 강점.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Region 별 분리</h4><p>한·일·SEA region 각자 독립 DB. 사용자 region 결정 후 그 region에서만. 가장 단순, 글로벌 매칭은 별도 처리.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Geo-aware data</h4><p>GDPR 같은 규제로 EU 사용자 데이터는 EU 안. PIPA로 한국 사용자 일부 데이터는 한국 안. 강제 region 격리.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CONSISTENCY ============ -->
+    <div class="tab-panel" id="panel-consistency">
+      <div class="panel-header"><div class="panel-badge badge-indigo">● Consistency</div><h2>결제·인벤토리 일관성 — 게임 사업의 마지막 방어선</h2><p>매치 quality·anti-cheat가 아무리 좋아도 <strong>결제·인벤토리에 잘못된 상태가 한 번 생기면 게임 사업 전체가 흔들린다</strong>. ACID·Idempotency·Saga·Outbox — 게임 SRE가 알아야 할 분산 트랜잭션 패턴 핵심.</p></div>
+
+      <div class="sub" id="acid">
+        <h3>ACID 트랜잭션 (RDB) — 단일 DB 표준</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Atomicity</h4><p>모두 성공 또는 모두 롤백. 결제 차감 + 아이템 지급 = 원자적.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Consistency</h4><p>FK·constraint·trigger 보장. 인벤토리 max 슬롯 제약 항상 유지.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Isolation</h4><p>동시 트랜잭션 격리. 동시 결제·동시 거래 race condition 방지.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Durability</h4><p>commit 후 영구 보장. 서버 크래시·전원 차단에도 손실 X.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ Single-DB 한계</strong><br>한 DB 안에서는 ACID로 충분. 단 마이크로서비스·샤딩·다중 DB 환경에서는 ACID 깨짐 → Saga·Outbox 같은 분산 트랜잭션 패턴 필요.</div>
+      </div>
+
+      <div class="sub" id="idempotency">
+        <h3>Idempotency Key 패턴</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">"같은 요청을 여러 번 보내도 한 번만 처리"는 분산 시스템의 기본. 결제 재시도·네트워크 retry·중복 송신 모두 안전.</p>
+        <div class="box">
+          <div class="box-title">Idempotency 패턴 의사 코드</div>
+<pre style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:var(--text-dim);"><span style="color:var(--text-muted)"># 1. 클라가 요청에 unique key 첨부</span>
+POST /api/purchase
+Idempotency-Key: <span style="color:var(--c-green)">"550e8400-e29b-41d4-a716-446655440000"</span>
+{ "item_id": "sword_1", "amount": 1500 }
+
+<span style="color:var(--text-muted)"># 2. 서버는 key를 DB에 저장</span>
+INSERT INTO idempotency_keys (key, status, response)
+VALUES ('550e8400-...', 'processing', NULL)
+<span style="color:var(--text-muted)"># UNIQUE 제약 → 중복 요청은 즉시 conflict</span>
+
+<span style="color:var(--text-muted)"># 3. 처리 후 결과 저장</span>
+UPDATE idempotency_keys
+SET status='completed', response='{...}'
+WHERE key = '550e8400-...'
+
+<span style="color:var(--text-muted)"># 4. 재시도 시: 같은 key → 저장된 응답 반환</span>
+SELECT response FROM idempotency_keys WHERE key = '...'</pre>
+        </div>
+        <div class="note note-warn"><strong>★ Stripe·PayPal 표준</strong><br>외부 결제 API는 모두 idempotency key 지원. 게임 IAP에서도 필수. <strong>"중복 결제 처리"는 사용자 신뢰 직접 파괴</strong>.</div>
+      </div>
+
+      <div class="sub" id="saga">
+        <h3>Saga 패턴 — 분산 트랜잭션의 표준</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;"><strong>2026 기준 마이크로서비스에서 single-service write 외 모든 것의 default 패턴</strong>. 분산 시스템에서 ACID 대안. 큰 트랜잭션을 작은 local transaction 시퀀스로 나누고, 실패 시 compensating action으로 롤백.</p>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed)">Order<small>주문 생성</small></div>
+          <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable)">Payment<small>결제 처리</small></div>
+          <div class="pipe-stage" style="background:var(--c-indigo-bg);color:var(--c-indigo)">Inventory<small>아이템 예약</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange)">Shipping<small>지급 처리</small></div>
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green)">Complete<small>주문 확정</small></div>
+        </div>
+        <div class="cg" style="margin-top:18px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Choreography (탈중앙)</h4><p>각 서비스가 이벤트 listen → 다음 단계 자동 트리거. 단순, 디버깅 어려움.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Orchestration (중앙)</h4><p>Orchestrator가 모든 단계 관리. 복잡 트랜잭션에 적합. Temporal·Conductor 같은 도구.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Compensation 예시</h4><p>Inventory 실패 → Payment refund (compensation) → Order cancel. 각 단계 역전 가능해야.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>한계</h4><p>중간 상태 노출 ("주문 처리 중"), eventual consistency. 강한 ACID 필요한 곳엔 부적합.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="outbox">
+        <h3>Outbox 패턴 — 신뢰성 있는 이벤트 발행</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">"DB 트랜잭션 commit 했는데 Kafka 이벤트 발행 실패" → 일관성 깨짐. Outbox 패턴은 같은 DB 트랜잭션에 이벤트 row를 함께 작성, 별도 process가 그 row를 Kafka로 송신.</p>
+        <div class="box">
+          <div class="box-title">Outbox 패턴 흐름</div>
+<pre style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:var(--text-dim);"><span style="color:var(--text-muted)"># 1. 비즈니스 로직 + outbox 같은 트랜잭션</span>
+BEGIN TRANSACTION;
+  UPDATE inventory SET items = items + 'sword' WHERE player = 'A';
+  INSERT INTO outbox (event_type, payload, status)
+  VALUES ('item_acquired', '{"player":"A","item":"sword"}', 'pending');
+COMMIT;
+
+<span style="color:var(--text-muted)"># 2. 별도 publisher process가 outbox poll</span>
+SELECT * FROM outbox WHERE status='pending' LIMIT 100;
+
+<span style="color:var(--text-muted)"># 3. Kafka 송신 + outbox 상태 update</span>
+kafka.publish(event)
+UPDATE outbox SET status='published' WHERE id IN (...)</pre>
+        </div>
+        <div class="note note-info"><strong>★ 왜 중요한가</strong><br>Outbox 없이 "DB write + Kafka publish"를 별도 처리하면 둘 중 하나만 성공 가능. <strong>이벤트 송신 보장 = 다운스트림 (BI·anti-cheat·정산)의 정합성 보장</strong>.</div>
+      </div>
+
+      <div class="sub" id="refund">
+        <h3>환불 처리 (Compensation Transaction)</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Apple/Google IAP 환불</h4><p>플랫폼이 직접 환불 → 게임에 webhook 통보. 게임은 (1) 사용자 인벤토리에서 아이템 회수 (2) 부족 시 마이너스 잔액 처리 (3) 알림.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Steam 환불</h4><p>2주 + 2시간 미만 플레이는 자동 환불. 게임 시간 체크 필수. Webhook으로 통보.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>아이템 회수 정책</h4><p>(1) 즉시 회수 (사용 안 한 경우) (2) 마이너스 잔액 (이미 사용) (3) 부분 회수. 게임사·게임 정책 결정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>환불 abuse</h4><p>환불 후 아이템 사용 시도. 환불 처리 즉시 사용 차단. fingerprint·계정 패턴 분석.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="dedup">
+        <h3>중복 방지 (Deduplication) — Kafka·이벤트 레벨</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>At-least-once delivery</h4><p>Kafka·SQS는 기본 at-least-once. 중복 가능. consumer 측 dedup 필수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Event ID</h4><p>각 이벤트에 unique ID. consumer는 처리 ID 추적 (Redis·DB) → 중복 무시.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Sequence number</h4><p>player_id별 단조 증가 sequence. 역순·중복 자동 거부.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Idempotent consumer</h4><p>이벤트 처리가 idempotent → 중복 처리해도 안전. 함수 설계 자체로 해결.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ BACKUP RECOVERY ============ -->
+    <div class="tab-panel" id="panel-backup-recovery">
+      <div class="panel-header"><div class="panel-badge badge-orange">● Backup & Recovery</div><h2>백업·복구·Migration</h2><p>"백업 안 만들어 본 사람도 있고, 복구 안 해 본 사람은 없다." 백업은 매일·자동, 복구는 분기·훈련. PITR·Snapshot·Aurora Backtrack·zero-downtime migration까지.</p></div>
+
+      <div class="sub" id="pitr">
+        <h3>PITR — Point-In-Time Recovery</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">"3시간 전 18:42:30 시점으로 복원". 사고·실수·corruption 후 정확한 시점으로 되돌림. 게임 DB의 표준.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>AWS RDS PITR</h4><p>Continuous backup + transaction log. 초 단위 정밀. <strong>최대 35일 retention</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Aurora PITR</h4><p>RDS PITR과 동일 + cross-region restore 가능. AWS Backup 통합으로 자동화.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>GCP Cloud SQL PITR</h4><p>최대 7일 (PostgreSQL·MySQL). 별도 backup으로 장기 보관.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Self-hosted</h4><p>PostgreSQL WAL archiving + base backup. 직접 운영 가능하지만 도구·테스트 필수.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="snapshot-backup">
+        <h3>Snapshot 백업 주기</h3>
+        <table class="level-table">
+          <thead><tr><th>주기</th><th>RPO</th><th>비용</th><th>복구 시간</th><th>적합</th></tr></thead>
+          <tbody>
+            <tr><td>매일 (24h)</td><td>최대 24h 손실</td><td>낮음</td><td>분 단위</td><td>일반 운영 baseline</td></tr>
+            <tr><td>4시간</td><td>최대 4h</td><td>중</td><td>분</td><td>중요 DB</td></tr>
+            <tr><td>1시간</td><td>최대 1h</td><td>중상</td><td>분</td><td>결제 DB</td></tr>
+            <tr><td>Continuous (PITR)</td><td>초 단위</td><td>높음</td><td>분~시간</td><td>모든 중요 DB의 표준</td></tr>
+          </tbody>
+        </table>
+        <div class="note"><strong>★ 다층 백업</strong><br>PITR (35일) + 주간 snapshot (3개월) + 월간 snapshot (1년) + 분기 archive (7년 — 법적 요구). 비용·복구 시간·법적 요건 모두 만족.</div>
+      </div>
+
+      <div class="sub" id="aurora-backtrack">
+        <h3>Aurora Backtrack — 분 단위 rewind</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">Aurora MySQL 전용 기능. <strong>새 cluster 안 만들고 분 단위로 시간 되감기</strong>. accidental DROP·DELETE 같은 사고 즉시 복구.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>장점</h4><p>매우 빠름 (분 단위), 새 인스턴스 안 만듦, 운영 중 cluster 그대로.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>제약</h4><p>Aurora MySQL only (PostgreSQL 미지원), retention 최대 72시간.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>유즈 케이스</h4><p>실수 DROP TABLE, WHERE 빠진 DELETE, 잘못된 schema migration 즉시 롤백.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>PITR과 차이</h4><p>PITR은 새 cluster 만들어 복원 (시간 소요). Backtrack은 같은 cluster를 시간만 되감음 (분 단위).</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="cross-region-backup">
+        <h3>Cross-region backup — DR 핵심</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>왜 필요한가</h4><p>region 전체 장애 (지진·정전·AWS region down). 같은 region backup은 같이 손실.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>구현</h4><p>AWS RDS automated backup의 cross-region copy. AWS Backup vault 다른 region.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>비용</h4><p>cross-region 전송·저장 비용. 하루 단위 sync 일반.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>주의</h4><p>법적 region 격리 (GDPR·PIPA) 위반 안 되도록. EU 사용자 데이터는 EU 안에서만 backup.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="migration">
+        <h3>Schema Migration — Zero-downtime 패턴</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">라이브 게임 점검 없이 schema 변경. 점검 시간 = 매출 손실이라 zero-downtime이 운영 KPI.</p>
+        <div class="timeline">
+          <div class="t-time">Step 1</div><div class="t-desc">새 컬럼 추가 (NULL 허용·default 값). 기존 코드 영향 없음. 즉시 가능.</div>
+          <div class="t-time">Step 2</div><div class="t-desc">Backfill — 기존 row에 새 컬럼 값 채우기. batch update, 점진적.</div>
+          <div class="t-time">Step 3</div><div class="t-desc">신 코드 배포 — 새 컬럼 read·write 동시. 구 코드는 무시.</div>
+          <div class="t-time">Step 4</div><div class="t-desc">신 컬럼 NOT NULL constraint 추가 (충분 backfill 확인 후).</div>
+          <div class="t-time">Step 5</div><div class="t-desc">구 컬럼 삭제 (선택, 충분 검증 후).</div>
+        </div>
+        <div class="cg" style="margin-top:18px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>도구</h4><p>gh-ost (GitHub), pt-online-schema-change (Percona), Liquibase, Flyway. 큰 테이블 online migration 도구.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>주의</h4><p>큰 테이블 ALTER TABLE은 lock 발생 가능. online tool 필수. 작은 테이블은 직접 DDL OK.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="rollback">
+        <h3>Rollback 시나리오 — 코드·DB·매치 결과</h3>
+        <table class="level-table">
+          <thead><tr><th>시나리오</th><th>방법</th><th>RTO</th><th>주의</th></tr></thead>
+          <tbody>
+            <tr><td>코드 rollback</td><td>이전 버전 redeploy (k8s rollout undo)</td><td>분</td><td>schema 호환성 확인</td></tr>
+            <tr><td>DB schema rollback</td><td>backward 호환 schema 유지 (zero-downtime migration의 부산물)</td><td>분</td><td>ALTER TABLE rollback 어려움</td></tr>
+            <tr><td>DB data rollback</td><td>PITR 또는 Aurora Backtrack</td><td>분~시간</td><td>이후 트랜잭션 모두 손실</td></tr>
+            <tr><td>매치 결과 rollback</td><td>매치 단위 결과 무효화 + MMR/보상 환원</td><td>시간</td><td>사용자 통보·보상 정책</td></tr>
+            <tr><td>대규모 데이터 사고</td><td>backup 복원 + 사용자 영향 분석 + 보상</td><td>시간~일</td><td>incident playbook 필수</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub" id="rpo-rto">
+        <h3>RPO · RTO 정의</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>RPO (Recovery Point Objective)</h4><p>"얼마나 손실을 받아들일 수 있나" — backup 빈도. 결제 DB는 RPO=0 (continuous backup), 위치 DB는 RPO=1분 OK.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>RTO (Recovery Time Objective)</h4><p>"얼마나 빨리 복구해야 하나" — 복구 절차. 게임 다운 = 매출 손실 = 사용자 이탈. 보통 RTO 5~30분 목표.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>비용 트레이드오프</h4><p>RPO·RTO 짧을수록 비용 ↑ (continuous backup·hot standby). 데이터 종류별 차등.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>훈련</h4><p>분기마다 복구 훈련 — staging 환경에 backup 복원, 시간 측정. "복구 안 해 본 backup은 없는 backup".</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ OPS GOVERNANCE ============ -->
+    <div class="tab-panel" id="panel-ops-governance">
+      <div class="panel-header"><div class="panel-badge badge-red">● Ops & Governance</div><h2>운영 시나리오 + 데이터 거버넌스</h2><p>캐릭터 이전·서버 통합·클라우드 세이브·GDPR/PIPA — 게임 데이터의 실 운영 시나리오와 법적 의무를 다룬다.</p></div>
+
+      <div class="sub" id="char-transfer">
+        <h3>캐릭터 이전 · 서버 통합</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>캐릭터 이전</h4><p>다른 서버로 이전 (서버 폐쇄·사용자 요청). 캐릭터·인벤토리·진척 모두 옮김. 이름 충돌 처리·정산 보호 필수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>서버 통합</h4><p>인구 줄어든 서버 합치기. 캐릭터 이름 충돌 (suffix 추가), 길드 통합 정책, 시장·경제 데이터 처리.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>실행 단계</h4><p>(1) 점검 공지 + 시점 결정 (2) source 서버 freeze (3) 데이터 export (4) target 서버 import + 충돌 해결 (5) 사용자 통보·보상.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>롤백 plan</h4><p>이전 후 문제 발견 시 source 데이터 보관 기간 (보통 1~3개월). 사용자 클레임 분석 후 부분 복원.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="data-loss-incident">
+        <h3>데이터 손실 사고 대응 — Incident Playbook</h3>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-red-bg);color:var(--c-red)">탐지<small>모니터링·신고</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange)">범위 결정<small>몇 명·뭐가</small></div>
+          <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable)">긴급 차단<small>further damage 막기</small></div>
+          <div class="pipe-stage" style="background:var(--c-indigo-bg);color:var(--c-indigo)">복구<small>backup·재계산</small></div>
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed)">통보<small>영향 사용자</small></div>
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green)">RCA + 재발 방지</div>
+        </div>
+        <div class="cg" style="margin-top:18px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>탐지 신호</h4><p>모니터링 알림 (DB 오류·exception spike), 사용자 신고 폭증, BI 이상 (MAU·매출 dip).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>범위 결정</h4><p>"몇 명·언제부터·어떤 데이터" 즉시 답해야. 텔레메트리·log·DB 검색.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>복구 옵션</h4><p>(1) backup 복원 (이후 트랜잭션 손실) (2) 부분 복원 (영향 사용자만) (3) 매뉴얼 보상 (복원 불가능 시).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>통보 SLA</h4><p>심각 사고 24시간 내 사용자 통보. 한국 PIPA·GDPR 모두 72시간 내 규제 기관 통보 의무.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="cloud-saves">
+        <h3>Steam · PSN · Xbox 클라우드 세이브 통합</h3>
+        <table class="level-table">
+          <thead><tr><th>플랫폼</th><th>비용</th><th>저장 한도</th><th>특징 (2026)</th></tr></thead>
+          <tbody>
+            <tr><td>Steam Cloud</td><td>무료</td><td><strong>사용자당 1GB, 게임당 ~100MB</strong> (개발자 설정)</td><td>Conflict 시 사용자 선택, 두 PC 동시 플레이 시 conflict</td></tr>
+            <tr><td>PSN Cloud (PS Plus)</td><td><strong>PS Plus 멤버십 필수</strong></td><td><strong>PS5 100GB + PS4 100GB</strong> (PS4는 1000 file 제한)</td><td>크로스 콘솔 (PS5↔PS4) sync, Essential tier에 포함</td></tr>
+            <tr><td>Xbox Cloud</td><td><strong>완전 무료</strong> (Microsoft 계정만)</td><td><strong>한도 없음</strong> (게임 라이브러리 따라 grow)</td><td>2026-03 update로 게임 시작 전 sync 상태 확인 가능, Play Anywhere 콘솔↔Win11 sync</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-info"><strong>★ 통합 시 고려사항</strong><br>(1) 세이브 파일 포맷·압축 (2) conflict 해결 정책 (사용자 선택 vs 자동 latest 선택) (3) 다중 디바이스 동기화 시점 (4) 오프라인 플레이 후 재접속 처리 (5) 사용자가 cloud sync 끄는 옵션. 플랫폼별 SDK 통합 코드 필수.</div>
+      </div>
+
+      <div class="sub" id="gdpr-pipa">
+        <h3>GDPR · 한국 PIPA · CCPA 거버넌스</h3>
+        <table class="level-table">
+          <thead><tr><th>규제</th><th>지역</th><th>핵심 권리</th><th>벌금 한도</th></tr></thead>
+          <tbody>
+            <tr><td>GDPR</td><td>EU</td><td>접근권·삭제권·이동권·반대권</td><td>매출 4% 또는 €20M (큰 금액)</td></tr>
+            <tr><td>PIPA (개정 2026)</td><td>한국</td><td>접근권·정정권·삭제권·처리정지권</td><td><strong>최대 매출 10%</strong> (high-severity, 2026-09-11 시행)</td></tr>
+            <tr><td>CCPA / CPRA</td><td>캘리포니아</td><td>접근권·삭제권·판매 거부권</td><td>위반당 $7500 (의도적)</td></tr>
+            <tr><td>LGPD</td><td>브라질</td><td>GDPR 유사</td><td>매출 2% 또는 R$50M</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-warn"><strong>★ 한국 PIPA 2026 개정 핵심</strong><br>2026-03-10 통과·2026-09-11 시행. (1) 14세 미만 보호자 동의 명시 강화 (2) breach notification 확대 (forgery·alteration·destruction 포함) (3) <strong>최대 회사 총 매출의 10% 벌금</strong> — 의도적·중과실·1000만 명 이상 영향·PIPC 명령 불이행 등 high-severity. (4) 3년 내 반복 위반 처벌 강화. <strong>한국 게임 운영 시 즉시 영향</strong>.</div>
+      </div>
+
+      <div class="sub" id="minor-protection">
+        <h3>미성년자 데이터 특별 보호</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>한국 PIPA</h4><p><strong>14세 미만은 법적 보호자 동의 필수</strong>. 게임 가입 시 보호자 본인 인증 필요. 위반 시 PIPA 벌금 직접 적용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>GDPR</h4><p>16세 미만 (회원국별 13~16세). 보호자 동의 필수. 데이터 수집·맞춤 광고 제한.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>COPPA (미국)</h4><p>13세 미만. parental consent + 데이터 수집 제한. Google·Apple 매장 정책에도 반영.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>실무 처리</h4><p>(1) 가입 시 나이 인증 (2) 미성년자 식별 데이터 별도 저장 (3) 동의 기록 영구 보관 (4) 게임 내 추가 보호 (광고 제한·결제 한도).</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="data-retention">
+        <h3>데이터 보존 · 삭제 · 이동권</h3>
+        <ul class="checklist">
+          <li><strong>삭제권</strong> — 사용자 요청 시 30일 안 처리. 법적 보존 의무 (회계·세무) 데이터는 별도 보관 사유 명시</li>
+          <li><strong>이동권 (Data Portability)</strong> — 사용자 데이터를 표준 포맷 (JSON·CSV 등)으로 export 제공</li>
+          <li><strong>접근권</strong> — 사용자가 자기 데이터 무엇이 저장돼 있는지 확인할 수 있어야 함</li>
+          <li><strong>정정권</strong> — 사용자가 잘못된 데이터 수정 요청 시 처리</li>
+          <li><strong>처리정지권</strong> — 사용자가 특정 처리 (예: 마케팅 분석) 거부 가능</li>
+          <li><strong>데이터 보존 정책 명시</strong> — 가입 동의서·privacy policy에 보존 기간·사유 명확</li>
+          <li><strong>법적 자료 보존</strong> — 결제 7년 (한국 세무), 게임 로그 N년 (게임사 정책) 등 차등 보존</li>
+          <li><strong>익명화/가명화</strong> — 분석 데이터는 PII 분리, 가명화 처리 후 사용</li>
+        </ul>
+        <div class="note"><strong>★ SRE의 데이터 거버넌스 도구</strong><br>(1) 사용자 ID로 모든 저장소에서 데이터 검색 가능한 도구 (2) 삭제 요청 자동 처리 워크플로우 (3) 데이터 export 자동 (4) 보존 기간 자동 expire. 이런 도구 없이는 GDPR·PIPA 대응 인력으로만 감당 못 함.</div>
+      </div>
+    </div>
+
+    <!-- ============ REFERENCES ============ -->
+    <div class="tab-panel" id="panel-references">
+      <div class="panel-header"><div class="panel-badge badge-green">● References</div><h2>참고 자료</h2><p>2026-05 기준. 클라우드 세이브 정책·법적 규제 모두 자주 변경. 도입·운영 시 공식 문서 다시 확인.</p></div>
+
+      <div class="sub" id="refs">
+        <div class="ref-cat">공식 문서 — 클라우드 세이브</div>
+        <ul class="ref-list">
+          <li><a href="https://partner.steamgames.com/doc/features/cloud" target="_blank">partner.steamgames.com — Steam Cloud</a><div class="ref-desc">Steam Cloud 공식 가이드. byte quota·file 수 limit·conflict 처리 패턴</div></li>
+          <li><a href="https://help.steampowered.com/en/faqs/view/68D2-35AB-09A9-7678" target="_blank">help.steampowered.com — Steam Cloud FAQ</a><div class="ref-desc">사용자 관점 Steam Cloud FAQ — 1GB 한도·housekeeping</div></li>
+          <li><a href="https://www.playstation.com/en-us/support/subscriptions/ps5-ps-plus-cloud-storage/" target="_blank">playstation.com — PS Plus Cloud Storage</a><div class="ref-desc">PS5 100GB + PS4 100GB cloud saves. PS Plus Essential tier 포함</div></li>
+          <li><a href="https://support.xbox.com/en-US/help/games-apps/game-setup-and-play/cloud-game-saves-faq" target="_blank">support.xbox.com — Xbox Cloud Game Saves FAQ</a><div class="ref-desc">Xbox 완전 무료 cloud saves, 한도 없음. 2026-03 sync status update</div></li>
+          <li><a href="https://support.xbox.com/en-US/help/games-apps/cloud-gaming/manage-storage" target="_blank">support.xbox.com — Manage Cloud Storage</a><div class="ref-desc">Xbox Cloud Gaming 저장 관리</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-speed-bg);color:var(--c-speed)">공식 문서 — DB · 백업</div>
+        <ul class="ref-list">
+          <li><a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-pitr.html" target="_blank">docs.aws.amazon.com — Aurora PITR</a><div class="ref-desc">Aurora Point-In-Time Recovery 공식 가이드. 초 단위 정밀, 35일 retention</div></li>
+          <li><a href="https://aws.amazon.com/blogs/storage/streamlining-point-in-time-recovery-pitr-for-amazon-aurora-with-aws-backup/" target="_blank">aws.amazon.com — PITR Streamlining</a><div class="ref-desc">AWS Backup 통합 PITR 자동화 패턴</div></li>
+          <li><a href="https://docs.aws.amazon.com/aws-backup/latest/devguide/point-in-time-recovery.html" target="_blank">docs.aws.amazon.com — AWS Backup PITR</a><div class="ref-desc">AWS Backup continuous backup·PITR 설정</div></li>
+          <li><a href="https://github.com/github/gh-ost" target="_blank">github.com/github/gh-ost</a><div class="ref-desc">GitHub의 zero-downtime online schema migration 도구. MySQL 표준</div></li>
+          <li><a href="https://www.percona.com/software/database-tools/percona-toolkit" target="_blank">percona.com — Percona Toolkit</a><div class="ref-desc">pt-online-schema-change 등 MySQL 운영 도구</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-stable-bg);color:var(--c-stable)">분산 트랜잭션 패턴</div>
+        <ul class="ref-list">
+          <li><a href="https://microservices.io/patterns/data/saga.html" target="_blank">microservices.io — Saga Pattern</a><div class="ref-desc">Chris Richardson의 Saga 패턴 표준 설명. choreography vs orchestration</div></li>
+          <li><a href="https://microservices.io/patterns/data/transactional-outbox.html" target="_blank">microservices.io — Transactional Outbox</a><div class="ref-desc">Outbox 패턴 — 신뢰성 있는 이벤트 발행</div></li>
+          <li><a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/saga" target="_blank">learn.microsoft.com — Saga Design Pattern</a><div class="ref-desc">Microsoft Azure Architecture Center의 Saga 가이드</div></li>
+          <li><a href="https://temporal.io/blog/mastering-saga-patterns-for-distributed-transactions-in-microservices" target="_blank">temporal.io — Saga Patterns Mastery</a><div class="ref-desc">Temporal (orchestration 도구) 관점의 Saga 패턴 깊이</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-orange-bg);color:var(--c-orange)">법률 · 거버넌스 (2026)</div>
+        <ul class="ref-list">
+          <li><a href="https://www.pipc.go.kr/eng/" target="_blank">pipc.go.kr — Personal Information Protection Commission</a><div class="ref-desc">한국 개인정보보호위원회 공식 사이트. PIPA 영문 공지</div></li>
+          <li><a href="https://www.didomi.io/blog/south-korea-pipa-everything-you-need-to-know" target="_blank">didomi.io — South Korea PIPA Guide</a><div class="ref-desc">PIPA 2026 개정안 종합 가이드. 14세 미만 보호자 동의·매출 10% 벌금</div></li>
+          <li><a href="https://practiceguides.chambers.com/practice-guides/data-protection-privacy-2026/south-korea/trends-and-developments" target="_blank">chambers.com — Data Protection Korea 2026</a><div class="ref-desc">한국 데이터 보호 2026 trend (법무법인 분석)</div></li>
+          <li><a href="https://gdpr-info.eu/" target="_blank">gdpr-info.eu</a><div class="ref-desc">GDPR 전문 영문판. 게임 데이터 적용 지침</div></li>
+          <li><a href="https://oag.ca.gov/privacy/ccpa" target="_blank">oag.ca.gov — CCPA</a><div class="ref-desc">캘리포니아 CCPA·CPRA 공식 가이드</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-red-bg);color:var(--c-red)">책 · 학술</div>
+        <ul class="ref-list">
+          <li><span style="font-weight:600;">Designing Data-Intensive Applications (Martin Kleppmann)</span><div class="ref-desc">분산 데이터 시스템의 표준 교재. ACID·CAP·event sourcing·일관성 모델 모두</div></li>
+          <li><span style="font-weight:600;">Database Internals (Alex Petrov)</span><div class="ref-desc">DB 내부 구조 깊이. PITR·snapshot·replication 원리 이해</div></li>
+          <li><span style="font-weight:600;">Microservices Patterns (Chris Richardson)</span><div class="ref-desc">Saga·Outbox·CQRS·Event Sourcing 패턴 표준 가이드</div></li>
+          <li><span style="font-weight:600;">Site Reliability Engineering (Google)</span><div class="ref-desc">SRE 표준. 백업·복구·incident response 원칙</div></li>
+          <li><span style="font-weight:600;">Data Mesh (Zhamak Dehghani)</span><div class="ref-desc">대규모 데이터 분리·거버넌스 새 패러다임. 게임 BI·analytics에 적용</div></li>
+        </ul>
+
+        <div class="note note-info" style="margin-top:32px;"><strong>★ NOTE</strong><br>이 가이드는 <strong>2026년 5월 기준</strong>. 특히 (1) <strong>한국 PIPA 개정안 2026-09-11 시행</strong> (2) <strong>Xbox Cloud 2026-03 sync status update</strong> (3) <strong>Saga 패턴이 2026 마이크로서비스 default</strong> (4) <strong>Aurora PITR 35일 + Backtrack 72시간 retention</strong> — 4가지는 현 시점 변동 정보다. 도입 결정 시 위 공식 문서·법률 자료 다시 확인할 것. <strong>특히 PIPA 시행 (2026-09-11) 전 한국 운영 중인 게임은 데이터 거버넌스 점검 필수</strong>.</div>
+
+        <div class="note" style="margin-top:18px;"><strong>★ Phase 3 완료</strong><br>이 F5는 Phase 3 (game-fundamentals)의 마지막 가이드. F1 (서버 아키텍처) → F2 (네트워킹·실시간 동기화) → F3 (매치메이킹·세션) → F4 (anti-cheat·보안) → F5 (데이터·세이브). 5개 가이드가 게임 도메인 fundamentals를 cover. F1~F5와 game-platform 카테고리 (10개) 모두 함께 보면 게임 퍼블리싱 SRE 학습 토대가 완성된다.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + tabId).classList.add('active');
+    document.querySelector('.top-tab[data-tab="' + tabId + '"]').classList.add('active');
+
+    document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+    const firstLink = document.querySelector('.sb-nav li a[data-tab="' + tabId + '"]');
+    if (firstLink) firstLink.classList.add('active');
+  }
+
+  document.querySelectorAll('.sb-nav li a').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const tab = link.dataset.tab;
+      const section = link.dataset.section;
+      switchTab(tab);
+      setTimeout(() => {
+        const el = document.getElementById(section);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }, 50);
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>게임 네트워킹 & 실시간 동기화</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fb; --surface: #ffffff; --surface-2: #f0f2f5;
+    --sidebar-bg: #ffffff; --border: #e2e6eb; --border-strong: #d0d5dc;
+    --text: #1a1d23; --text-dim: #5c6370; --text-muted: #8b929e;
+    --c-speed: #0969b2; --c-speed-bg: #e8f4fd; --c-speed-border: #a2d2f5;
+    --c-stable: #8b5cf6; --c-stable-bg: #f3effe; --c-stable-border: #c4b5fd;
+    --c-green: #1a7f37; --c-green-bg: #ecf7ef; --c-green-border: #a6ddb5;
+    --c-orange: #c2600c; --c-orange-bg: #fef3eb; --c-orange-border: #f5cba7;
+    --c-red: #cf222e; --c-red-bg: #fdecea; --c-red-border: #f5a8a8;
+    --c-teal: #0e7c6b; --c-teal-bg: #e6f7f4; --c-teal-border: #8ed5c5;
+    --c-indigo: #3f51b5; --c-indigo-bg: #eaecf8; --c-indigo-border: #b5bce4;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 10px; --sidebar-w: 252px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-weight: 400; line-height: 1.75; }
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 28px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; box-shadow: 1px 0 8px rgba(0,0,0,0.03); }
+  .sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand h1 em { font-style: normal; color: var(--c-speed); }
+  .sb-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px 6px; font-weight: 600; }
+  .sb-nav { list-style: none; }
+  .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 22px; color: var(--text-dim); text-decoration: none; font-size: 13px; transition: all 0.15s; border-left: 2.5px solid transparent; cursor: pointer; }
+  .sb-nav li a:hover { color: var(--text); background: var(--surface-2); }
+  .sb-nav li a.active { color: var(--text); background: var(--c-speed-bg); border-left-color: var(--c-speed); font-weight: 600; }
+  .sb-nav li a .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 18px 22px 0; border-top: 1px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-muted); line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
+
+  .main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+  .top-tabs { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .top-tab { flex: 1; padding: 15px 16px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: none; cursor: pointer; position: relative; transition: all 0.2s; }
+  .top-tab:hover { color: var(--text); background: var(--surface-2); }
+  .top-tab::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2.5px; border-radius: 2px; transition: all 0.25s; }
+  .top-tab.active { color: var(--text); }
+  .top-tab[data-tab="overview"].active { color: var(--c-teal); }
+  .top-tab[data-tab="overview"].active::after { background: var(--c-teal); left: 12%; right: 12%; }
+  .top-tab[data-tab="transport"].active { color: var(--c-speed); }
+  .top-tab[data-tab="transport"].active::after { background: var(--c-speed); left: 12%; right: 12%; }
+  .top-tab[data-tab="packet"].active { color: var(--c-stable); }
+  .top-tab[data-tab="packet"].active::after { background: var(--c-stable); left: 12%; right: 12%; }
+  .top-tab[data-tab="nat"].active { color: var(--c-indigo); }
+  .top-tab[data-tab="nat"].active::after { background: var(--c-indigo); left: 12%; right: 12%; }
+  .top-tab[data-tab="lag-comp"].active { color: var(--c-orange); }
+  .top-tab[data-tab="lag-comp"].active::after { background: var(--c-orange); left: 12%; right: 12%; }
+  .top-tab[data-tab="security"].active { color: var(--c-red); }
+  .top-tab[data-tab="security"].active::after { background: var(--c-red); left: 12%; right: 12%; }
+  .top-tab[data-tab="ops-refs"].active { color: var(--c-green); }
+  .top-tab[data-tab="ops-refs"].active::after { background: var(--c-green); left: 12%; right: 12%; }
+
+  .tab-panel { display: none; padding: 40px 52px 80px; max-width: 980px; }
+  .tab-panel.active { display: block; }
+  .panel-header { margin-bottom: 36px; }
+  .panel-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px; font-weight: 600; }
+  .badge-teal { color: var(--c-teal); background: var(--c-teal-bg); border: 1px solid var(--c-teal-border); }
+  .badge-speed { color: var(--c-speed); background: var(--c-speed-bg); border: 1px solid var(--c-speed-border); }
+  .badge-stable { color: var(--c-stable); background: var(--c-stable-bg); border: 1px solid var(--c-stable-border); }
+  .badge-green { color: var(--c-green); background: var(--c-green-bg); border: 1px solid var(--c-green-border); }
+  .badge-orange { color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .badge-red { color: var(--c-red); background: var(--c-red-bg); border: 1px solid var(--c-red-border); }
+  .badge-indigo { color: var(--c-indigo); background: var(--c-indigo-bg); border: 1px solid var(--c-indigo-border); }
+  .panel-header h2 { font-size: 27px; font-weight: 700; margin-bottom: 8px; }
+  .panel-header p { color: var(--text-dim); font-size: 15px; max-width: 720px; line-height: 1.7; }
+  .sub { margin-top: 44px; scroll-margin-top: 72px; }
+  .sub h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+  .card h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card p { color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+  .card code { font-family: 'JetBrains Mono', monospace; background: var(--c-green-bg); color: var(--c-green); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .card-full { grid-column: 1 / -1; }
+
+  .level-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .level-table th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+  .level-table td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: top; line-height: 1.55; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .level-table tr:hover td { background: var(--surface-2); }
+  .level-table td:first-child { font-weight: 700; }
+  .lvl-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+  .lvl-elite { color: var(--c-green); background: var(--c-green-bg); }
+  .lvl-high { color: var(--c-speed); background: var(--c-speed-bg); }
+  .lvl-medium { color: var(--c-orange); background: var(--c-orange-bg); }
+  .lvl-low { color: var(--c-red); background: var(--c-red-bg); }
+  .lvl-self { color: var(--c-teal); background: var(--c-teal-bg); }
+  .lvl-pub { color: var(--c-stable); background: var(--c-stable-bg); }
+  .lvl-indigo { color: var(--c-indigo); background: var(--c-indigo-bg); }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 140px; box-shadow: var(--shadow-sm); }
+  .flow-node h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 3px; font-weight: 700; }
+  .flow-node p { font-size: 11px; color: var(--text-dim); }
+  .flow-arrow { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 22px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-top: 16px; overflow-x: auto; box-shadow: var(--shadow-sm); }
+  .box-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .note { background: var(--c-green-bg); border-left: 3px solid var(--c-green); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .note strong { color: var(--c-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .note-warn { background: var(--c-orange-bg); border-left-color: var(--c-orange); }
+  .note-warn strong { color: var(--c-orange); }
+  .note-info { background: var(--c-speed-bg); border-left-color: var(--c-speed); }
+  .note-info strong { color: var(--c-speed); }
+
+  .gauge-row { display: flex; gap: 14px; margin: 20px 0; }
+  .gauge-item { flex: 1; text-align: center; }
+  .gauge-bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin-bottom: 8px; }
+  .gauge-fill { height: 100%; border-radius: 4px; }
+  .gauge-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+  .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .pipe-stage { padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; text-align: center; min-width: 110px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-left: -8px; }
+  .pipe-stage:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); margin-left: 0; }
+  .pipe-stage small { display: block; font-weight: 500; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+
+  .ref-list { list-style: none; margin-top: 14px; }
+  .ref-list li { padding: 12px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; line-height: 1.6; }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list li a { color: var(--c-speed); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; }
+  .ref-list li a:hover { text-decoration: underline; }
+  .ref-list li .ref-desc { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .ref-cat { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; padding: 3px 10px; background: var(--c-teal-bg); border-radius: 12px; display: inline-block; margin-right: 8px; }
+
+  .tick-line { display: flex; gap: 0; margin: 16px 0; align-items: stretch; height: 56px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--surface); }
+  .tick-cell { flex: 1; border-right: 1px dashed var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim); padding: 4px 2px; }
+  .tick-cell:last-child { border-right: none; }
+  .tick-cell.t-input { background: var(--c-speed-bg); color: var(--c-speed); }
+  .tick-cell.t-sim { background: var(--c-indigo-bg); color: var(--c-indigo); }
+  .tick-cell.t-snap { background: var(--c-orange-bg); color: var(--c-orange); }
+  .tick-cell strong { font-size: 11px; font-weight: 700; }
+
+  .seq-grid { display: grid; grid-template-columns: 80px 1fr 80px; gap: 0; margin: 18px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .seq-grid .col-h { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; padding: 10px 12px; text-align: center; background: var(--surface-2); color: var(--text); border-bottom: 1px solid var(--border); }
+  .seq-row { display: contents; }
+  .seq-row > div { padding: 8px 12px; font-size: 12px; color: var(--text-dim); border-bottom: 1px solid var(--surface-2); }
+  .seq-row .arr { text-align: center; font-family: 'JetBrains Mono', monospace; color: var(--c-speed); font-weight: 700; }
+  .seq-row .desc { color: var(--text-dim); font-size: 12px; }
+
+  .mobile-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 18px; cursor: pointer; box-shadow: var(--shadow-md); }
+  @media (max-width: 768px) {
+    .mobile-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .tab-panel { padding: 32px 20px 60px; }
+    .cg, .cg3 { grid-template-columns: 1fr; }
+    .top-tab { font-size: 10px; padding: 12px 6px; }
+    .gauge-row { flex-wrap: wrap; }
+    .pipeline { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="label">Game Fundamentals</div><h1><em>Game Networking</em> & Realtime Sync</h1></div>
+    <div class="sb-label">개요</div>
+    <ul class="sb-nav">
+      <li><a data-tab="overview" data-section="why-different" class="active"><span class="dot" style="background:var(--c-teal)"></span>일반 백엔드와 뭐가 다른가</a></li>
+      <li><a data-tab="overview" data-section="tcp-fail"><span class="dot" style="background:var(--c-teal)"></span>TCP가 게임에 안 되는 이유</a></li>
+      <li><a data-tab="overview" data-section="protocol-matrix"><span class="dot" style="background:var(--c-teal)"></span>프로토콜 선택 매트릭스</a></li>
+      <li><a data-tab="overview" data-section="platform-env"><span class="dot" style="background:var(--c-teal)"></span>플랫폼별 네트워크 환경</a></li>
+      <li><a data-tab="overview" data-section="four-metrics"><span class="dot" style="background:var(--c-teal)"></span>SRE 4대 메트릭</a></li>
+    </ul>
+    <div class="sb-label">전송 프로토콜</div>
+    <ul class="sb-nav">
+      <li><a data-tab="transport" data-section="tcp-vs-udp"><span class="dot" style="background:var(--c-speed)"></span>TCP vs UDP — 본질적 차이</a></li>
+      <li><a data-tab="transport" data-section="quic-webtransport"><span class="dot" style="background:var(--c-speed)"></span>QUIC & WebTransport</a></li>
+      <li><a data-tab="transport" data-section="reliable-udp"><span class="dot" style="background:var(--c-speed)"></span>Reliable UDP 라이브러리 비교</a></li>
+      <li><a data-tab="transport" data-section="webrtc"><span class="dot" style="background:var(--c-speed)"></span>WebRTC DataChannel (HTML5)</a></li>
+      <li><a data-tab="transport" data-section="channels-mux"><span class="dot" style="background:var(--c-speed)"></span>채널 다중화·우선순위</a></li>
+    </ul>
+    <div class="sb-label">패킷 설계 & 직렬화</div>
+    <ul class="sb-nav">
+      <li><a data-tab="packet" data-section="delta-encoding"><span class="dot" style="background:var(--c-stable)"></span>Delta encoding</a></li>
+      <li><a data-tab="packet" data-section="bit-packing"><span class="dot" style="background:var(--c-stable)"></span>Bit packing</a></li>
+      <li><a data-tab="packet" data-section="quantization"><span class="dot" style="background:var(--c-stable)"></span>Quantization (위치·회전)</a></li>
+      <li><a data-tab="packet" data-section="schema-format"><span class="dot" style="background:var(--c-stable)"></span>Schema 포맷 (Protobuf · FlatBuffers · Custom)</a></li>
+      <li><a data-tab="packet" data-section="priority-channel"><span class="dot" style="background:var(--c-stable)"></span>패킷 우선순위·채널</a></li>
+      <li><a data-tab="packet" data-section="compression"><span class="dot" style="background:var(--c-stable)"></span>압축 (LZ4 · zstd)</a></li>
+    </ul>
+    <div class="sb-label">NAT & 연결</div>
+    <ul class="sb-nav">
+      <li><a data-tab="nat" data-section="nat-types"><span class="dot" style="background:var(--c-indigo)"></span>NAT 4종 분류</a></li>
+      <li><a data-tab="nat" data-section="stun-turn-ice"><span class="dot" style="background:var(--c-indigo)"></span>STUN · TURN · ICE</a></li>
+      <li><a data-tab="nat" data-section="hole-punching"><span class="dot" style="background:var(--c-indigo)"></span>UDP hole punching</a></li>
+      <li><a data-tab="nat" data-section="sdr-internal"><span class="dot" style="background:var(--c-indigo)"></span>SDR 내부 동작 깊이</a></li>
+      <li><a data-tab="nat" data-section="photon-fallback"><span class="dot" style="background:var(--c-indigo)"></span>Photon relay 폴백</a></li>
+      <li><a data-tab="nat" data-section="cgnat"><span class="dot" style="background:var(--c-indigo)"></span>모바일 CGNAT 함정</a></li>
+    </ul>
+    <div class="sb-label">Lag Compensation</div>
+    <ul class="sb-nav">
+      <li><a data-tab="lag-comp" data-section="source-model"><span class="dot" style="background:var(--c-orange)"></span>Source 엔진 모델 (시간 되감기)</a></li>
+      <li><a data-tab="lag-comp" data-section="favor-tradeoff"><span class="dot" style="background:var(--c-orange)"></span>Favor shooter vs dodger</a></li>
+      <li><a data-tab="lag-comp" data-section="interp-delay"><span class="dot" style="background:var(--c-orange)"></span>Interpolation delay 튜닝</a></li>
+      <li><a data-tab="lag-comp" data-section="backwards-recon"><span class="dot" style="background:var(--c-orange)"></span>Backwards reconciliation</a></li>
+      <li><a data-tab="lag-comp" data-section="mobile-jitter"><span class="dot" style="background:var(--c-orange)"></span>모바일 jitter 대응</a></li>
+      <li><a data-tab="lag-comp" data-section="anti-lag-abuse"><span class="dot" style="background:var(--c-orange)"></span>Anti-lag 어뷰징</a></li>
+    </ul>
+    <div class="sb-label">보안 & QoS</div>
+    <ul class="sb-nav">
+      <li><a data-tab="security" data-section="dtls"><span class="dot" style="background:var(--c-red)"></span>DTLS · GNS 암호화</a></li>
+      <li><a data-tab="security" data-section="replay-attack"><span class="dot" style="background:var(--c-red)"></span>Replay attack 방어</a></li>
+      <li><a data-tab="security" data-section="packet-flood"><span class="dot" style="background:var(--c-red)"></span>Packet flooding · 입력 검증</a></li>
+      <li><a data-tab="security" data-section="congestion"><span class="dot" style="background:var(--c-red)"></span>Congestion control</a></li>
+      <li><a data-tab="security" data-section="bandwidth"><span class="dot" style="background:var(--c-red)"></span>대역폭 적응</a></li>
+      <li><a data-tab="security" data-section="ddos-l3-l7"><span class="dot" style="background:var(--c-red)"></span>DDoS L3 vs L7</a></li>
+    </ul>
+    <div class="sb-label">운영 & 참고 자료</div>
+    <ul class="sb-nav">
+      <li><a data-tab="ops-refs" data-section="ops-metrics"><span class="dot" style="background:var(--c-green)"></span>네트워크 메트릭 (RTT·jitter·loss)</a></li>
+      <li><a data-tab="ops-refs" data-section="diagnostic-tools"><span class="dot" style="background:var(--c-green)"></span>진단 도구 (MTR · iperf · pcap)</a></li>
+      <li><a data-tab="ops-refs" data-section="isp-routing"><span class="dot" style="background:var(--c-green)"></span>ISP 라우팅 트러블슈팅</a></li>
+      <li><a data-tab="ops-refs" data-section="mobile-carrier"><span class="dot" style="background:var(--c-green)"></span>모바일 캐리어별 특이성</a></li>
+      <li><a data-tab="ops-refs" data-section="playbook"><span class="dot" style="background:var(--c-green)"></span>Troubleshooting playbook</a></li>
+      <li><a data-tab="ops-refs" data-section="references"><span class="dot" style="background:var(--c-green)"></span>참고 자료</a></li>
+    </ul>
+    <div class="sidebar-footer"><p>Game Networking<br>= Transport × Packet × NAT × Lag</p></div>
+  </aside>
+
+  <div class="main">
+    <div class="top-tabs">
+      <button class="top-tab active" data-tab="overview" onclick="switchTab('overview')">● 개요</button>
+      <button class="top-tab" data-tab="transport" onclick="switchTab('transport')">● 전송 프로토콜</button>
+      <button class="top-tab" data-tab="packet" onclick="switchTab('packet')">● 패킷 설계</button>
+      <button class="top-tab" data-tab="nat" onclick="switchTab('nat')">● NAT</button>
+      <button class="top-tab" data-tab="lag-comp" onclick="switchTab('lag-comp')">● Lag Comp</button>
+      <button class="top-tab" data-tab="security" onclick="switchTab('security')">● 보안 & QoS</button>
+      <button class="top-tab" data-tab="ops-refs" onclick="switchTab('ops-refs')">● 운영 & 참고</button>
+    </div>
+
+    <!-- ============ OVERVIEW ============ -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="panel-header"><div class="panel-badge badge-teal">● Overview</div><h2>게임 네트워킹 — 일반 백엔드와 본질이 다르다</h2><p>웹 백엔드 SRE 경험만으로 게임 트래픽을 운영하면 곧 한계에 부딪힌다. <strong>UDP·jitter·NAT·시간 되감기</strong> 같은 게임 도메인 개념을 모르면 게임사가 던지는 질문에 답할 수 없다. 이 문서는 그 빈 공간을 채운다. (2026-05 기준)</p></div>
+
+      <div class="sub" id="why-different">
+        <h3>일반 백엔드 네트워킹과 뭐가 다른가</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>Latency가 절대적</h4><p>웹은 1초 응답이 평범하지만 FPS는 100ms도 큼. 한 자릿수 ms 차이가 게임플레이를 결정. 평균보다 <strong>jitter와 p99 tail</strong>이 더 중요.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>UDP가 기본</h4><p>웹은 TCP/HTTP가 표준이지만 게임은 UDP가 기본. 패킷 손실보다 지연이 더 큰 적이라 "다시 보내지 말고 차라리 버리기"가 합리적인 경우가 많음.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>Stateful 연결 장기 유지</h4><p>웹은 request/response 단발성, 게임은 30분~수 시간 동안 한 연결 유지. 중간에 끊기면 매치 손실.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>대량 동시 양방향</h4><p>한 서버가 100명에게 1초 30회씩 다른 데이터 송신. 일반 API와 트래픽 패턴 자체가 다름.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>NAT 적대적</h4><p>웹은 client→server 단방향이라 NAT 무관, P2P/Listen 게임은 NAT traversal이 운영 핵심 문제.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>치팅이 일상</h4><p>패킷·메모리 변조·매크로·인스펙션. 패킷 암호화·서명·검증이 모든 단계에 들어가야 함.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="tcp-fail">
+        <h3>TCP가 게임에 안 되는 이유 — Head-of-Line Blocking</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">TCP는 신뢰성을 위해 "순서대로 도착"을 강제한다. 한 패킷이 늦게 도착하면 그 뒤 모든 패킷이 대기. 게임에서 "300ms 전 위치"는 가치가 없는데 그 패킷 때문에 "현재 위치"가 막힘.</p>
+        <div class="box">
+          <div class="box-title">TCP vs UDP 패킷 도착 시나리오 (10번째 패킷 손실)</div>
+<pre style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:var(--text-dim);"><span style="color:var(--c-red)">TCP:</span>  [1][2][3]...[9] <span style="color:var(--c-red)">[10 LOST]</span> ← 이후 [11][12][13] 모두 대기
+       클라가 받는 시점: 재전송 완료까지 <span style="color:var(--c-red)">+200ms~</span>
+       그동안 캐릭터 멈춤 → rubberbanding
+
+<span style="color:var(--c-green)">UDP:</span>  [1][2][3]...[9] <span style="color:var(--c-red)">[10 LOST]</span> [11][12][13] ← 그냥 진행
+       애플리케이션이 [10] 결정: 보간으로 메우거나 무시
+       지연 없음, 한 프레임 부정확할 뿐
+</pre>
+        </div>
+        <div class="note note-warn"><strong>★ 예외</strong><br>로비·매칭·결제·인벤토리는 여전히 TCP/HTTP. "주문이 사라졌어요"는 받아들일 수 없으므로. 게임 안에서도 채팅·리더보드·정산은 TCP. <strong>UDP는 인게임 시뮬레이션 전용</strong>.</div>
+      </div>
+
+      <div class="sub" id="protocol-matrix">
+        <h3>프로토콜 선택 매트릭스 — 무엇을 언제 쓰나</h3>
+        <table class="level-table">
+          <thead><tr><th>프로토콜</th><th>강점</th><th>약점</th><th>대표 용도</th></tr></thead>
+          <tbody>
+            <tr><td><span class="lvl-badge lvl-high">TCP</span></td><td>완벽한 신뢰성·순서 보장, 어디서나 동작</td><td>HOL blocking, latency 큼</td><td>로비·매칭·결제·채팅·랭킹</td></tr>
+            <tr><td><span class="lvl-badge lvl-self">UDP (raw)</span></td><td>최저 latency, 패킷 단위 제어</td><td>모든 신뢰성·순서·연결 직접 구현</td><td>인게임 시뮬레이션 (custom protocol 위)</td></tr>
+            <tr><td><span class="lvl-badge lvl-pub">QUIC</span></td><td>UDP 위 multiplex, HOL 없음, 0-RTT 핸드셰이크, 내장 암호화</td><td>UDP 차단 환경에서 막힘, CPU 부하</td><td>차세대 웹·일부 게임 로비·WebTransport</td></tr>
+            <tr><td><span class="lvl-badge lvl-elite">WebSocket</span></td><td>브라우저 표준, 양방향, TCP 위</td><td>TCP 한계 그대로</td><td>웹 게임·로비·채팅</td></tr>
+            <tr><td><span class="lvl-badge lvl-medium">WebRTC DataChannel</span></td><td>브라우저에서 UDP-like, P2P 가능</td><td>SCTP/DTLS overhead, 구현 복잡</td><td>HTML5 게임·Unity WebGL</td></tr>
+            <tr><td><span class="lvl-badge lvl-indigo">WebTransport</span></td><td>QUIC 기반 브라우저 API, reliable + datagram</td><td>2026 초 기준 브라우저 production 출시 제한적</td><td>실험적 차세대 웹 게임</td></tr>
+            <tr><td><span class="lvl-badge lvl-low">Reliable UDP 라이브러리</span></td><td>UDP 위 reliability 미들웨어 (ENet · KCP · GNS)</td><td>라이브러리 의존성·learning curve</td><td>인게임 — Reliable + Unreliable 채널 혼합</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub" id="platform-env">
+        <h3>플랫폼별 네트워크 환경</h3>
+        <table class="level-table">
+          <thead><tr><th>플랫폼</th><th>네트워크 특성</th><th>UDP 가용성</th><th>NAT</th><th>주의사항</th></tr></thead>
+          <tbody>
+            <tr><td>PC (유선)</td><td>안정, 저 jitter, 10~50ms RTT</td><td>OK</td><td>홈 라우터 (UPnP·STUN 가능)</td><td>대부분 표준 UDP 동작</td></tr>
+            <tr><td>PC (Wi-Fi)</td><td>중간 jitter, AP 핸드오프 시 spike</td><td>OK</td><td>홈 라우터</td><td>Wi-Fi 5/6 차이 큼</td></tr>
+            <tr><td>모바일 (5G)</td><td>30~80ms RTT, 일부 jitter</td><td>OK (대부분)</td><td>CGNAT — symmetric 흔함</td><td>셀 핸드오프·백그라운드</td></tr>
+            <tr><td>모바일 (LTE 혼잡)</td><td>80~200ms RTT, 큰 jitter, 손실 1~5%</td><td>OK</td><td>CGNAT</td><td>패킷 절약 필수, 데이터 비용</td></tr>
+            <tr><td>모바일 (Wi-Fi)</td><td>10~50ms 안정 (홈) / 100~300ms (공용)</td><td>OK</td><td>홈 라우터 또는 CGNAT</td><td>네트워크 전환 (5G ↔ Wi-Fi) graceful 처리</td></tr>
+            <tr><td>콘솔 (PSN·Xbox Live)</td><td>안정 유선 위주</td><td>OK</td><td>NAT Type 1/2/3 (콘솔 진단 표준)</td><td>플랫폼별 인증 필수</td></tr>
+            <tr><td>브라우저 (HTML5)</td><td>표준 웹 네트워크</td><td><strong>raw UDP 불가</strong> — WebRTC DataChannel 또는 WebTransport</td><td>브라우저 fallback</td><td>P2P는 STUN/TURN 필수</td></tr>
+            <tr><td>중국·일부 ISP</td><td>국제 라우팅 불안정, 큰 RTT spike</td><td>UDP 일부 차단/제한</td><td>강한 NAT, GFW 제약</td><td>중국 진출 시 KCP·자체 가속 필요</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub" id="four-metrics">
+        <h3>SRE가 추적할 4대 네트워크 메트릭</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>RTT (Round-Trip Time)</h4><p>패킷 왕복 시간. 평균보다 <strong>p50·p95·p99 분포</strong>가 중요. 같은 평균 50ms라도 p99가 50인지 300인지가 게임 품질을 결정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Jitter (RTT 변동)</h4><p>RTT 표준편차. 일정한 100ms는 보간으로 흡수 가능, 들쭉날쭉한 50~200ms는 rubberbanding 유발.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Packet Loss</h4><p>UDP 송수신 손실율. 게임은 1~3% 정도까지는 보간으로 흡수, 5% 이상은 즉시 게임 품질 저하.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Throughput / Bandwidth</h4><p>송수신 대역폭. 모바일은 <strong>인당</strong> 사용량이 비용·UX에 직결. CCU 늘면 전체 대역폭 추적.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ 이 4가지를 어디서 측정하나</strong><br>(1) <strong>서버 측</strong> — 각 클라 연결 메타데이터 (2) <strong>클라 측</strong> — 게임 내 디버그 오버레이 + 텔레메트리 (3) <strong>중간 경로</strong> — MTR·smokeping. 셋이 다 있어야 "서버는 정상인데 사용자만 lag" 같은 케이스 디버깅 가능.</div>
+      </div>
+    </div>
+
+    <!-- ============ TRANSPORT ============ -->
+    <div class="tab-panel" id="panel-transport">
+      <div class="panel-header"><div class="panel-badge badge-speed">● Transport</div><h2>전송 프로토콜 깊이</h2><p>TCP·UDP·QUIC·WebRTC·WebSocket — 각 프로토콜의 동작·강약점·게임 적용 시 함정을 정리한다. 게임사가 "왜 우리 게임은 KCP 쓰나?"를 설명할 때 SRE가 알아들을 수 있어야 한다.</p></div>
+
+      <div class="sub" id="tcp-vs-udp">
+        <h3>TCP vs UDP — 본질적 차이</h3>
+        <table class="level-table">
+          <thead><tr><th>특성</th><th>TCP</th><th>UDP</th></tr></thead>
+          <tbody>
+            <tr><td>연결</td><td>3-way handshake → 연결 유지</td><td>connectionless — 패킷 단위</td></tr>
+            <tr><td>신뢰성</td><td>자동 재전송, 순서 보장</td><td>없음 — 손실·중복·순서 무관</td></tr>
+            <tr><td>혼잡 제어</td><td>내장 (CUBIC·BBR 등)</td><td>없음 — 애플리케이션이 책임</td></tr>
+            <tr><td>패킷 경계</td><td>스트림 — 경계 없음</td><td>datagram — 보낸 단위 그대로</td></tr>
+            <tr><td>HOL blocking</td><td>있음 — 한 패킷 손실시 뒤 막힘</td><td>없음 — 독립적</td></tr>
+            <tr><td>오버헤드</td><td>20+ 바이트 헤더 + ACK</td><td>8 바이트 헤더, ACK 없음</td></tr>
+            <tr><td>NAT 친화성</td><td>친화적 (long-lived 인식)</td><td>덜 친화적 (NAT timeout 관리 필수)</td></tr>
+            <tr><td>방화벽 통과</td><td>거의 항상 통과</td><td>일부 환경에서 차단</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub" id="quic-webtransport">
+        <h3>QUIC & WebTransport — 차세대 표준 후보</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">QUIC는 UDP 위에 동작하는 transport 프로토콜로 HTTP/3의 기반. <strong>2026년 기준 web traffic의 40%+ QUIC, Meta는 75%</strong>. 게임 적용은 아직 초기지만 cloud gaming·로비 영역에서 채택 진행.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>QUIC 장점</h4><p>독립 stream multiplex (HOL 없음), 내장 TLS 1.3, 0-RTT 핸드셰이크, 연결 ID로 IP 변경에도 연결 유지 (모바일 핸드오프).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>QUIC 단점</h4><p>UDP 차단 환경에서 막힘, kernel bypass라 CPU 부하 큼, 일부 ISP 우회 라우팅. 인게임 high-frequency 트래픽엔 아직 무거움.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>WebTransport</h4><p>QUIC 기반 브라우저 API. <strong>reliable byte stream + unreliable datagram 모두 지원</strong>. WebSocket의 차세대 후보지만 2026 초 기준 브라우저 production 지원 제한적.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>게임 적용 사례</h4><p>Cloud gaming (Stadia 후속·GeForce NOW 등) 일부, Roblox·Fortnite 같은 대형 사례는 공개 자료 상 미확인. 차세대 후보로 모니터링 가치 있음.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ 언제 도입?</strong><br>당장 인게임에 QUIC 도입은 risky. (1) 로비·매칭 API: HTTP/3로 전환 가치 있음 (2) WebTransport: 브라우저 게임에서 WebSocket 대안으로 실험 (3) 인게임 UDP: 여전히 ENet·KCP·GNS·custom UDP가 현실적.</div>
+      </div>
+
+      <div class="sub" id="reliable-udp">
+        <h3>Reliable UDP 라이브러리 비교 — 2026년 현실</h3>
+        <table class="level-table">
+          <thead><tr><th>라이브러리</th><th>저자/소속</th><th>특성</th><th>현황 (2026-05)</th><th>적합 시나리오</th></tr></thead>
+          <tbody>
+            <tr><td><strong>ENet</strong></td><td>Lee Salzman 외 (오픈소스)</td><td>단순·견고, ~64명 소형 게임 대상</td><td>안정 운영, 다수 fork (ENet-CSharp 등)</td><td>소형 게임·인디·LAN</td></tr>
+            <tr><td><strong>GameNetworkingSockets (GNS)</strong></td><td>Valve (BSD 3-clause)</td><td>P2P, AES-GCM-256 암호화, DCCP 기반 reliability, fragmentation</td><td><strong>v1.4.1 (2022.06) 후 4년 휴면 → v1.5에서 부활</strong>, Rust 바인딩 추가</td><td>중대형 게임, Steam 게임, 보안 중요 시</td></tr>
+            <tr><td><strong>KCP</strong></td><td>skywind3000 (오픈소스, 중국)</td><td>지연 30-40% 감소, 대역폭 10-20% 더 사용, selective retransmission</td><td>안정, 중국 게임·라이브 스트리밍 표준</td><td>고 패킷 손실 환경 (중국·모바일·동남아)</td></tr>
+            <tr><td><strong>RakNet</strong></td><td>OOULabs (역사적)</td><td>풀 기능 reliable UDP, 한때 표준</td><td><strong>2014년 후 inactive</strong> — 신규 도입 비추천</td><td>레거시 — 마이그레이션 대상</td></tr>
+            <tr><td><strong>yojimbo</strong></td><td>Glenn Fiedler (BSD)</td><td>dedicated server 클라/서버, libsodium 암호화</td><td>유지 중, gafferongames 시리즈 기반</td><td>FPS·MOBA dedicated 서버</td></tr>
+            <tr><td><strong>netcode</strong></td><td>Glenn Fiedler (BSD)</td><td>secure connection 프로토콜, 다국어 (C/C#/Rust/Go)</td><td>유지 중, mach-1·rust 바인딩</td><td>secure handshake 핵심 시</td></tr>
+            <tr><td><strong>Photon (상용)</strong></td><td>Exit Games</td><td>cloud + SDK 패키지, region cluster 글로벌 운영</td><td>활발, Realtime/Fusion/Quantum 라인업</td><td>모바일 협동, 빠른 출시 우선</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-warn"><strong>★ RakNet 마이그레이션</strong><br>레거시 게임이 RakNet 사용 중이면 반드시 GNS·ENet·KCP 중 하나로 이전 계획. RakNet은 2014년 종료 후 보안 패치 없음 — CVE 노출 위험. 마이그레이션 시 패킷 포맷·reliability 채널 매핑 확인.</div>
+      </div>
+
+      <div class="sub" id="webrtc">
+        <h3>WebRTC DataChannel — HTML5/브라우저 게임의 유일한 UDP-like 옵션</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">브라우저는 보안상 raw UDP를 못 쓴다. WebRTC DataChannel이 사실상 유일한 UDP-like 솔루션. 내부적으로는 SCTP over DTLS over UDP.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>특성</h4><p>P2P 가능 (STUN), reliable/unreliable 모드 선택 가능, 자동 NAT traversal (STUN → TURN 폴백), 내장 암호화.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Unity WebGL 통합</h4><p>Unity WebRTC 패키지 + .jslib 브리지로 JS WebRTC 호출. coherence 같은 솔루션이 drop-in UDP transport 제공.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>주의: 기본 reliable</h4><p>WebRTC DataChannel 기본 모드는 reliable+ordered. 게임용으로는 unordered+max-retransmits=0 같은 unreliable 모드 명시 설정 필수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>인프라 요구</h4><p>STUN 서버 (NAT 발견)·TURN 서버 (relay 폴백) 운영 필수. coturn 같은 오픈소스 사용. TURN은 대역폭 비용 큼.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="channels-mux">
+        <h3>채널 다중화·우선순위</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">한 연결로 여러 종류 데이터를 보낸다. "위치 업데이트"는 unreliable·high-frequency, "채팅"은 reliable·ordered, "결과 리포트"는 reliable·once. 채널 분리가 표준.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>ENet 채널</h4><p>최대 255 채널 지원, 채널별 reliable/unreliable, ordered/sequenced 설정. 위치 = 채널 0 (unreliable), 채팅 = 채널 1 (reliable ordered).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>QUIC streams</h4><p>독립 stream 다수, stream별 우선순위. HOL blocking 없음 — stream 1 손실이 stream 2 안 막음. QUIC가 게임에 유리한 핵심 이유.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>GNS lanes</h4><p>Valve GNS는 "lane" 개념으로 채널 우선순위 지원. 중요 메시지가 덜 중요한 메시지에 막히지 않음.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Custom 우선순위 큐</h4><p>송신 큐를 priority queue로 만들고 매 tick마다 budget 안에서 우선순위순으로 전송. 대역폭 적응 + 우선순위 둘 다 확보.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PACKET ============ -->
+    <div class="tab-panel" id="panel-packet">
+      <div class="panel-header"><div class="panel-badge badge-stable">● Packet Design</div><h2>패킷 설계 & 직렬화</h2><p>한 패킷에 1바이트라도 줄이는 게 의미있다. 100명 × 30Hz × 30분 = 540만 패킷. 1바이트 절약 = 5MB 절약. 모바일은 사용자 데이터 비용까지 영향.</p></div>
+
+      <div class="sub" id="delta-encoding">
+        <h3>Delta encoding — 변한 것만 보낸다</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">매 tick 전체 월드 상태를 보내는 대신 "직전 스냅샷 대비 차이"만 송신. Quake III·Source 엔진 표준. 변화 적은 캐주얼 게임에선 90%+ 압축률.</p>
+        <div class="box">
+          <div class="box-title">Snapshot 송신 패턴</div>
+<pre style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:var(--text-dim);"><span style="color:var(--c-green)">Frame 100:</span> baseline = full snapshot (4 KB)
+<span style="color:var(--c-orange)">Frame 101:</span> delta vs frame 100 (300 B) ← 5명만 움직임
+<span style="color:var(--c-orange)">Frame 102:</span> delta vs frame 101 (250 B)
+<span style="color:var(--c-orange)">Frame 103:</span> delta vs frame 100 (520 B) ← 클라가 ack한 마지막 frame 기준
+                  <span style="color:var(--text-muted)"># 클라가 102 ack 못 하면 100 기준으로 계속</span>
+<span style="color:var(--c-green)">Frame 200:</span> 새 baseline</pre>
+        </div>
+        <div class="note note-info"><strong>★ 중요</strong><br>Delta 기준 frame은 "클라가 받았다고 확인한 가장 최근 frame". 클라 ack 메커니즘 필수. 이 ack가 없으면 baseline drift → 데이터 깨짐.</div>
+      </div>
+
+      <div class="sub" id="bit-packing">
+        <h3>Bit packing — 바이트 경계 무시</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">"플레이어 ID는 0~63 → 6비트면 충분", "체력은 0~100 → 7비트", "방향은 0~7 → 3비트". 표준 8비트 단위가 아니라 비트 단위로 packing.</p>
+        <div class="box">
+          <div class="box-title">Bit packing 예시 (16비트로 4 필드)</div>
+<pre style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:var(--text-dim);">player_id  : 6 bits  (0~63)
+health     : 7 bits  (0~100)
+crouching  : 1 bit
+direction  : 3 bits  (0~7)
+─────────────────────────────
+total      : <strong>17 bits → 3 byte</strong>
+naive (4 byte 각각): <strong>4 bytes</strong> (33% 절약)
+
+대규모 패킷에선 누적 효과 큼.
+gafferongames "Reading and Writing Packets" 참조.</pre>
+        </div>
+      </div>
+
+      <div class="sub" id="quantization">
+        <h3>Quantization — 위치·회전을 더 적은 비트로</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">float32 (4 바이트) 좌표를 그대로 보내면 낭비. 월드 크기 1km × 정밀도 1cm = 100,000 단계 = 17 비트면 충분. <strong>4바이트 → 2.1바이트</strong>.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Position</h4><p>월드 bounds + 정밀도 결정 → bit 수 계산. (max - min) / precision = 단계 수, log2 = 비트 수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Rotation</h4><p>Quaternion 4값 중 가장 큰 1개는 다른 3개로 추론 → 3개 + 인덱스 2비트만 송신. "Smallest Three" 패턴.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Velocity</h4><p>실제 게임 속도 범위 (예: -50~50 m/s) + 정밀도 0.1 → 적은 비트.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>주의</h4><p>Quantize 시 정확도 손실 → 클라/서버 간 desync 위험. lockstep 게임은 fixed-point 사용으로 결정성 보장.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="schema-format">
+        <h3>Schema 포맷 — Protobuf · FlatBuffers · Custom</h3>
+        <table class="level-table">
+          <thead><tr><th>포맷</th><th>특성</th><th>크기 효율</th><th>속도</th><th>게임 적용</th></tr></thead>
+          <tbody>
+            <tr><td>Protobuf</td><td>Google, schema 진화 강력, varint 인코딩</td><td>중상</td><td>중간 (parse 필요)</td><td>로비·매칭·BI 표준, 인게임은 무거움</td></tr>
+            <tr><td>FlatBuffers</td><td>Google, zero-copy 접근, schema 진화 가능</td><td>중</td><td>매우 빠름 (parse 없음)</td><td>인게임 적합 — Riot 일부 사용 사례</td></tr>
+            <tr><td>MessagePack</td><td>JSON 대체, 동적 타입</td><td>중</td><td>중간</td><td>내부 도구·로깅</td></tr>
+            <tr><td>Cap'n Proto</td><td>FlatBuffers와 유사 zero-copy</td><td>중</td><td>매우 빠름</td><td>RPC·인게임 일부</td></tr>
+            <tr><td>Custom binary</td><td>직접 설계, bit-level 제어</td><td>최고</td><td>최고</td><td>FPS·고빈도 인게임 (대부분)</td></tr>
+            <tr><td>JSON</td><td>가독성·범용</td><td>최악</td><td>느림</td><td>로깅·디버깅 only</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-warn"><strong>★ 인게임은 보통 custom binary</strong><br>인게임 high-frequency 패킷은 schema 라이브러리 overhead가 무겁다. 보통 게임사가 직접 packer 작성. 단 schema 변경 시 클라/서버 동시 배포 필요 — 호환성 매트릭스 관리는 SRE 영역.</div>
+      </div>
+
+      <div class="sub" id="priority-channel">
+        <h3>패킷 우선순위 & 채널</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>채널 분리</h4><p>위치 (unreliable, high-freq), 채팅 (reliable ordered), 인벤토리 (reliable once). 채널별 reliability·ordering 분리.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>우선순위 큐</h4><p>송신 budget 초과 시 낮은 우선순위 패킷 drop or 다음 tick 미루기. AOI 결과 객체 우선순위 (가까운 객체 먼저).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>대역폭 cap per client</h4><p>클라별 bandwidth 한도 (예: 256 kbps) — 모바일 사용자에 맞춰 더 적은 객체 송신. 동적 조정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>밤처리·고우선 합리화</h4><p>이벤트 (적 처치·아이템 획득) = 즉시 + reliable, 평화 시 위치 업데이트는 빈도 낮춰 송신.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="compression">
+        <h3>압축 (LZ4 · zstd) — 언제 쓰나</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">실시간 인게임 패킷은 보통 압축 안 함 (CPU·latency 부하 > 절약 효과). 큰 메시지 (월드 초기 동기화·인벤토리 dump)는 압축이 의미.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>LZ4</h4><p>매우 빠름, 압축률 중간. 100~500 MB/s. 인게임 대형 메시지에 적합.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>zstd</h4><p>속도-압축률 균형 우수, level 조정 가능. asset·매치 결과 dump에 표준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>brotli</h4><p>압축률 최고지만 느림. 정적 asset (CDN) 적합, 인게임 비추.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>주의</h4><p>UDP 작은 패킷 (~100 B) 압축은 보통 손해 — 헤더가 압축률 못 이김. 1KB 이상에서 효과.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ NAT ============ -->
+    <div class="tab-panel" id="panel-nat">
+      <div class="panel-header"><div class="panel-badge badge-indigo">● NAT & Connection</div><h2>NAT traversal & 연결</h2><p>P2P·Listen 게임은 NAT 통과가 핵심 운영 문제. 대칭 NAT 비율, hole punching 성공률, TURN 폴백 비용 — SRE가 모니터링해야 한다.</p></div>
+
+      <div class="sub" id="nat-types">
+        <h3>NAT 4종 분류 — STUN RFC 정의</h3>
+        <table class="level-table">
+          <thead><tr><th>NAT 종류</th><th>특성</th><th>P2P 가능성</th><th>발견 빈도</th></tr></thead>
+          <tbody>
+            <tr><td>Full Cone</td><td>외부 모든 IP에서 접근 허용</td><td><span class="lvl-badge lvl-elite">매우 쉬움</span></td><td>희귀 (가정용 거의 없음)</td></tr>
+            <tr><td>Restricted Cone</td><td>해당 IP에서만 접근 허용</td><td><span class="lvl-badge lvl-high">쉬움</span></td><td>일반 가정 NAT 다수</td></tr>
+            <tr><td>Port-Restricted Cone</td><td>해당 IP+Port에서만 허용</td><td><span class="lvl-badge lvl-medium">중간</span></td><td>일반 가정·기업 NAT</td></tr>
+            <tr><td>Symmetric</td><td>외부 endpoint마다 다른 source port 할당</td><td><span class="lvl-badge lvl-low">매우 어려움</span></td><td>모바일 CGNAT·일부 기업</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-warn"><strong>★ Symmetric NAT</strong><br>모바일 CGNAT는 대부분 Symmetric. 모바일 P2P는 hole punching 성공률 30~50% 수준. <strong>모바일 P2P 게임은 반드시 TURN/Relay 폴백 준비</strong>.</div>
+      </div>
+
+      <div class="sub" id="stun-turn-ice">
+        <h3>STUN · TURN · ICE — WebRTC 기본 3종</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>STUN (Session Traversal)</h4><p>"내 외부 IP·port 뭔지 알려줘" 서버. 클라가 STUN 서버에 패킷 보내면 보이는 외부 endpoint 회신. NAT 종류 발견에 사용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>TURN (Traversal Using Relays)</h4><p>STUN 실패 시 모든 트래픽 중계. 양 클라가 TURN 서버 거쳐 통신. 100% 성공률, 단 대역폭 비용 풀로 발생.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>ICE (Interactive Connectivity)</h4><p>STUN+TURN을 종합해 최선 경로 선택 framework. WebRTC 표준. host(LAN) → STUN(direct) → TURN(relay) 순으로 시도.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>운영 도구</h4><p>오픈소스: <code>coturn</code> (가장 표준), <code>Pion</code> (Go WebRTC stack). 매니지드: Twilio·Xirsys 같은 SaaS.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ TURN 비용 함정</strong><br>TURN은 대역폭이 게임 전체 트래픽 전부 통과. 100명 × 30 kbps × 30분 = 5.4 GB / 매치. 매월 수만 매치면 비용 급등. SRE는 "TURN 폴백률" 메트릭으로 비용 추적 필수.</div>
+      </div>
+
+      <div class="sub" id="hole-punching">
+        <h3>UDP Hole Punching — 동작 원리</h3>
+        <div class="seq-grid">
+          <div class="col-h">Client A</div>
+          <div class="col-h">Mediator</div>
+          <div class="col-h">Client B</div>
+          <div class="seq-row">
+            <div class="desc">A의 endpoint 등록</div>
+            <div class="arr">→</div>
+            <div class="desc"></div>
+          </div>
+          <div class="seq-row">
+            <div class="desc"></div>
+            <div class="arr">←</div>
+            <div class="desc">B의 endpoint 등록</div>
+          </div>
+          <div class="seq-row">
+            <div class="desc">B endpoint 받음</div>
+            <div class="arr">⇄</div>
+            <div class="desc">A endpoint 받음</div>
+          </div>
+          <div class="seq-row">
+            <div class="desc">B로 패킷 송신 (NAT 구멍 뚫음)</div>
+            <div class="arr">→</div>
+            <div class="desc"></div>
+          </div>
+          <div class="seq-row">
+            <div class="desc"></div>
+            <div class="arr">←</div>
+            <div class="desc">A로 패킷 송신 (NAT 구멍 뚫음)</div>
+          </div>
+          <div class="seq-row">
+            <div class="desc">P2P 연결 성공</div>
+            <div class="arr">⇄</div>
+            <div class="desc">P2P 연결 성공</div>
+          </div>
+        </div>
+        <div class="note note-warn"><strong>★ 성공률</strong><br>일반 가정 NAT 끼리: 80~90% / 한쪽 모바일: 50~70% / 양쪽 모바일 CGNAT: 20~30%. 실패 시 TURN/Relay 폴백. SRE는 NAT 종류별 hole punching 성공률 모니터링.</div>
+      </div>
+
+      <div class="sub" id="sdr-internal">
+        <h3>Steam Datagram Relay 내부 동작 깊이</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">F1에서 SDR을 개요로 다뤘다면 여기선 패킷 단위 동작. SDR은 Valve의 글로벌 사설 백본을 빌려 쓰는 + IP 은닉하는 시스템.</p>
+        <div class="flow">
+          <div class="flow-node" style="border-color:var(--c-speed-border);background:var(--c-speed-bg)"><h4 style="color:var(--c-speed)">Client</h4><p>Steam 클라가<br>가까운 PoP 선택<br>(자동 ping 측정)</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-stable-border);background:var(--c-stable-bg)"><h4 style="color:var(--c-stable)">Edge PoP</h4><p>Valve 사설망 진입<br>가상 주소 변환</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-indigo-border);background:var(--c-indigo-bg)"><h4 style="color:var(--c-indigo)">Backbone</h4><p>Valve 사설<br>고품질 라우팅</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-orange-border);background:var(--c-orange-bg)"><h4 style="color:var(--c-orange)">Server PoP</h4><p>서버 region 진입</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-red-border);background:var(--c-red-bg)"><h4 style="color:var(--c-red)">Game Server</h4><p>(IP 노출 안 됨)</p></div>
+        </div>
+        <div class="cg" style="margin-top:18px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>장점</h4><p>IP 은닉 (DDoS 방어), Valve 백본 품질 (일반 인터넷보다 좋은 라우팅), Dota·CS·CS2 등 검증된 운영.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>제약</h4><p>서버는 AWS·Azure·GCP 데이터센터에만 호스팅 가능. 베어메탈·자체 IDC는 불가능. Valve 의존성.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="photon-fallback">
+        <h3>Photon Cloud relay 폴백 모델</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>기본 동작</h4><p>Photon Realtime은 client → Photon region cluster → other clients. 클라이언트 간 직접 연결 없이 모두 cloud relay 경유.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>비용 모델</h4><p>CCU 기반 과금. Photon이 모든 트래픽 통과하므로 대역폭 비용 모두 Photon 측 부담 (사용자가 사용량 분 만큼 plan 결제).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>장점</h4><p>NAT 무관, 자동 region 선택, 인프라 불필요. 모바일 협동 게임 빠른 출시에 표준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>한계</h4><p>대규모 (CCU 수만~수십만)에서 비용 폭증, custom 로직 한계, vendor lock-in. 대형 게임은 자체 dedicated 서버로 이전.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="cgnat">
+        <h3>모바일 CGNAT (Carrier-Grade NAT) — 가장 큰 함정</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">모바일 캐리어가 IPv4 부족으로 다수 가입자를 한 공인 IP 뒤에 묶음. 동일 공인 IP의 다른 가입자가 같은 source port를 동시에 쓸 수 없으므로 symmetric NAT가 됨.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>증상</h4><p>UDP hole punching 실패율 증가, P2P 매치 못 만들기, 같은 캐리어 사용자도 P2P 안 됨.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>대응 1</h4><p>TURN/Relay 폴백 필수. 모바일 P2P는 폴백률 50%+ 가정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>대응 2</h4><p>P2P 포기, dedicated 서버 모델 채택. 모바일 협동 게임은 사실상 cloud relay (Photon·자체)가 표준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>대응 3</h4><p>IPv6 사용 — 모바일 캐리어가 IPv6 enable한 경우 NAT 우회 가능. 한국·일본 캐리어 IPv6 보급률 확인.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ LAG COMP ============ -->
+    <div class="tab-panel" id="panel-lag-comp">
+      <div class="panel-header"><div class="panel-badge badge-orange">● Lag Compensation</div><h2>Lag Compensation 깊이</h2><p>"내가 분명 맞췄는데 안 맞아요" — 모든 PvP 게임의 영원한 클레임. 서버가 시간을 되감아 hit detection하는 lag compensation의 동작 원리와 트레이드오프.</p></div>
+
+      <div class="sub" id="source-model">
+        <h3>Source 엔진 모델 — Counter-Strike의 시간 되감기</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">Valve가 Half-Life 시리즈에서 표준화한 모델. <strong>"플레이어 화면에서 보이는 적을 쏘면 서버가 그 시점 적 위치를 다시 계산해 hit을 인정"</strong>.</p>
+        <div class="seq-grid">
+          <div class="col-h">서버 시각</div>
+          <div class="col-h">동작</div>
+          <div class="col-h">관계자</div>
+          <div class="seq-row">
+            <div class="desc">T = 1000ms</div>
+            <div class="desc">적 B가 좌표 (10, 20)에 있음 (서버 시점)</div>
+            <div class="desc">서버</div>
+          </div>
+          <div class="seq-row">
+            <div class="desc">T = 1080ms</div>
+            <div class="desc">A가 화면에서 보이는 B (RTT 80ms 전 좌표) 조준 → 발사</div>
+            <div class="desc">A 클라</div>
+          </div>
+          <div class="seq-row">
+            <div class="desc">T = 1120ms</div>
+            <div class="desc">서버가 A 발사 패킷 수신 (40ms 지연)</div>
+            <div class="desc">서버</div>
+          </div>
+          <div class="seq-row">
+            <div class="desc">처리</div>
+            <div class="desc">서버: "A가 본 시점 = 1120 - 80 - latency_buffer = ~1000ms" → 1000ms 시점 B 위치로 hit 검증</div>
+            <div class="desc">서버</div>
+          </div>
+          <div class="seq-row">
+            <div class="desc">결과</div>
+            <div class="desc">A의 시점에서 보였으므로 hit 인정</div>
+            <div class="desc">A · B 모두 통보</div>
+          </div>
+        </div>
+        <div class="note note-info"><strong>★ 핵심</strong><br>서버는 모든 플레이어의 최근 1초 정도 위치 history 보관 → 발사 시 "당신이 본 시점" 위치로 되감기 검증. CPU·메모리 비용 있지만 게임 fairness에 결정적.</div>
+      </div>
+
+      <div class="sub" id="favor-tradeoff">
+        <h3>Favor the Shooter vs Favor the Dodger — 영원한 트레이드오프</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Favor the Shooter</h4><p>"내 화면에서 맞췄으면 맞는다". A가 본 시점 기준으로 hit 검증. CS·Apex 표준. Latency 높은 사람도 자기 화면에선 정확.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Favor the Dodger</h4><p>"내 화면에서 안 맞았으면 안 맞는다". B 입장에선 이미 코너 뒤에 숨었는데 죽는 일 없음. 단 A 입장에선 "분명 맞췄는데" 클레임 폭발.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Hybrid</h4><p>버퍼 시간 제한 (예: 250ms 이상 lag 있는 사람의 hit은 무효). "어느 정도 lag까지만 보호".</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>운영 영향</h4><p>SRE가 "왜 nerf 됐냐" 하는 게 아니라, 정책 결정 시 latency 분포 데이터 제공. p99 RTT가 어떻게 변화 중인지 정책 회의에 가져갈 책임.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="interp-delay">
+        <h3>Interpolation delay 튜닝</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">클라가 두 스냅샷 사이를 보간하려면 최소 1 스냅샷 간격 (예: 33ms @ 30Hz) 지연이 필요. 이걸 늘리면 jitter 흡수 능력 ↑ but latency ↑.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>짧은 interp delay (1 tick)</h4><p>가장 낮은 latency, jitter 한 번에 끊김 발생.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>긴 interp delay (3 tick)</h4><p>jitter 흡수 우수, 100ms 추가 지연.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>적응형</h4><p>네트워크 jitter에 맞춰 동적 조정. 안정적이면 짧게, 불안정하면 늘리기.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>설정 가능 노출</h4><p>경쟁 FPS는 사용자에게 cl_interp 같은 설정 노출. 기본값 + power-user 노출 패턴.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="backwards-recon">
+        <h3>Backwards Reconciliation — 클라이언트 prediction 보정</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">F1에서 client prediction 개념 다룸. 여기선 보정 과정 깊이. 클라가 100ms 동안 예측 실행 → 서버 응답 도착 → 차이 발견 → 100ms 전 시점부터 재시뮬레이션.</p>
+        <div class="box">
+          <div class="box-title">의사 코드</div>
+<pre style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:var(--text-dim);">on input(input):
+    predicted_state = simulate(current_state, input)
+    apply(predicted_state)              <span style="color:var(--text-muted)"># 즉시 화면 반영</span>
+    pending_inputs.append((seq, input))
+    send_to_server(seq, input)
+
+on server_state(seq_ack, server_state):
+    <span style="color:var(--text-muted)"># 서버가 ack한 input부터 다시 시뮬레이션</span>
+    state = server_state
+    for input in pending_inputs.from(seq_ack + 1):
+        state = simulate(state, input)
+    apply(state)                        <span style="color:var(--text-muted)"># 보정된 위치</span>
+    pending_inputs.remove_up_to(seq_ack)</pre>
+        </div>
+        <div class="note note-warn"><strong>★ Reconciliation glitch</strong><br>예측이 크게 틀리면 사용자가 "순간 이동"처럼 느낌 (rubberbanding). 부드러운 보정 (interpolation between predicted ↔ corrected)이 일반적. 단, 정확도 vs 부드러움 트레이드오프.</div>
+      </div>
+
+      <div class="sub" id="mobile-jitter">
+        <h3>모바일 Jitter 대응 — 셀 핸드오프 충격</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>증상</h4><p>5G ↔ Wi-Fi 전환, 셀 타워 핸드오프 시 100~500ms RTT spike + 일시적 손실. 보통 1~3초 안에 복구.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>대응 1: Adaptive interp delay</h4><p>네트워크 불안정 감지 시 interp delay 자동 증가. jitter 흡수 우선.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>대응 2: Jitter buffer</h4><p>받은 패킷을 작은 큐에 잠시 보관 후 일정 페이스로 처리. 음성·게임 모두 표준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>대응 3: Connection migration</h4><p>QUIC connection ID 같은 메커니즘으로 IP 변경 시 연결 유지. 모바일 재접속 UX 핵심.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="anti-lag-abuse">
+        <h3>Anti-lag 어뷰징 — Lag switching</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>공격 패턴</h4><p>일부러 송신 끊거나 지연시켜 favor-the-shooter 모델 악용. "사라진 듯 보였다가 갑자기 hit" 패턴.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>탐지</h4><p>플레이어 RTT 패턴 이상 (의도적 spike), packet 송신 gap 분석. 상습 어뷰저 자동 탐지 후 매칭 풀 분리.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>완화</h4><p>Buffer 시간 cap (예: 250ms 이상 무효), high-latency 플레이어 매칭 분리, 서버 측 hit 보정 한계 설정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>SRE 역할</h4><p>RTT 분포·패턴 텔레메트리 제공. anti-cheat 팀이 분석 가능한 형태로 데이터 노출.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ SECURITY ============ -->
+    <div class="tab-panel" id="panel-security">
+      <div class="panel-header"><div class="panel-badge badge-red">● Security & QoS</div><h2>보안 & QoS</h2><p>UDP는 본질적으로 spoofing·flooding·replay에 약하다. 게임 트래픽 보호의 핵심 기술과 운영 패턴을 정리한다.</p></div>
+
+      <div class="sub" id="dtls">
+        <h3>DTLS · GameNetworkingSockets 암호화</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>DTLS 1.3</h4><p>TLS의 UDP 변형. WebRTC 표준. UDP 위에 양방향 암호화·인증 채널. 핸드셰이크 latency 있음 (1-2 RTT).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>GNS (Valve)</h4><p>AES-GCM-256 per-packet 암호화, Curve25519 키교환·서명. DTLS 미사용·자체 프로토콜이지만 DTLS 수준 보안 제공.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>QUIC built-in</h4><p>QUIC는 TLS 1.3 내장. 별도 암호화 레이어 불필요. 0-RTT resumption 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>CPU 영향</h4><p>패킷당 암호화는 CPU 부하 (특히 모바일 클라). AES-NI 같은 하드웨어 가속 활용 필수.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="replay-attack">
+        <h3>Replay Attack 방어</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">공격자가 정상 패킷 (예: "보스 처치 보상") 캡처 후 반복 송신 → 보상 무한 획득. UDP는 connectionless이라 특히 취약.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>시퀀스 번호</h4><p>각 패킷에 단조 증가 sequence. 서버는 받은 sequence 추적, 중복·역순 거부. Sliding window 기법.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Nonce + 타임스탬프</h4><p>각 패킷에 nonce 포함, 서버는 일정 시간 윈도우 안 nonce 추적. 만료된 패킷 거부.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>HMAC 서명</h4><p>패킷 내용 + nonce 해시 — 변조 시 검증 실패. 키는 세션 수립 시 교환.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>서버 측 idempotency</h4><p>중요 액션 (보상·결제)은 idempotent key로 한 번만 처리. 재전송 안전.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="packet-flood">
+        <h3>Packet Flooding · 입력 검증</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Rate limiting per source</h4><p>IP·세션별 패킷 처리 한도. 초과 시 drop or kick. SDR/Photon 같은 relay는 자체 rate limit 적용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>입력 sanity check</h4><p>"5초만에 10000 칸 이동" 같은 비정상 입력 거부. 게임 로직 한계 안 입력만 수용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>크기 제한</h4><p>UDP 패킷 max size 강제 (보통 MTU 1200B 안). 비정상 크기 패킷 즉시 drop.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Connection 검증</h4><p>handshake 완료된 connection만 게임 로직 진입. unconnected source는 핸드셰이크 단계에서 차단.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="congestion">
+        <h3>Congestion Control — UDP 위 자체 구현</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:14px;">TCP는 CUBIC·BBR 같은 검증된 알고리즘 내장. UDP는 게임이 직접 구현해야 함. 안 하면 네트워크 혼잡 시 패킷 폭격으로 손실 폭증.</p>
+        <table class="level-table">
+          <thead><tr><th>방식</th><th>원리</th><th>게임 적용</th></tr></thead>
+          <tbody>
+            <tr><td><strong>BBR</strong></td><td>Bandwidth + RTT 모델 — 패킷 손실 안 기다림</td><td>Linux 6.19에서 jitter 20-30% 감소. 게임 트래픽에 우수</td></tr>
+            <tr><td><strong>CUBIC</strong></td><td>전통 loss-based — 손실 발생 시 cwnd 감소</td><td>일반 TCP 표준. 게임에 적합 ↓</td></tr>
+            <tr><td><strong>QUIC built-in</strong></td><td>QUIC 자체 congestion control (CUBIC/BBR 선택)</td><td>QUIC 사용 시 자동</td></tr>
+            <tr><td><strong>KCP custom</strong></td><td>FastResend·NoCwnd 모드 — 게임 특화 aggressive</td><td>중국 게임·고손실 환경</td></tr>
+            <tr><td><strong>GNS 내장</strong></td><td>Valve 자체 알고리즘 — bandwidth·RTT 기반</td><td>Steam 게임에 그대로 사용</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-info"><strong>★ 게임 특이성</strong><br>게임은 "지연 vs 손실"에서 지연이 더 큰 적. TCP 표준 congestion control은 손실 회피 우선이라 게임에 부적합. KCP·GNS 같은 게임 전용 알고리즘이 더 aggressive 하게 송신.</div>
+      </div>
+
+      <div class="sub" id="bandwidth">
+        <h3>대역폭 적응 — 네트워크 변화에 동적 대응</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Per-client bandwidth budget</h4><p>클라별 송신 budget (예: 256 kbps) 설정. 모바일 사용자에는 더 적게.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>객체 우선순위 down-sampling</h4><p>대역폭 부족 시 가까운 객체는 30Hz, 먼 객체는 10Hz로 차등.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Adaptive quantization</h4><p>대역폭 부족 시 위치 정밀도 낮추기 (cm → 10cm 단위).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>피드백 loop</h4><p>클라가 받은 대역폭·손실 보고 → 서버가 송신 rate 조정. 1~2초 주기 적응.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="ddos-l3-l7">
+        <h3>DDoS 방어 — L3 vs L7 차이</h3>
+        <table class="level-table">
+          <thead><tr><th>레이어</th><th>공격 종류</th><th>방어 수단</th><th>게임 적용</th></tr></thead>
+          <tbody>
+            <tr><td>L3/L4 (Network)</td><td>UDP flood, SYN flood, amplification</td><td>BGP scrubbing (Cloudflare Magic Transit, AWS Shield Advanced)</td><td>SDR이면 Valve가, 자체 IDC면 scrubbing 필수</td></tr>
+            <tr><td>L7 (Application)</td><td>비정상 게임 패킷, slow loris on connect</td><td>게임 프로토콜 검증, rate limit, 입력 sanity</td><td>게임 로직 단계에서 처리</td></tr>
+            <tr><td>특수: 게임 특화</td><td>매치메이킹 큐 abuse, 로비 봇 다수 접속</td><td>CAPTCHA on connect, account 행동 분석</td><td>로비·매칭 layer에서</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-warn"><strong>★ 게임 DDoS의 동기</strong><br>(1) 경쟁자가 출시일 공격 (2) 큰 토너먼트 매치 중 공격 (3) 단순 vandalism. 출시·이벤트 D-day에 DDoS 대응 plan 합동 훈련 필수. SDR이 없는 dedicated IP 게임은 특히 취약.</div>
+      </div>
+    </div>
+
+    <!-- ============ OPS-REFS ============ -->
+    <div class="tab-panel" id="panel-ops-refs">
+      <div class="panel-header"><div class="panel-badge badge-green">● Ops & References</div><h2>운영 & 참고 자료</h2><p>네트워크 트러블슈팅 도구·기법 + 학습용 공식 문서·블로그·책. 2026-05 기준.</p></div>
+
+      <div class="sub" id="ops-metrics">
+        <h3>네트워크 메트릭 측정 — 어디에 무엇을 둘까</h3>
+        <div class="gauge-row">
+          <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:35%;background:var(--c-green)"></div></div><div class="gauge-label">RTT p50</div><div class="gauge-value" style="color:var(--c-green)">42ms</div></div>
+          <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:55%;background:var(--c-orange)"></div></div><div class="gauge-label">RTT p95</div><div class="gauge-value" style="color:var(--c-orange)">85ms</div></div>
+          <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:75%;background:var(--c-red)"></div></div><div class="gauge-label">RTT p99</div><div class="gauge-value" style="color:var(--c-red)">142ms</div></div>
+          <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:25%;background:var(--c-stable)"></div></div><div class="gauge-label">Jitter</div><div class="gauge-value" style="color:var(--c-stable)">12ms</div></div>
+          <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:15%;background:var(--c-speed)"></div></div><div class="gauge-label">Loss</div><div class="gauge-value" style="color:var(--c-speed)">0.3%</div></div>
+        </div>
+        <table class="level-table" style="margin-top:18px;">
+          <thead><tr><th>측정 지점</th><th>잡는 메트릭</th><th>도구</th></tr></thead>
+          <tbody>
+            <tr><td>서버 측 (각 connection)</td><td>RTT·loss·throughput per client, packet rate</td><td>게임 서버 SDK (Agones·GNS·custom)</td></tr>
+            <tr><td>클라 측 (debug overlay)</td><td>RTT·jitter·loss, FPS·latency/render</td><td>게임 내 디버그 키 (F1 같은) + 텔레메트리</td></tr>
+            <tr><td>중간 경로</td><td>hop별 latency·loss</td><td>MTR, smokeping, RIPE Atlas</td></tr>
+            <tr><td>네트워크 진단</td><td>BGP route, AS path, peering</td><td>BGPView, RIPEstat</td></tr>
+            <tr><td>합쳐서 본다</td><td>지역·캐리어·플랫폼별 네트워크 품질</td><td>BI 대시보드 (Grafana, Looker)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub" id="diagnostic-tools">
+        <h3>진단 도구 — MTR · iperf · tcpdump · pcap</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>MTR</h4><p>traceroute + ping 통합. hop별 loss·latency 보여줌. ISP 라우팅 문제 진단 1순위.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>iperf3</h4><p>두 노드 간 대역폭·jitter·loss 측정. UDP·TCP 모두. region별 백본 품질 검증.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>tcpdump / wireshark</h4><p>패킷 캡처·분석. 게임 프로토콜 디버깅 — 어떤 패킷이 손실되는지 직접 확인.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>nload / iftop</h4><p>실시간 인터페이스 대역폭 모니터링. 노드별 트래픽 spike 즉시 확인.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>ss / netstat</h4><p>현재 connection 상태. send/recv queue 크기, 오래 걸리는 connection 확인.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>RIPE Atlas</h4><p>전 세계 분산 측정 노드. "다른 region에서 우리 서버 어떻게 보이나" 외부 시점 측정.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="isp-routing">
+        <h3>ISP 라우팅 트러블슈팅 — "특정 ISP만 lag" 케이스</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>증상</h4><p>특정 ISP·지역 사용자만 RTT 폭증·손실. 같은 region 다른 ISP는 정상.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>1단계: MTR</h4><p>해당 사용자 또는 RIPE Atlas로 MTR. 어느 hop에서 loss 시작? 보통 ISP transit 또는 IXP.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>2단계: BGP route</h4><p>BGPView로 AS path 확인. 비효율 경로 (예: KR ISP → US backbone → KR server) 발견.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>3단계: 우회</h4><p>(1) Anycast/CDN 활용 (2) 다른 region 옵션 제공 (3) ISP에 peering 요청 (4) SDR 같은 사설 백본 도입.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="mobile-carrier">
+        <h3>모바일 캐리어별 특이성</h3>
+        <table class="level-table">
+          <thead><tr><th>캐리어 (예시)</th><th>특이사항</th><th>대응</th></tr></thead>
+          <tbody>
+            <tr><td>한국 SKT/KT/LGU+</td><td>5G·LTE 안정적, IPv6 보급 진행, CGNAT 일부</td><td>대부분 표준 동작, 일부 P2P 폴백</td></tr>
+            <tr><td>일본 NTT·KDDI·SoftBank</td><td>IPv6 보급률 높음, 안정적</td><td>IPv6 지원 시 NAT 우회 가능</td></tr>
+            <tr><td>동남아 (인니·태국·베트남 등)</td><td>큰 RTT, 손실, 일부 UDP 차단</td><td>region PoP 추가, KCP·packet loss tolerance ↑</td></tr>
+            <tr><td>중국 (China Mobile·Unicom·Telecom)</td><td>국제 트래픽 GFW 우회, UDP 일부 차단·제한</td><td>중국 region 별도 운영, 자체 가속 (CDN·전용선)</td></tr>
+            <tr><td>인도 (Jio·Airtel)</td><td>모바일 비중 압도적, 데이터 비용 민감</td><td>패킷 절약 극단 최적화, 저빈도 모드</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub" id="playbook">
+        <h3>Troubleshooting Playbook — "Lag 클레임 들어왔을 때"</h3>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed)">텔레메트리<small>지역·ISP·플랫폼별 RTT</small></div>
+          <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable)">서버 healthy?<small>tick·send queue</small></div>
+          <div class="pipe-stage" style="background:var(--c-indigo-bg);color:var(--c-indigo)">국지적?<small>특정 region·ISP만</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange)">진단<small>MTR·BGP·RIPE</small></div>
+          <div class="pipe-stage" style="background:var(--c-red-bg);color:var(--c-red)">완화<small>region 추가·peering·SDR</small></div>
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green)">사용자 통보<small>알려진 이슈 페이지</small></div>
+        </div>
+        <div class="cg" style="margin-top:18px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>Step 1: 범위 결정</h4><p>특정 사용자 1명? 한 ISP? 한 region? 글로벌? 텔레메트리로 즉시 판단. 단일 사용자면 클라 환경, 글로벌이면 서버 측.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>Step 2: 서버 자체 검증</h4><p>tick budget·send queue·CPU. 문제 없으면 네트워크 경로 의심.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>Step 3: 외부 측정</h4><p>RIPE Atlas 같은 도구로 외부에서 우리 서버 ping 측정. 우리 모니터링 시스템과 다른 시점.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>Step 4: 완화 + 통보</h4><p>긴급은 region 추가·SDR fallback. 사용자에게 알려진 이슈 페이지·인게임 공지.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="references">
+        <h3>참고 자료</h3>
+
+        <div class="ref-cat">공식 문서 — 프로토콜 & 라이브러리</div>
+        <ul class="ref-list">
+          <li><a href="https://github.com/ValveSoftware/GameNetworkingSockets" target="_blank">github.com/ValveSoftware/GameNetworkingSockets</a><div class="ref-desc">Valve의 오픈소스 reliable UDP 라이브러리. AES-GCM-256 암호화, P2P, fragmentation, BSD 3-clause</div></li>
+          <li><a href="https://partner.steamgames.com/doc/features/multiplayer/networking" target="_blank">partner.steamgames.com — Steam Networking</a><div class="ref-desc">Steamworks 네트워킹 API 공식 문서. SDR · GameNetworkingSockets 통합 사용법</div></li>
+          <li><a href="https://github.com/skywind3000/kcp" target="_blank">github.com/skywind3000/kcp</a><div class="ref-desc">KCP 프로토콜 원본 — 지연 30-40% 감소, 중국 게임·라이브 스트리밍 표준</div></li>
+          <li><a href="https://github.com/xtaci/kcp-go" target="_blank">github.com/xtaci/kcp-go</a><div class="ref-desc">Go 언어 KCP 구현 + FEC 지원. Crypto-secure</div></li>
+          <li><a href="http://enet.bespin.org/" target="_blank">enet.bespin.org</a><div class="ref-desc">ENet 공식 사이트 — 단순·견고한 reliable UDP. 소형 게임 표준</div></li>
+          <li><a href="https://github.com/networkprotocol/yojimbo" target="_blank">github.com/networkprotocol/yojimbo</a><div class="ref-desc">Glenn Fiedler의 dedicated server reliable UDP 라이브러리 (libsodium 암호화)</div></li>
+          <li><a href="https://www.rfc-editor.org/rfc/rfc9000.html" target="_blank">RFC 9000 — QUIC Transport</a><div class="ref-desc">QUIC v1 표준 RFC. UDP 위 multiplex·암호화·0-RTT 메커니즘</div></li>
+          <li><a href="https://w3c.github.io/webtransport/" target="_blank">w3c.github.io/webtransport/</a><div class="ref-desc">WebTransport W3C 명세. QUIC 기반 브라우저 API, reliable + unreliable datagram</div></li>
+          <li><a href="https://docs.unity3d.com/Packages/com.unity.webrtc@2.4/manual/datachannel.html" target="_blank">docs.unity3d.com — WebRTC DataChannel</a><div class="ref-desc">Unity WebRTC 패키지의 DataChannel 사용법. WebGL 게임 통합</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-stable-bg);color:var(--c-stable)">필독 학습 자료 — 게임 네트워크 프로그래밍</div>
+        <ul class="ref-list">
+          <li><a href="https://www.gabrielgambetta.com/client-server-game-architecture.html" target="_blank">gabrielgambetta.com — Fast-Paced Multiplayer</a><div class="ref-desc">Client-server·prediction·reconciliation 표준 학습 자료. 모든 게임 네트워크 엔지니어 필독</div></li>
+          <li><a href="https://www.gafferongames.com/" target="_blank">gafferongames.com (Glenn Fiedler)</a><div class="ref-desc">Reliable UDP·Snapshot·Delta encoding·Bit packing의 정전. 시리즈 전부 필독</div></li>
+          <li><a href="https://github.com/gafferongames/GameNetworkingResources" target="_blank">gafferongames/GameNetworkingResources</a><div class="ref-desc">큐레이팅된 게임 네트워크 프로그래밍 자료 모음. 라이브러리·논문·발표 포함</div></li>
+          <li><a href="https://multiplayernetworking.com/" target="_blank">multiplayernetworking.com</a><div class="ref-desc">멀티플레이어 게임 네트워크 프로그래밍 자료 큐레이션</div></li>
+          <li><a href="https://daposto.medium.com/quic-for-gamenetworking-46cf23936228" target="_blank">daposto.medium.com — QUIC as Game Networking Protocol</a><div class="ref-desc">QUIC를 게임 네트워킹에 적용 시 트레이드오프 분석</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-orange-bg);color:var(--c-orange)">게임사 엔지니어링 블로그</div>
+        <ul class="ref-list">
+          <li><a href="https://technology.riotgames.com/" target="_blank">technology.riotgames.com</a><div class="ref-desc">League of Legends 글로벌 네트워크·매칭·서버 운영 사례. ChronoBreak·Bigbear 같은 자체 시스템 발표</div></li>
+          <li><a href="https://discord.com/blog/category/engineering" target="_blank">discord.com/blog/category/engineering</a><div class="ref-desc">Discord 음성·실시간 통신 인프라. WebRTC·UDP 운영 사례 (게임 인접)</div></li>
+          <li><a href="https://medium.com/my-games-company" target="_blank">medium.com/my-games-company</a><div class="ref-desc">MY.GAMES Unity Realtime Multiplayer 시리즈. Reliable UDP 구현 디테일</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-red-bg);color:var(--c-red)">한국 자료</div>
+        <ul class="ref-list">
+          <li><a href="https://ndcreplay.nexon.com/" target="_blank">ndcreplay.nexon.com</a><div class="ref-desc">NEXON Developers Conference. 한국 게임 네트워크·서버 발표 다수</div></li>
+          <li><a href="https://blogs.nvidia.com/blog/2026/04/05/cloud-gaming-quic/" target="_blank">NVIDIA — Cloud Gaming QUIC 적용 사례</a><div class="ref-desc">GeForce NOW의 QUIC 도입 (검색 시점에 별도 확인 필요)</div></li>
+        </ul>
+
+        <div class="ref-cat" style="background:var(--c-indigo-bg);color:var(--c-indigo)">책 · 학술</div>
+        <ul class="ref-list">
+          <li><span style="font-weight:600;">Multiplayer Game Programming (Glazer · Madhav)</span><div class="ref-desc">멀티플레이어 게임 네트워크 프로그래밍 표준 입문서. 직렬화·NAT·동기화 모두 다룸</div></li>
+          <li><span style="font-weight:600;">Computer Networking: A Top-Down Approach (Kurose · Ross)</span><div class="ref-desc">네트워크 프로토콜 표준 교재. TCP·UDP·라우팅의 기반</div></li>
+          <li><span style="font-weight:600;">High Performance Browser Networking (Ilya Grigorik, O'Reilly)</span><div class="ref-desc">QUIC·WebRTC·HTTP/3 깊이. 무료 공개판 (hpbn.co)</div></li>
+        </ul>
+
+        <div class="note note-info" style="margin-top:32px;"><strong>★ NOTE</strong><br>이 가이드는 <strong>2026년 5월 기준</strong>. 특히 (1) <strong>GameNetworkingSockets v1.5 부활 (2022 이후 4년 휴면 → 재개)</strong> (2) <strong>RakNet 2014년 종료, 신규 도입 비추천</strong> (3) <strong>QUIC 점유율 web traffic 40%+, Meta 75%</strong> (4) <strong>WebTransport 브라우저 production 출시 제한적</strong> — 이 4가지는 현 시점 변동 정보다. 도입 결정 시 위 공식 문서·GitHub 리포지토리 commit 활성도 다시 확인할 것.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + tabId).classList.add('active');
+    document.querySelector('.top-tab[data-tab="' + tabId + '"]').classList.add('active');
+
+    document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+    const firstLink = document.querySelector('.sb-nav li a[data-tab="' + tabId + '"]');
+    if (firstLink) firstLink.classList.add('active');
+  }
+
+  document.querySelectorAll('.sb-nav li a').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const tab = link.dataset.tab;
+      const section = link.dataset.section;
+      switchTab(tab);
+      setTimeout(() => {
+        const el = document.getElementById(section);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }, 50);
+    });
+  });
+</script>
+</body>
+</html>

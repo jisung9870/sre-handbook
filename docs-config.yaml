@@ -100,7 +100,12 @@ categories:
     label: 게임 도메인 기초
     icon: Gamepad2
     color: indigo
-    docs: []
+    docs:
+      - game-server-architecture-basics
+      - game-networking-realtime-sync
+      - matchmaking-session-management
+      - anti-cheat-game-security
+      - game-data-save-system
 
   - id: game-platform
     label: 게임 퍼블리싱 플랫폼
