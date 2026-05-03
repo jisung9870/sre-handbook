@@ -12,6 +12,8 @@ import {
   ChevronDown,
   ChevronRight,
   Container,
+  Gamepad2,
+  Joystick,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -37,6 +39,8 @@ const iconMap: Record<string, LucideIcon> = {
   Users,
   Cpu,
   Container,
+  Gamepad2,
+  Joystick,
 };
 
 function loadCollapsed(): Record<string, boolean> {

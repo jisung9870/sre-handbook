@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>신작 런칭 캐파시티 & 트래픽</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fb; --surface: #ffffff; --surface-2: #f0f2f5;
+    --sidebar-bg: #ffffff; --border: #e2e6eb; --border-strong: #d0d5dc;
+    --text: #1a1d23; --text-dim: #5c6370; --text-muted: #8b929e;
+    --c-speed: #0969b2; --c-speed-bg: #e8f4fd; --c-speed-border: #a2d2f5;
+    --c-stable: #8b5cf6; --c-stable-bg: #f3effe; --c-stable-border: #c4b5fd;
+    --c-green: #1a7f37; --c-green-bg: #ecf7ef; --c-green-border: #a6ddb5;
+    --c-orange: #c2600c; --c-orange-bg: #fef3eb; --c-orange-border: #f5cba7;
+    --c-red: #cf222e; --c-red-bg: #fdecea; --c-red-border: #f5a8a8;
+    --c-teal: #0e7c6b; --c-teal-bg: #e6f7f4; --c-teal-border: #8ed5c5;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 10px; --sidebar-w: 252px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-weight: 400; line-height: 1.75; }
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 28px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; box-shadow: 1px 0 8px rgba(0,0,0,0.03); }
+  .sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand h1 em { font-style: normal; color: var(--c-red); }
+  .sb-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px 6px; font-weight: 600; }
+  .sb-nav { list-style: none; }
+  .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 22px; color: var(--text-dim); text-decoration: none; font-size: 13px; transition: all 0.15s; border-left: 2.5px solid transparent; cursor: pointer; }
+  .sb-nav li a:hover { color: var(--text); background: var(--surface-2); }
+  .sb-nav li a.active { color: var(--text); background: var(--c-red-bg); border-left-color: var(--c-red); font-weight: 600; }
+  .sb-nav li a .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 18px 22px 0; border-top: 1px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-muted); line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
+
+  .main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+  .top-tabs { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .top-tab { flex: 1; padding: 15px 16px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: none; cursor: pointer; position: relative; transition: all 0.2s; }
+  .top-tab:hover { color: var(--text); background: var(--surface-2); }
+  .top-tab::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2.5px; border-radius: 2px; transition: all 0.25s; }
+  .top-tab.active { color: var(--text); }
+  .top-tab[data-tab="overview"].active { color: var(--c-teal); }
+  .top-tab[data-tab="overview"].active::after { background: var(--c-teal); left: 12%; right: 12%; }
+  .top-tab[data-tab="traffic"].active { color: var(--c-speed); }
+  .top-tab[data-tab="traffic"].active::after { background: var(--c-speed); left: 12%; right: 12%; }
+  .top-tab[data-tab="capacity"].active { color: var(--c-stable); }
+  .top-tab[data-tab="capacity"].active::after { background: var(--c-stable); left: 12%; right: 12%; }
+  .top-tab[data-tab="load-test"].active { color: var(--c-orange); }
+  .top-tab[data-tab="load-test"].active::after { background: var(--c-orange); left: 12%; right: 12%; }
+  .top-tab[data-tab="incident"].active { color: var(--c-red); }
+  .top-tab[data-tab="incident"].active::after { background: var(--c-red); left: 12%; right: 12%; }
+  .top-tab[data-tab="references"].active { color: var(--c-green); }
+  .top-tab[data-tab="references"].active::after { background: var(--c-green); left: 12%; right: 12%; }
+
+  .tab-panel { display: none; padding: 40px 52px 80px; max-width: 980px; }
+  .tab-panel.active { display: block; }
+  .panel-header { margin-bottom: 36px; }
+  .panel-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px; font-weight: 600; }
+  .badge-teal { color: var(--c-teal); background: var(--c-teal-bg); border: 1px solid var(--c-teal-border); }
+  .badge-speed { color: var(--c-speed); background: var(--c-speed-bg); border: 1px solid var(--c-speed-border); }
+  .badge-stable { color: var(--c-stable); background: var(--c-stable-bg); border: 1px solid var(--c-stable-border); }
+  .badge-orange { color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .badge-red { color: var(--c-red); background: var(--c-red-bg); border: 1px solid var(--c-red-border); }
+  .badge-green { color: var(--c-green); background: var(--c-green-bg); border: 1px solid var(--c-green-border); }
+  .panel-header h2 { font-size: 27px; font-weight: 700; margin-bottom: 8px; }
+  .panel-header p { color: var(--text-dim); font-size: 15px; max-width: 720px; line-height: 1.7; }
+  .sub { margin-top: 44px; scroll-margin-top: 72px; }
+  .sub h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+  .card h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card p { color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+  .card code { font-family: 'JetBrains Mono', monospace; background: var(--c-green-bg); color: var(--c-green); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .card-full { grid-column: 1 / -1; }
+
+  .level-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .level-table th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+  .level-table td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: top; line-height: 1.55; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .level-table tr:hover td { background: var(--surface-2); }
+  .level-table td:first-child { font-weight: 700; }
+  .lvl-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+  .lvl-elite { color: var(--c-green); background: var(--c-green-bg); }
+  .lvl-high { color: var(--c-speed); background: var(--c-speed-bg); }
+  .lvl-medium { color: var(--c-orange); background: var(--c-orange-bg); }
+  .lvl-low { color: var(--c-red); background: var(--c-red-bg); }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 130px; box-shadow: var(--shadow-sm); }
+  .flow-node h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 3px; font-weight: 700; }
+  .flow-node p { font-size: 11px; color: var(--text-dim); }
+  .flow-arrow { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 22px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-top: 16px; overflow-x: auto; box-shadow: var(--shadow-sm); }
+  .box-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .note { background: var(--c-green-bg); border-left: 3px solid var(--c-green); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .note strong { color: var(--c-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .note-warn { background: var(--c-orange-bg); border-left-color: var(--c-orange); }
+  .note-warn strong { color: var(--c-orange); }
+  .note-info { background: var(--c-speed-bg); border-left-color: var(--c-speed); }
+  .note-info strong { color: var(--c-speed); }
+  .note-danger { background: var(--c-red-bg); border-left-color: var(--c-red); }
+  .note-danger strong { color: var(--c-red); }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .pipe-stage { padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; text-align: center; min-width: 110px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-left: -8px; }
+  .pipe-stage:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); margin-left: 0; }
+  .pipe-stage small { display: block; font-weight: 500; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+
+  .gauge-row { display: flex; gap: 14px; margin: 20px 0; }
+  .gauge-item { flex: 1; text-align: center; }
+  .gauge-bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin-bottom: 8px; }
+  .gauge-fill { height: 100%; border-radius: 4px; }
+  .gauge-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+  .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  .code-block { background: #1e2530; color: #e6edf3; border-radius: 8px; padding: 20px; margin-top: 12px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7; }
+  .code-block .cm { color: #8b949e; } .code-block .kw { color: #ff7b72; } .code-block .str { color: #a5d6ff; } .code-block .fn { color: #d2a8ff; } .code-block .num { color: #79c0ff; }
+
+  .ref-list { list-style: none; margin-top: 14px; }
+  .ref-list li { padding: 12px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; line-height: 1.6; }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list li a { color: var(--c-speed); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; }
+  .ref-list li a:hover { text-decoration: underline; }
+  .ref-list li .ref-desc { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .ref-cat { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-right: 8px; }
+
+  .mobile-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 18px; cursor: pointer; box-shadow: var(--shadow-md); }
+  @media (max-width: 768px) {
+    .mobile-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .tab-panel { padding: 32px 20px 60px; }
+    .cg, .cg3 { grid-template-columns: 1fr; }
+    .top-tab { font-size: 10px; padding: 12px 6px; }
+    .pipeline { justify-content: center; }
+    .gauge-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="label">Launch & Capacity</div><h1><em>Launch</em> Capacity & Traffic</h1></div>
+    <div class="sb-label">개요</div>
+    <ul class="sb-nav">
+      <li><a data-tab="overview" data-section="game-traffic" class="active"><span class="dot" style="background:var(--c-teal)"></span>게임 트래픽 특수성</a></li>
+      <li><a data-tab="overview" data-section="why-launch-risky"><span class="dot" style="background:var(--c-teal)"></span>런칭이 왜 위험한가</a></li>
+      <li><a data-tab="overview" data-section="sre-scope"><span class="dot" style="background:var(--c-teal)"></span>SRE 책임 영역</a></li>
+    </ul>
+    <div class="sb-label">트래픽 패턴</div>
+    <ul class="sb-nav">
+      <li><a data-tab="traffic" data-section="daily-pattern"><span class="dot" style="background:var(--c-speed)"></span>일일·주간·시즌</a></li>
+      <li><a data-tab="traffic" data-section="launch-curve"><span class="dot" style="background:var(--c-speed)"></span>신작 런칭 곡선</a></li>
+      <li><a data-tab="traffic" data-section="event-spike"><span class="dot" style="background:var(--c-speed)"></span>이벤트 스파이크</a></li>
+      <li><a data-tab="traffic" data-section="ea-vs-launch"><span class="dot" style="background:var(--c-speed)"></span>EA vs 정식 출시</a></li>
+    </ul>
+    <div class="sb-label">캐파시티 플래닝</div>
+    <ul class="sb-nav">
+      <li><a data-tab="capacity" data-section="preregistration"><span class="dot" style="background:var(--c-stable)"></span>사전예약 환산</a></li>
+      <li><a data-tab="capacity" data-section="headroom"><span class="dot" style="background:var(--c-stable)"></span>Headroom 정책</a></li>
+      <li><a data-tab="capacity" data-section="autoscaling"><span class="dot" style="background:var(--c-stable)"></span>Autoscaling 한계</a></li>
+      <li><a data-tab="capacity" data-section="dependencies"><span class="dot" style="background:var(--c-stable)"></span>외부 의존성 캐파</a></li>
+    </ul>
+    <div class="sb-label">부하 테스트</div>
+    <ul class="sb-nav">
+      <li><a data-tab="load-test" data-section="test-types"><span class="dot" style="background:var(--c-orange)"></span>테스트 종류</a></li>
+      <li><a data-tab="load-test" data-section="tools"><span class="dot" style="background:var(--c-orange)"></span>도구 비교</a></li>
+      <li><a data-tab="load-test" data-section="game-scenarios"><span class="dot" style="background:var(--c-orange)"></span>게임 시나리오</a></li>
+      <li><a data-tab="load-test" data-section="interpretation"><span class="dot" style="background:var(--c-orange)"></span>결과 해석</a></li>
+    </ul>
+    <div class="sb-label">런칭 사고 대응</div>
+    <ul class="sb-nav">
+      <li><a data-tab="incident" data-section="launch-day"><span class="dot" style="background:var(--c-red)"></span>런칭 day 워룸</a></li>
+      <li><a data-tab="incident" data-section="degradation"><span class="dot" style="background:var(--c-red)"></span>대기열·점검 전환</a></li>
+      <li><a data-tab="incident" data-section="postmortem"><span class="dot" style="background:var(--c-red)"></span>Postmortem</a></li>
+    </ul>
+    <div class="sb-label">참고 자료</div>
+    <ul class="sb-nav">
+      <li><a data-tab="references" data-section="refs"><span class="dot" style="background:var(--c-green)"></span>도구 / 게임 사례 / 모범 사례</a></li>
+    </ul>
+    <div class="sidebar-footer"><p>Launch &amp; Spike<br>= The Biggest Test</p></div>
+  </aside>
+
+  <div class="main">
+    <div class="top-tabs">
+      <button class="top-tab active" data-tab="overview" onclick="switchTab('overview')">● 개요</button>
+      <button class="top-tab" data-tab="traffic" onclick="switchTab('traffic')">● 트래픽 패턴</button>
+      <button class="top-tab" data-tab="capacity" onclick="switchTab('capacity')">● 캐파시티</button>
+      <button class="top-tab" data-tab="load-test" onclick="switchTab('load-test')">● 부하 테스트</button>
+      <button class="top-tab" data-tab="incident" onclick="switchTab('incident')">● 런칭 사고</button>
+      <button class="top-tab" data-tab="references" onclick="switchTab('references')">● 참고 자료</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="panel-header"><div class="panel-badge badge-teal">● Overview</div><h2>신작 런칭 캐파시티 & 트래픽</h2><p>퍼블리셔의 가장 큰 이벤트. 평소 대비 10~100배의 스파이크가 단시간에 몰리고, 모든 시스템(계정·결제·게임서버·텔레메트리)이 동시에 시험대에 오른다. 사고 시 사용자 첫인상도 망가진다.</p></div>
+
+      <div class="sub" id="game-traffic"><h3>게임 트래픽의 특수성</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>예측 가능한 비균질성</h4><p>일반 웹 서비스처럼 평탄하지 않다. 신작 런칭/이벤트/시즌 시점이 <strong>미리 알려져 있고</strong> 그때 트래픽이 평소의 10~100배. 예측 가능 = 사전 준비 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>매우 짧은 피크</h4><p>피크가 몇 시간(런칭 첫날) 또는 몇 분(이벤트 시작 직후)에 집중. <strong>autoscaling이 따라가지 못하는 속도</strong>. 사전 warm-up이 필수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>기다리는 사용자</h4><p>일반 웹은 사용자가 흩어져 들어오지만 게임은 <strong>같은 시각에 모이는</strong>. 사전예약자들이 정각에 동시 접속.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>모든 시스템 동시 부하</h4><p>로그인 → 계정 → 게임서버 → 결제 → 텔레메트리 모두 동시 폭증. <strong>가장 약한 시스템이 전체 게임 다운</strong>으로 이어짐(Amdahl).</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="why-launch-risky"><h3>신작 런칭이 왜 가장 위험한가</h3>
+        <div class="cg">
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">① 첫인상 = 평판</h4><p>런칭 첫날 다운되면 사용자 이탈 + SNS 부정 평판 + 스토어 별점 하락. <strong>Diablo 4(2023-06)·여러 대형 게임이 런칭 사고로 사과</strong>한 사례 다수. 회복에 수 주~수 개월.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">② 검증되지 않은 인프라</h4><p>출시 전엔 부하 테스트로만 검증. 실제 사용자 트래픽 패턴은 정확히 예측 불가능. <strong>"우리 게임은 어떨지" 진짜 데이터가 없음</strong>.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">③ 외부 의존성</h4><p>Apple/Google/Steam 결제, 푸시 인프라, CDN, 외부 인증 — 우리가 통제 못하는 영역도 동시에 부하받음. <strong>스토어가 trending 페이지에 띄우는 순간</strong> 트래픽 폭증.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">④ 마케팅 비용 매몰</h4><p>UA 광고비를 미리 태웠으니 런칭이 망하면 비용은 그대로 + 매출은 0. 손익 분기점 도달이 늦어지면 게임 수명 자체에 영향.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="sre-scope"><h3>SRE 책임 영역</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>① 캐파시티 플래닝</h4><p>예상 트래픽 산출, 인프라 사전 확보, headroom 정책. 클라우드 capacity reservation으로 인스턴스 확보까지.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>② 부하 테스트</h4><p>실제 트래픽 패턴을 모사한 부하 테스트. 병목 발견 → 보강 → 재테스트의 반복.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>③ 런칭 워룸</h4><p>런칭 D-day 24시간 워룸. 양사·전 부서 인력 대기. 실시간 모니터링 + 즉시 대응.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>④ Graceful degradation</h4><p>캐파 부족 시 즉시 다운보다 <strong>대기열·부분 점검·기능 끔</strong>으로 부드럽게 전환. 사용자에 명확한 안내.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRAFFIC -->
+    <div class="tab-panel" id="panel-traffic">
+      <div class="panel-header"><div class="panel-badge badge-speed">● Traffic Patterns</div><h2>트래픽 패턴</h2><p>게임 도메인의 4가지 주요 트래픽 패턴 — 일일/주간/시즌, 신작 런칭, 이벤트 스파이크, EA vs 정식 출시.</p></div>
+
+      <div class="sub" id="daily-pattern"><h3>일일·주간·시즌 패턴</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>일일</h4><p>피크: 평일 저녁 19~23시, 주말 14~24시(KST). region별 시차 적용. 새벽 5~7시가 보통 가장 한산.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>주간</h4><p>금·토·일 트래픽이 평일 대비 1.5~2배. 주간 점검은 보통 화·수 새벽에. <strong>금요일 점검·배포 회피</strong>는 업계 룰.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>월간</h4><p>시즌 시작·종료 시점에 스파이크. 월말 결제 한도 리셋 시점에 결제 트래픽 증가.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>연간</h4><p>방학·연휴(설·추석·크리스마스) 트래픽 증가. 신학기·휴가 끝 시점 감소. 연 1회 1주년·기념 이벤트 대형 스파이크.</p></div>
+        </div>
+        <div class="box" style="margin-top:16px;"><div class="box-title">트래픽 비율 (평소 대비)</div>
+          <div class="gauge-row">
+            <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:30%;background:var(--c-green);"></div></div><div class="gauge-label">평소 평일 낮</div><div class="gauge-value" style="color:var(--c-green)">1.0x</div></div>
+            <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:60%;background:var(--c-speed);"></div></div><div class="gauge-label">평일 저녁</div><div class="gauge-value" style="color:var(--c-speed)">2~3x</div></div>
+            <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:75%;background:var(--c-stable);"></div></div><div class="gauge-label">주말 저녁</div><div class="gauge-value" style="color:var(--c-stable)">3~5x</div></div>
+            <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:90%;background:var(--c-orange);"></div></div><div class="gauge-label">대형 이벤트</div><div class="gauge-value" style="color:var(--c-orange)">5~20x</div></div>
+            <div class="gauge-item"><div class="gauge-bar"><div class="gauge-fill" style="width:100%;background:var(--c-red);"></div></div><div class="gauge-label">신작 런칭</div><div class="gauge-value" style="color:var(--c-red)">20~100x</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub" id="launch-curve"><h3>신작 런칭 곡선</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">대부분의 신작은 다음 곡선을 따른다. 첫 날이 정점, 이후 빠르게 감소하다 안정화. 캐파시티는 정점에 맞추되 안정화 후엔 줄여야 비용 효율.</p>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-red-bg);color:var(--c-red);">D-Day<small>최대 100x<br>피크</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange);">D+1~3<small>50~70%<br>유지</small></div>
+          <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable);">D+7<small>20~40%<br>이탈자 정리</small></div>
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed);">D+30<small>10~20%<br>핵심 유저</small></div>
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green);">D+90<small>안정화<br>LiveOps cycle</small></div>
+        </div>
+        <div class="cg" style="margin-top:16px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>오픈 정각 스파이크</h4><p>사전예약자가 모두 정각에 시도 → 첫 1분이 가장 위험. 로그인·캐릭터 생성 폭주. <strong>사전 warm-up + 대기열 시스템</strong> 필수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>D+1~7 검증</h4><p>실제 사용자가 다양한 콘텐츠를 진행하면서 미발견 버그·캐파 병목이 드러남. <strong>핫픽스 cadence를 평소보다 짧게</strong> 운영.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="event-spike"><h3>이벤트 스파이크</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>이벤트 시작 시각</h4><p>사용자가 정각에 몰림. 평소 대비 5~20배. 이벤트 보상이 한정 수량이면 더 심함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>이벤트 종료 직전</h4><p>"마감 직전 보상 확보" 행동. 마지막 30분~1시간 트래픽 폭증. 종료 시각 정확성 중요(서버 시간 동기).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>대형 가챠 출시</h4><p>인기 신캐릭터 가챠 출시 시 결제 + 가챠 시스템 + 인벤토리 + 텔레메트리 모두 폭증. <strong>결제 시스템이 병목</strong>이 되기 쉬움.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>인플루언서·언론 노출</h4><p>예측 못한 외부 노출(스트리머·뉴스)도 트래픽 spike 요인. 마케팅팀과 정기 동기화로 사전 정보 공유.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="ea-vs-launch"><h3>EA(얼리 액세스) vs 정식 출시</h3>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>항목</th><th>EA (Early Access)</th><th>정식 출시</th></tr></thead>
+            <tbody>
+              <tr><td>트래픽 규모</td><td>제한적 (사전 등록자 또는 구매자)</td><td>대규모 (마케팅 노출 + 무료 진입)</td></tr>
+              <tr><td>증가 패턴</td><td>완만한 증가 (콘텐츠 업데이트마다 spike)</td><td>D-day 폭발 → 빠른 감소</td></tr>
+              <tr><td>유저 성격</td><td>핵심 팬·얼리어답터, 버그 관용도 높음</td><td>일반 유저, 첫 인상에 민감</td></tr>
+              <tr><td>SRE 우선순위</td><td>점진적 캐파 + 빠른 핫픽스 cadence</td><td>대규모 사전 캐파 + 워룸 대기</td></tr>
+              <tr><td>EA → 정식 전환</td><td>"숨겨진 피크" 발생 (재광고 + 정식 진입)</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-info"><strong>★ NOTE</strong><br>Steam의 EA 모델은 <strong>퍼블리셔에게 유리</strong> — 작은 트래픽으로 먼저 검증 후 정식 출시 시 자신감 있게 캐파 잡기. 단 EA → 정식 전환 시 휴면 유저가 다시 들어오는 "숨겨진 스파이크"를 잊지 말 것.</div>
+      </div>
+    </div>
+
+    <!-- CAPACITY -->
+    <div class="tab-panel" id="panel-capacity">
+      <div class="panel-header"><div class="panel-badge badge-stable">● Capacity Planning</div><h2>캐파시티 플래닝</h2><p>예상 트래픽을 산출하고 인프라를 사전 확보하는 작업. 부족하면 다운, 과하면 비용 낭비. 항상 안전 쪽으로 마진을 잡되 정확도를 높여간다.</p></div>
+
+      <div class="sub" id="preregistration"><h3>사전예약 → 런칭 트래픽 환산</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">사전예약 수가 캐파시티 산정의 첫 입력. 모든 사전예약자가 정각에 들어오는 건 아니지만 <strong>"최악의 경우"를 가정</strong>해야 한다.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>지표</th><th>업계 통상치</th><th>비고</th></tr></thead>
+            <tbody>
+              <tr><td>사전예약 → D-day 진입</td><td>30~50%</td><td>장르·마케팅 강도에 따라 다름</td></tr>
+              <tr><td>D-day 진입자의 동시 접속 비율</td><td>20~40%</td><td>오픈 정각에 몰림</td></tr>
+              <tr><td>F2P 결제 전환율</td><td>2~5% (top 게임 5%+)</td><td>소셜 카지노는 8%+ 가능</td></tr>
+              <tr><td>Steam 사전 wishlist → 런칭 첫주 구매</td><td>20~22% (할인 콤보 시)</td><td>2026 기준 통상치</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-warn"><strong>⚠ NOTE</strong><br>이 비율은 매우 보수적인 통상치다. 실제 게임마다 큰 편차가 있고, IP·마케팅·장르가 결정적. 특히 잘 만든 사전예약 캠페인이나 인기 IP는 <strong>전환율이 2배 이상 나오기도 함</strong>. 비슷한 장르 자사 게임 데이터가 가장 정확한 reference.</div>
+      </div>
+
+      <div class="sub" id="headroom"><h3>Headroom (여유율) 정책</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>표준 권장</h4><p>일상 운영 시 <strong>최대 캐파의 60~70%</strong>가 평균 사용량. 30~40% 여유 확보. 갑작스런 spike에 대응 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>런칭·이벤트</h4><p>예상 피크의 <strong>1.5~2배</strong>로 확보. 예측이 빗나가도 대응 가능. 이벤트 종료 후 다시 일상 수준으로 축소.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>비용 trade-off</h4><p>여유율이 높으면 비용 ↑. 너무 빡빡하면 사고 위험 ↑. 게임 비즈니스에서는 <strong>"비용 < 사고 영향"</strong>이라 보통 비용을 감수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>capacity reservation</h4><p>AWS On-Demand Capacity Reservations 등으로 사전 예약. <strong>인스턴스 부족(out-of-stock)으로 scale-out 실패</strong> 방지.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="autoscaling"><h3>Autoscaling의 한계</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">"오토스케일링이 알아서 해준다"는 환상. 실제로는 한계가 많다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>warm-up 시간</h4><p>새 인스턴스 부팅 + 의존성 다운로드 + 헬스체크 통과까지 <strong>몇 초~몇 분</strong>. 게임 런칭 1분 안에 폭발하는 트래픽엔 못 따라감.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>인스턴스 부족</h4><p>한 가용영역의 특정 인스턴스 타입이 부족하면 launch 실패. <strong>10개+ 인스턴스 타입 다양화</strong> 권장.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>예측 vs 반응</h4><p>일반 autoscaling은 reactive(부하 감지 → 확장). 게임은 <strong>predictive scaling</strong>(예상된 시각에 사전 확장) 또는 <strong>scheduled scaling</strong>(이벤트 시각에 맞춰 사전 capacity 추가) 필요.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>downstream 한계</h4><p>웹/API 서버는 자동 확장돼도 DB·외부 API는 안 됨. <strong>병목이 어디인지 평소에 파악</strong>하고 그 부분을 우선 보강.</p></div>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>게임 런칭은 <strong>"오토스케일링 + 사전 warm-up + capacity reservation + scheduled scaling"</strong> 4가지 조합. 어느 하나만으로는 부족.</div>
+      </div>
+
+      <div class="sub" id="dependencies"><h3>외부 의존성 캐파시티</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>관리형 DB</h4><p>RDS·Cloud SQL은 자동 확장 한계 있음. 사전에 instance class·read replica 확보. <strong>DB connection pool exhaustion</strong>이 가장 흔한 런칭 사고.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>외부 API (스토어·인증)</h4><p>Apple/Google 결제, LINE/Apple SSO 등 외부 API의 rate limit 확인. 우리 트래픽이 폭증해도 외부 limit이 병목이 될 수 있음.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>CDN</h4><p>다운로드 트래픽 폭증. CDN 사전 워밍(런칭 전 일부 콘텐츠 캐시 유도). 비용 사전 산출.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>푸시·이메일</h4><p>FCM·APNs·SES 같은 외부 서비스도 limit 있음. 사전 quota 확장 신청.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOAD TEST -->
+    <div class="tab-panel" id="panel-load-test">
+      <div class="panel-header"><div class="panel-badge badge-orange">● Load Testing</div><h2>부하 테스트</h2><p>실제 트래픽이 들어오기 전에 시스템 한계를 측정. 병목 발견 → 보강 → 재테스트의 반복으로 자신감을 쌓는다.</p></div>
+
+      <div class="sub" id="test-types"><h3>테스트 종류</h3>
+        <div class="cg">
+          <div class="card" style="border-top:3px solid var(--c-green);"><h4 style="color:var(--c-green)">Smoke Test</h4><p>매우 작은 부하로 시스템이 기본적으로 동작하는지. CI/CD 파이프라인에 포함. <strong>몇 초~몇 분</strong>.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-speed);"><h4 style="color:var(--c-speed)">Load Test</h4><p>예상 평소 부하를 일정 시간 가함. 정상 동작 확인. SLO 만족 여부 검증.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">Stress Test</h4><p>예상 피크 또는 그 이상 부하 → 시스템이 깨지는 한계 측정. <strong>"우리 게임은 몇 명까지 받을 수 있는가"</strong>의 답.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-red);"><h4 style="color:var(--c-red)">Spike Test</h4><p>짧은 시간에 부하를 급격히 늘림. <strong>런칭 정각 시나리오</strong> 모사. autoscaling이 따라오는지 검증.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">Soak Test (Endurance)</h4><p>중간 정도 부하를 <strong>장시간(수 시간~수 일)</strong> 지속. 메모리 누수·DB 연결 누수·로그 폭증 등 long-running 이슈 발견.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-teal);"><h4 style="color:var(--c-teal)">Capacity Test</h4><p>점진적으로 부하 증가시켜 SLO 깨지는 시점 측정. <strong>"안전 운영 한계"</strong>를 정량적으로 결정.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="tools"><h3>도구 비교</h3>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>도구</th><th>언어</th><th>특징</th><th>적합 케이스</th></tr></thead>
+            <tbody>
+              <tr><td>k6 (Grafana)</td><td>JS/TS (Go 기반)</td><td>cloud-native, CI/CD 친화, Kubernetes operator, Grafana 통합</td><td>현대적 개발팀, 관측 통합, 클라우드 부하 (최대 100만 VU)</td></tr>
+              <tr><td>JMeter</td><td>Java + GUI</td><td>20+년 성숙, 1000+ 플러그인, SOAP/JMS/JDBC/LDAP 등 전 프로토콜</td><td>레거시 시스템, 다양한 프로토콜, 기존 투자가 있는 팀</td></tr>
+              <tr><td>Locust</td><td>Python</td><td>gevent 이벤트 드리븐, 분산 실행 쉬움</td><td>Python 팀, 복잡한 시나리오 코드로 작성</td></tr>
+              <tr><td>Gatling</td><td>Scala/Java/Kotlin/JS</td><td>인스턴스당 3000~5000 VU, 멋진 HTML 리포트</td><td>JVM 팀, 비기술 stakeholder에 보고할 때</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="box" style="margin-top:16px;"><div class="box-title">k6 게임 시나리오 예시</div>
+          <div class="code-block"><span class="cm">// k6 — 신작 런칭 spike 시나리오</span>
+<span class="kw">import</span> http <span class="kw">from</span> <span class="str">'k6/http'</span>;
+<span class="kw">import</span> { <span class="fn">check</span>, <span class="fn">sleep</span> } <span class="kw">from</span> <span class="str">'k6'</span>;
+
+<span class="kw">export const</span> options = {
+  <span class="str">stages</span>: [
+    { <span class="str">duration</span>: <span class="str">'1m'</span>, <span class="str">target</span>: <span class="num">1000</span> },     <span class="cm">// 워밍업</span>
+    { <span class="str">duration</span>: <span class="str">'30s'</span>, <span class="str">target</span>: <span class="num">50000</span> },   <span class="cm">// 정각 spike</span>
+    { <span class="str">duration</span>: <span class="str">'5m'</span>, <span class="str">target</span>: <span class="num">50000</span> },    <span class="cm">// 피크 유지</span>
+    { <span class="str">duration</span>: <span class="str">'5m'</span>, <span class="str">target</span>: <span class="num">10000</span> },    <span class="cm">// 완만한 감소</span>
+  ],
+  <span class="str">thresholds</span>: {
+    <span class="str">'http_req_duration'</span>: [<span class="str">'p(95)&lt;500'</span>],   <span class="cm">// p95 500ms 이내</span>
+    <span class="str">'http_req_failed'</span>: [<span class="str">'rate&lt;0.01'</span>],      <span class="cm">// 실패율 1% 미만</span>
+  },
+};
+
+<span class="kw">export default function</span> () {
+  <span class="cm">// 1. 로그인</span>
+  <span class="kw">const</span> loginRes = http.<span class="fn">post</span>(<span class="str">'https://api.game.com/auth/login'</span>, ...);
+  <span class="fn">check</span>(loginRes, { <span class="str">'login OK'</span>: (r) =&gt; r.status === <span class="num">200</span> });
+
+  <span class="cm">// 2. 캐릭터 조회</span>
+  <span class="kw">const</span> token = loginRes.<span class="fn">json</span>(<span class="str">'access_token'</span>);
+  http.<span class="fn">get</span>(<span class="str">'https://api.game.com/character'</span>,
+    { <span class="str">headers</span>: { <span class="str">Authorization</span>: <span class="str">`Bearer ${token}`</span> } });
+
+  <span class="fn">sleep</span>(<span class="num">1</span>);
+}</div>
+        </div>
+      </div>
+
+      <div class="sub" id="game-scenarios"><h3>게임 도메인 부하 시나리오</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">단순 API 호출만 테스트하면 실제 사용자 패턴과 다름. <strong>전형적 사용자 여정을 시나리오로 작성</strong>해야 한다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>① 신규 가입 → 튜토리얼</h4><p>회원가입 → 캐릭터 생성 → 튜토리얼 → 첫 결제 권유. <strong>런칭 시 가장 흔한 시나리오</strong>. 인증·계정·인벤토리 모두 부하.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>② 로그인 → 게임 진입</h4><p>로그인 → 공지 확인 → 캐릭터 선택 → 게임서버 접속. <strong>매일 반복되는 가장 빈번한 흐름</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>③ 결제 → 가챠 → 인벤토리</h4><p>상점 → 결제 → 영수증 검증 → 가챠 → 결과 → 인벤토리 추가. <strong>매출 critical path</strong>. 정합성 검증.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>④ 매치메이킹 → 게임 플레이</h4><p>매치 큐 → 매칭 → 게임서버 할당 → 플레이 → 결과 보고. 실시간 게임의 핵심 부하 패턴.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ TIP</strong><br>실제 트래픽 비율을 모방. 예: "로그인 70% / 결제 5% / 매치 25%" 같은 mix를 한 시나리오에 함께. 단일 패턴만 테스트하면 실제 운영의 병목을 못 봄.</div>
+      </div>
+
+      <div class="sub" id="interpretation"><h3>결과 해석 · 보강</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>핵심 메트릭</h4><p><strong>p50/p95/p99 latency</strong>(평균만 보지 말 것), 실패율, throughput, 자원 사용률(CPU/메모리/DB conn). p99가 가장 사용자 체감 지표.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>병목 식별</h4><p>특정 지점(DB·캐시·외부 API)에서 latency 급증 → 그곳이 병목. 부하 증가시켜 어디가 먼저 깨지는지 확인.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>SLO 검증</h4><p>"p99 500ms 이내, 실패율 0.1% 이내" 같은 SLO를 사전에 정의 → 부하 테스트로 검증. 미달 시 보강 후 재테스트.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>반복 테스트</h4><p>한 번으로 끝나지 않음. 보강 → 재테스트 → 새 병목 → 보강의 반복. 런칭 D-30부터 D-1까지 매주 진행.</p></div>
+        </div>
+        <div class="note note-warn"><strong>⚠ PITFALL</strong><br>① <strong>스테이징 캐파 ≠ 프로덕션</strong>이면 의미 없음. 같은 또는 비례한 환경에서 측정. ② 실제 사용자 데이터(다양한 캐릭터·아이템)가 없으면 결과 왜곡. 익명화된 프로덕션 데이터 또는 합성 데이터 활용.</div>
+      </div>
+    </div>
+
+    <!-- INCIDENT -->
+    <div class="tab-panel" id="panel-incident">
+      <div class="panel-header"><div class="panel-badge badge-red">● Launch Day Incident Response</div><h2>런칭 사고 대응</h2><p>아무리 준비해도 100% 안전하지 않다. 사고가 났을 때 빠르게 사용자 영향을 줄이고 신뢰를 잃지 않는 것이 핵심.</p></div>
+
+      <div class="sub" id="launch-day"><h3>런칭 day 워룸</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>구성</h4><p><strong>전 부서 인력 24시간 대기</strong>. SRE·개발사·DBA·네트워크·CS·운영·법무·임원. 외부 개발사도 동일 대기.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>역할 분담 (IC 모델)</h4><p>Incident Commander(전체 결정), Communications Lead(외부 안내), Operations Lead(기술 대응), Scribe(기록). Google SRE Book의 표준 모델.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>모니터링 화면</h4><p>실시간 대시보드(접속자·결제·에러율·지연), Statuspage 운영 화면, 외부 모니터링(SNS·커뮤니티 반응 모니터링).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>커뮤니케이션 채널</h4><p>전용 슬랙/디스코드 워룸 채널, 외부 개발사 동시 접속, 임원 보고 별도 채널. 상태 업데이트는 30분~1시간마다.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="degradation"><h3>대기열 · 점검 전환 (Graceful Degradation)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">캐파 부족 시 즉시 다운보다 단계적 degradation이 사용자 신뢰에 좋다. <strong>"못 들어오는 것"보다 "기다리면 들어가는 것"이 백배 낫다</strong>.</p>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green);">정상<small>전체 서비스</small></div>
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed);">대기열<small>입장 제한<br>+ 안내</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange);">기능 축소<small>이벤트·상점<br>일시 중단</small></div>
+          <div class="pipe-stage" style="background:var(--c-red-bg);color:var(--c-red);">긴급 점검<small>전체 다운<br>+ 점검 페이지</small></div>
+        </div>
+        <div class="cg" style="margin-top:16px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>대기열 시스템</h4><p>접속 인원 임계 초과 시 신규 접속을 큐에 대기. 예상 대기 시간 표시. 기존 접속자는 영향 없음.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>기능별 차단</h4><p>비핵심 기능(이벤트·상점·랭킹) 끄기 → 핵심(로그인·게임 플레이) 살리기. Feature Flag로 즉시 토글(P5 참조).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>사용자 안내</h4><p>모든 단계마다 명확한 안내. "현재 접속자 폭증으로 대기 중", "이벤트 일시 중단" 등. <strong>침묵은 사용자 분노의 원인 #1</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>점검 보상</h4><p>긴급 점검 후 보상 정책 사전 합의. 일반적으로 점검 시간에 비례한 캐시·아이템.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="postmortem"><h3>Postmortem (사후 회고)</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>비난 없는(Blameless) 회고</h4><p>"누구 잘못"이 아닌 "<strong>왜 시스템이 그 잘못을 막지 못했나</strong>"에 집중. 개인 비난은 유사 사고를 숨기게 만들어 더 큰 화근.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>구조</h4><p>(1) 요약·영향, (2) 타임라인(분 단위), (3) 근본 원인, (4) 무엇이 잘 됐나, (5) 무엇이 실패했나, (6) 액션 아이템 (담당자·기한 명시).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>외부 공유</h4><p>심각한 사고는 사용자에 공개 postmortem 발행. 신뢰 회복에 효과적. 너무 기술적이지 않게 ("사용자에게 영향 + 우리가 한 일 + 앞으로의 약속").</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>액션 아이템 추적</h4><p>postmortem에서 나온 액션 아이템은 반드시 추적·완료 확인. 안 한 채 다음 사고 → 같은 원인 반복.</p></div>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>대형 게임도 런칭 사고는 흔하다 (Diablo 4도 2023-06 런칭 week에 서버 장애 + Blizzard 사과). <strong>중요한 건 사고 자체가 아니라 그 후의 회복과 학습</strong>이다.</div>
+      </div>
+    </div>
+
+    <!-- REFERENCES -->
+    <div class="tab-panel" id="panel-references">
+      <div class="panel-header"><div class="panel-badge badge-green">● References</div><h2>참고 자료</h2><p>2026년 5월 기준으로 검증된 도구·게임 사례·모범 사례.</p></div>
+
+      <div class="sub" id="refs"><h3>분류별 참고 자료</h3>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-orange);"><span class="ref-cat" style="color:var(--c-orange);background:var(--c-orange-bg);">부하 테스트 도구</span>k6 / JMeter / Gatling / Locust</h4>
+        <ul class="ref-list">
+          <li><a href="https://grafana.com/docs/k6/latest/" target="_blank">Grafana k6 — 공식 문서</a><div class="ref-desc">JS/TS 스크립팅, Kubernetes operator, Cloud k6 (최대 100만 VU)</div></li>
+          <li><a href="https://grafana.com/blog/stress-testing/" target="_blank">Grafana Labs — Stress Testing Guide</a><div class="ref-desc">stress·spike·soak 테스트의 차이와 모범 사례</div></li>
+          <li><a href="https://github.com/grafana/k6" target="_blank">k6 GitHub Repository</a><div class="ref-desc">오픈소스 본체. 활발한 커뮤니티와 예제</div></li>
+          <li><a href="https://jmeter.apache.org/" target="_blank">Apache JMeter</a><div class="ref-desc">20+년 성숙한 도구. 다양한 프로토콜 지원, 1000+ 플러그인</div></li>
+          <li><a href="https://locust.io/" target="_blank">Locust — Python 기반 부하 테스트</a><div class="ref-desc">gevent 이벤트 드리븐, Python 팀에 적합</div></li>
+          <li><a href="https://gatling.io/" target="_blank">Gatling</a><div class="ref-desc">JVM 기반, 인스턴스당 3000~5000 VU. 멋진 HTML 리포트</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-stable);"><span class="ref-cat" style="color:var(--c-stable);background:var(--c-stable-bg);">클라우드</span>Capacity Reservation · Autoscaling</h4>
+        <ul class="ref-list">
+          <li><a href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/use-ec2-capacity-reservations.html" target="_blank">AWS — EC2 Capacity Reservations with Auto Scaling</a><div class="ref-desc">신작 런칭 전 인스턴스 사전 확보 가이드. 가용영역 단위 예약</div></li>
+          <li><a href="https://docs.aws.amazon.com/autoscaling/plans/userguide/best-practices-for-scaling-plans.html" target="_blank">AWS — Best Practices for Scaling Plans</a><div class="ref-desc">predictive scaling·scheduled scaling·instance type 다양화 권장</div></li>
+          <li><a href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/allocation-strategies.html" target="_blank">AWS — Allocation Strategies for Multiple Instance Types</a><div class="ref-desc">10개+ 인스턴스 타입 권장. capacity 부족 회피 전략</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-speed);"><span class="ref-cat" style="color:var(--c-speed);background:var(--c-speed-bg);">SRE 표준</span>캐파시티 · 사고 대응</h4>
+        <ul class="ref-list">
+          <li><a href="https://sre.google/sre-book/handling-overload/" target="_blank">Google SRE Book — Handling Overload</a><div class="ref-desc">과부하 처리의 표준 패턴. 부분 거부·우선순위·load shedding</div></li>
+          <li><a href="https://sre.google/sre-book/managing-incidents/" target="_blank">Google SRE Book — Managing Incidents</a><div class="ref-desc">IC(Incident Commander)·Operations·Communications·Scribe 모델</div></li>
+          <li><a href="https://sre.google/workbook/postmortem-culture/" target="_blank">Google SRE Workbook — Postmortem Culture</a><div class="ref-desc">blameless postmortem 문화·구조·액션 추적</div></li>
+          <li><a href="https://sre.google/sre-book/software-engineering-in-sre/" target="_blank">Google SRE Book — Capacity Planning</a><div class="ref-desc">캐파시티 산출 방법론. demand 예측 + 자원 매핑</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-teal);"><span class="ref-cat" style="color:var(--c-teal);background:var(--c-teal-bg);">시장 통계</span>모바일 게임 KPI · 컨버전</h4>
+        <ul class="ref-list">
+          <li><a href="https://www.businessofapps.com/data/mobile-game-conversion-rates/" target="_blank">Business of Apps — Mobile Game Conversion Rates (2026)</a><div class="ref-desc">F2P 페이어 전환율·신규 플레이어 KPI 통계</div></li>
+          <li><a href="https://mixpanel.com/blog/mobile-gaming-benchmarks-2026/" target="_blank">Mixpanel — 2026 Mobile Gaming Benchmarks</a><div class="ref-desc">2026년 모바일 게임 KPI 통상치. retention·conversion·session</div></li>
+          <li><a href="https://sensortower.com/report/state-of-mobile-2026" target="_blank">Sensor Tower — State of Mobile 2026</a><div class="ref-desc">전 세계 모바일 게임 시장 동향. region별 트렌드</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-red);"><span class="ref-cat" style="color:var(--c-red);background:var(--c-red-bg);">게임 사례</span>런칭 사고 사례</h4>
+        <ul class="ref-list">
+          <li><a href="https://www.dexerto.com/diablo/blizzard-apologizes-to-diablo-4-players-as-launch-week-server-issues-ensue-2171498/" target="_blank">Dexerto — Blizzard Apologizes for Diablo 4 Launch Week Server Issues</a><div class="ref-desc">2023-06 디아블로 4 런칭 week 서버 장애 보도. error 300202·공식 사과</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-green);"><span class="ref-cat" style="color:var(--c-green);background:var(--c-green-bg);">참고서적</span>캐파시티 · 사고 대응</h4>
+        <ul class="ref-list">
+          <li><span style="font-weight:600;">Site Reliability Engineering (Google SRE Book)</span><div class="ref-desc">SRE 일반 원칙. 캐파시티·과부하·사고 대응 모두 포함</div></li>
+          <li><span style="font-weight:600;">The Site Reliability Workbook</span><div class="ref-desc">SRE 실무 가이드. postmortem·release engineering 사례</div></li>
+          <li><span style="font-weight:600;">Release It! (2nd Ed.)</span><div class="ref-desc">Michael Nygard 저. 안정적 릴리스·사고 패턴(circuit breaker·bulkhead)·캐파시티</div></li>
+        </ul>
+
+        <div class="note note-info" style="margin-top:32px;"><strong>★ NOTE</strong><br>이 가이드의 도구·통계 정보는 <strong>2026년 5월 기준</strong>. 부하 테스트 도구 버전, 클라우드 정책, 모바일 게임 KPI 통상치 모두 갱신된다. 실제 적용 시 공식 자료 재확인.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + tabId).classList.add('active');
+    document.querySelector('.top-tab[data-tab="' + tabId + '"]').classList.add('active');
+
+    document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+    const firstLink = document.querySelector('.sb-nav li a[data-tab="' + tabId + '"]');
+    if (firstLink) firstLink.classList.add('active');
+  }
+
+  document.querySelectorAll('.sb-nav li a').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const tab = link.dataset.tab;
+      const section = link.dataset.section;
+      switchTab(tab);
+      setTimeout(() => {
+        const el = document.getElementById(section);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }, 50);
+    });
+  });
+</script>
+</body>
+</html>

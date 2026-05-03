@@ -95,3 +95,21 @@ categories:
     docs:
       - ds-algo-infrastructure
       - ds-algo-essentials
+
+  - id: game-fundamentals
+    label: 게임 도메인 기초
+    icon: Gamepad2
+    color: indigo
+    docs: []
+
+  - id: game-platform
+    label: 게임 퍼블리싱 플랫폼
+    icon: Joystick
+    color: teal
+    docs:
+      - game-publishing-platform-overview
+      - game-telemetry-and-bi
+      - unified-account-auth-platform
+      - payment-iap-operations
+      - liveops-operations
+      - launch-capacity-traffic

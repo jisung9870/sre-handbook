@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>게임 텔레메트리 & BI</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fb; --surface: #ffffff; --surface-2: #f0f2f5;
+    --sidebar-bg: #ffffff; --border: #e2e6eb; --border-strong: #d0d5dc;
+    --text: #1a1d23; --text-dim: #5c6370; --text-muted: #8b929e;
+    --c-speed: #0969b2; --c-speed-bg: #e8f4fd; --c-speed-border: #a2d2f5;
+    --c-stable: #8b5cf6; --c-stable-bg: #f3effe; --c-stable-border: #c4b5fd;
+    --c-green: #1a7f37; --c-green-bg: #ecf7ef; --c-green-border: #a6ddb5;
+    --c-orange: #c2600c; --c-orange-bg: #fef3eb; --c-orange-border: #f5cba7;
+    --c-red: #cf222e; --c-red-bg: #fdecea; --c-red-border: #f5a8a8;
+    --c-teal: #0e7c6b; --c-teal-bg: #e6f7f4; --c-teal-border: #8ed5c5;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 10px; --sidebar-w: 252px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-weight: 400; line-height: 1.75; }
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 28px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; box-shadow: 1px 0 8px rgba(0,0,0,0.03); }
+  .sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand h1 em { font-style: normal; color: var(--c-orange); }
+  .sb-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px 6px; font-weight: 600; }
+  .sb-nav { list-style: none; }
+  .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 22px; color: var(--text-dim); text-decoration: none; font-size: 13px; transition: all 0.15s; border-left: 2.5px solid transparent; cursor: pointer; }
+  .sb-nav li a:hover { color: var(--text); background: var(--surface-2); }
+  .sb-nav li a.active { color: var(--text); background: var(--c-orange-bg); border-left-color: var(--c-orange); font-weight: 600; }
+  .sb-nav li a .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 18px 22px 0; border-top: 1px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-muted); line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
+
+  .main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+  .top-tabs { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .top-tab { flex: 1; padding: 15px 16px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: none; cursor: pointer; position: relative; transition: all 0.2s; }
+  .top-tab:hover { color: var(--text); background: var(--surface-2); }
+  .top-tab::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2.5px; border-radius: 2px; transition: all 0.25s; }
+  .top-tab.active { color: var(--text); }
+  .top-tab[data-tab="overview"].active { color: var(--c-teal); }
+  .top-tab[data-tab="overview"].active::after { background: var(--c-teal); left: 12%; right: 12%; }
+  .top-tab[data-tab="pipeline"].active { color: var(--c-speed); }
+  .top-tab[data-tab="pipeline"].active::after { background: var(--c-speed); left: 12%; right: 12%; }
+  .top-tab[data-tab="schema"].active { color: var(--c-stable); }
+  .top-tab[data-tab="schema"].active::after { background: var(--c-stable); left: 12%; right: 12%; }
+  .top-tab[data-tab="kpi"].active { color: var(--c-orange); }
+  .top-tab[data-tab="kpi"].active::after { background: var(--c-orange); left: 12%; right: 12%; }
+  .top-tab[data-tab="experimentation"].active { color: var(--c-red); }
+  .top-tab[data-tab="experimentation"].active::after { background: var(--c-red); left: 12%; right: 12%; }
+  .top-tab[data-tab="references"].active { color: var(--c-green); }
+  .top-tab[data-tab="references"].active::after { background: var(--c-green); left: 12%; right: 12%; }
+
+  .tab-panel { display: none; padding: 40px 52px 80px; max-width: 980px; }
+  .tab-panel.active { display: block; }
+  .panel-header { margin-bottom: 36px; }
+  .panel-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px; font-weight: 600; }
+  .badge-teal { color: var(--c-teal); background: var(--c-teal-bg); border: 1px solid var(--c-teal-border); }
+  .badge-speed { color: var(--c-speed); background: var(--c-speed-bg); border: 1px solid var(--c-speed-border); }
+  .badge-stable { color: var(--c-stable); background: var(--c-stable-bg); border: 1px solid var(--c-stable-border); }
+  .badge-orange { color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .badge-red { color: var(--c-red); background: var(--c-red-bg); border: 1px solid var(--c-red-border); }
+  .badge-green { color: var(--c-green); background: var(--c-green-bg); border: 1px solid var(--c-green-border); }
+  .panel-header h2 { font-size: 27px; font-weight: 700; margin-bottom: 8px; }
+  .panel-header p { color: var(--text-dim); font-size: 15px; max-width: 720px; line-height: 1.7; }
+  .sub { margin-top: 44px; scroll-margin-top: 72px; }
+  .sub h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+  .card h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card p { color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+  .card code { font-family: 'JetBrains Mono', monospace; background: var(--c-green-bg); color: var(--c-green); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .card-full { grid-column: 1 / -1; }
+
+  .level-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .level-table th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+  .level-table td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: top; line-height: 1.55; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .level-table tr:hover td { background: var(--surface-2); }
+  .level-table td:first-child { font-weight: 700; }
+  .lvl-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+  .lvl-elite { color: var(--c-green); background: var(--c-green-bg); }
+  .lvl-high { color: var(--c-speed); background: var(--c-speed-bg); }
+  .lvl-medium { color: var(--c-orange); background: var(--c-orange-bg); }
+  .lvl-low { color: var(--c-red); background: var(--c-red-bg); }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 130px; box-shadow: var(--shadow-sm); }
+  .flow-node h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 3px; font-weight: 700; }
+  .flow-node p { font-size: 11px; color: var(--text-dim); }
+  .flow-arrow { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 22px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-top: 16px; overflow-x: auto; box-shadow: var(--shadow-sm); }
+  .box-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .note { background: var(--c-green-bg); border-left: 3px solid var(--c-green); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .note strong { color: var(--c-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .note-warn { background: var(--c-orange-bg); border-left-color: var(--c-orange); }
+  .note-warn strong { color: var(--c-orange); }
+  .note-info { background: var(--c-speed-bg); border-left-color: var(--c-speed); }
+  .note-info strong { color: var(--c-speed); }
+  .note-danger { background: var(--c-red-bg); border-left-color: var(--c-red); }
+  .note-danger strong { color: var(--c-red); }
+
+  .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow-sm); margin-bottom: 14px; position: relative; overflow: hidden; }
+  .metric-card::before { content: attr(data-num); position: absolute; right: 16px; top: -8px; font-family: 'JetBrains Mono', monospace; font-size: 64px; font-weight: 700; opacity: 0.04; }
+  .metric-card .mc-badge { display: inline-flex; align-items: center; gap: 5px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 16px; margin-bottom: 10px; font-weight: 700; color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .metric-card h3 { font-size: 19px; font-weight: 700; margin-bottom: 8px; }
+  .metric-card .mc-desc { color: var(--text-dim); font-size: 13px; line-height: 1.7; margin-bottom: 16px; max-width: 640px; }
+  .mc-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .mc-detail-box { background: var(--surface-2); border-radius: 8px; padding: 12px 14px; }
+  .mc-detail-box .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; font-weight: 600; }
+  .mc-detail-box .value { font-size: 13px; color: var(--text); font-weight: 500; line-height: 1.55; }
+  .mc-detail-box .value code { font-size: 11px; }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .pipe-stage { padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; text-align: center; min-width: 110px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-left: -8px; }
+  .pipe-stage:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); margin-left: 0; }
+  .pipe-stage small { display: block; font-weight: 500; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+
+  .code-block { background: #1e2530; color: #e6edf3; border-radius: 8px; padding: 20px; margin-top: 12px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7; }
+  .code-block .cm { color: #8b949e; } .code-block .kw { color: #ff7b72; } .code-block .str { color: #a5d6ff; } .code-block .fn { color: #d2a8ff; } .code-block .num { color: #79c0ff; }
+
+  .ref-list { list-style: none; margin-top: 14px; }
+  .ref-list li { padding: 12px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; line-height: 1.6; }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list li a { color: var(--c-speed); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; }
+  .ref-list li a:hover { text-decoration: underline; }
+  .ref-list li .ref-desc { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .ref-cat { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-right: 8px; }
+
+  .mobile-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 18px; cursor: pointer; box-shadow: var(--shadow-md); }
+  @media (max-width: 768px) {
+    .mobile-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .tab-panel { padding: 32px 20px 60px; }
+    .cg, .cg3 { grid-template-columns: 1fr; }
+    .top-tab { font-size: 10px; padding: 12px 6px; }
+    .pipeline { justify-content: center; }
+    .mc-details { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="label">Game Telemetry</div><h1><em>Telemetry</em> & BI</h1></div>
+    <div class="sb-label">개요</div>
+    <ul class="sb-nav">
+      <li><a data-tab="overview" data-section="what-is-telemetry" class="active"><span class="dot" style="background:var(--c-teal)"></span>텔레메트리란?</a></li>
+      <li><a data-tab="overview" data-section="why-bi"><span class="dot" style="background:var(--c-teal)"></span>왜 BI가 중요한가</a></li>
+      <li><a data-tab="overview" data-section="big-picture"><span class="dot" style="background:var(--c-teal)"></span>데이터 흐름 큰 그림</a></li>
+    </ul>
+    <div class="sb-label">수집 파이프라인</div>
+    <ul class="sb-nav">
+      <li><a data-tab="pipeline" data-section="client-sdk"><span class="dot" style="background:var(--c-speed)"></span>클라이언트 SDK</a></li>
+      <li><a data-tab="pipeline" data-section="gateway"><span class="dot" style="background:var(--c-speed)"></span>수집 게이트웨이</a></li>
+      <li><a data-tab="pipeline" data-section="queue-etl"><span class="dot" style="background:var(--c-speed)"></span>큐 → ETL → 웨어하우스</a></li>
+      <li><a data-tab="pipeline" data-section="cost-control"><span class="dot" style="background:var(--c-speed)"></span>비용 통제</a></li>
+    </ul>
+    <div class="sb-label">이벤트 스키마</div>
+    <ul class="sb-nav">
+      <li><a data-tab="schema" data-section="catalog"><span class="dot" style="background:var(--c-stable)"></span>이벤트 카탈로그 & 명명</a></li>
+      <li><a data-tab="schema" data-section="versioning"><span class="dot" style="background:var(--c-stable)"></span>버저닝 & 호환성</a></li>
+      <li><a data-tab="schema" data-section="validation"><span class="dot" style="background:var(--c-stable)"></span>클라/서버 이중 검증</a></li>
+    </ul>
+    <div class="sb-label">게임 KPI</div>
+    <ul class="sb-nav">
+      <li><a data-tab="kpi" data-section="engagement-kpi"><span class="dot" style="background:var(--c-orange)"></span>참여 (DAU/MAU/세션)</a></li>
+      <li><a data-tab="kpi" data-section="revenue-kpi"><span class="dot" style="background:var(--c-orange)"></span>매출 (ARPU/ARPPU/LTV)</a></li>
+      <li><a data-tab="kpi" data-section="retention-kpi"><span class="dot" style="background:var(--c-orange)"></span>리텐션 & 코호트</a></li>
+      <li><a data-tab="kpi" data-section="funnel-kpi"><span class="dot" style="background:var(--c-orange)"></span>Funnel & Conversion</a></li>
+      <li><a data-tab="kpi" data-section="gacha-disclosure"><span class="dot" style="background:var(--c-orange)"></span>가챠 확률 표시 의무</a></li>
+    </ul>
+    <div class="sb-label">대시보드 & 실험</div>
+    <ul class="sb-nav">
+      <li><a data-tab="experimentation" data-section="dashboard-types"><span class="dot" style="background:var(--c-red)"></span>대시보드 분리</a></li>
+      <li><a data-tab="experimentation" data-section="ab-testing"><span class="dot" style="background:var(--c-red)"></span>A/B 테스트</a></li>
+      <li><a data-tab="experimentation" data-section="att-impact"><span class="dot" style="background:var(--c-red)"></span>ATT 시대 측정</a></li>
+    </ul>
+    <div class="sb-label">참고 자료</div>
+    <ul class="sb-nav">
+      <li><a data-tab="references" data-section="refs"><span class="dot" style="background:var(--c-green)"></span>공식 문서 / 도구 / 모범 사례</a></li>
+    </ul>
+    <div class="sidebar-footer"><p>Game Telemetry &amp; BI<br>= Data-Driven LiveOps</p></div>
+  </aside>
+
+  <div class="main">
+    <div class="top-tabs">
+      <button class="top-tab active" data-tab="overview" onclick="switchTab('overview')">● 개요</button>
+      <button class="top-tab" data-tab="pipeline" onclick="switchTab('pipeline')">● 수집 파이프라인</button>
+      <button class="top-tab" data-tab="schema" onclick="switchTab('schema')">● 이벤트 스키마</button>
+      <button class="top-tab" data-tab="kpi" onclick="switchTab('kpi')">● 게임 KPI</button>
+      <button class="top-tab" data-tab="experimentation" onclick="switchTab('experimentation')">● 대시보드/실험</button>
+      <button class="top-tab" data-tab="references" onclick="switchTab('references')">● 참고 자료</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="panel-header"><div class="panel-badge badge-teal">● Overview</div><h2>게임 텔레메트리 & BI란?</h2><p>플레이 행동·결제·시스템 이벤트를 수집하고 KPI로 변환해 운영·비즈니스 의사결정을 데이터 기반으로 만드는 인프라. 게임 운영의 거의 모든 결정(점검·이벤트·밸런싱·과금 설계)은 이 데이터 위에서 이루어진다.</p></div>
+
+      <div class="sub" id="what-is-telemetry"><h3>텔레메트리란?</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>정의</h4><p>게임 클라이언트와 서버에서 발생하는 <strong>모든 이벤트를 시계열로 수집</strong>하는 인프라. 플레이 행동(레벨업·아이템 획득), 시스템(에러·로딩 시간), 결제, 광고 등을 포함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>BI(Business Intelligence)와의 관계</h4><p>텔레메트리는 <strong>raw 이벤트 수집 인프라</strong>, BI는 <strong>이를 KPI·대시보드·실험으로 가공</strong>하는 분석 레이어. 둘은 한 묶음으로 운영된다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>SRE의 역할</h4><p>플랫폼 SRE는 <strong>수집 파이프라인의 가용성·정합성·비용</strong>을 책임진다. 분석 자체는 데이터팀·BI팀이 하지만, 데이터가 들어오지 않으면 모든 의사결정이 멈춘다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>왜 일반 웹 분석과 다른가</h4><p>한 세션에 <strong>수백~수천 이벤트</strong>가 발생. 결제·인벤토리는 <strong>strict 정합성</strong> 필요. 가챠 확률은 <strong>법적 검증 대상</strong>. 일반 웹 분석보다 볼륨·정합성·규제 모두 강하다.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="why-bi"><h3>왜 BI가 게임에서 특히 중요한가</h3>
+        <div class="cg">
+          <div class="card" style="border-left:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">① 매출 직결</h4><p>F2P(Free-to-Play) 모델은 <strong>소수 페이어가 매출의 대부분</strong>(상위 1%가 50% 이상)을 만든다. ARPPU·LTV·리텐션을 정확히 측정하지 않으면 광고비·이벤트 ROI 판단이 안 된다.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">② LiveOps 사이클</h4><p>매주 이벤트·점검·핫픽스가 도는데, <strong>각 이벤트의 효과를 즉시 측정</strong>해야 다음 이벤트를 설계할 수 있다. 텔레메트리가 곧 LiveOps의 피드백 루프다.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">③ 밸런싱</h4><p>"이 캐릭터가 너무 강하다", "이 던전이 너무 어렵다" — 모두 텔레메트리로 검증. <strong>사용자 감정과 데이터가 다를 때 데이터 우선</strong>이라는 원칙이 있을 정도.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-speed);"><h4 style="color:var(--c-speed)">④ 컴플라이언스</h4><p>한국의 <strong>가챠 확률 공시(2024-03-22 시행)</strong>는 텔레메트리에서 실제 드롭률을 검증한다. 표시값과 실제값이 다르면 시정명령 대상.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="big-picture"><h3>데이터 흐름 큰 그림</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">게임 클라이언트에서 발생한 이벤트가 KPI 대시보드까지 가는 표준 흐름. 각 단계는 별개 시스템이고, 어디든 끊기면 데이터가 사라진다.</p>
+        <div class="flow">
+          <div class="flow-node" style="border-color:var(--c-speed);"><h4 style="color:var(--c-speed)">① 클라이언트</h4><p>SDK 발행<br>배치·재전송</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-speed);"><h4 style="color:var(--c-speed)">② 게이트웨이</h4><p>수신<br>인증·throttle</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-stable);"><h4 style="color:var(--c-stable)">③ 큐</h4><p>Kafka/Kinesis<br>버퍼링</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-orange);"><h4 style="color:var(--c-orange)">④ ETL</h4><p>변환·정제<br>스키마 검증</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-teal);"><h4 style="color:var(--c-teal)">⑤ 웨어하우스</h4><p>BigQuery/<br>Snowflake/<br>ClickHouse</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-red);"><h4 style="color:var(--c-red)">⑥ 대시보드/실험</h4><p>KPI<br>A/B 테스트</p></div>
+        </div>
+        <div class="note note-info"><strong>★ NOTE</strong><br>실제로는 클라 SDK ↔ 게이트웨이 사이에 CDN/엣지가 끼고, 큐 → ETL 사이에 stream processing(Flink/Spark Streaming)이 들어갈 수 있다. 또한 실시간 대시보드용 패스(스트림 직결)와 배치 분석용 패스(웨어하우스)가 분리된 <strong>Lambda/Kappa 아키텍처</strong>도 흔하다.</div>
+      </div>
+    </div>
+
+    <!-- PIPELINE -->
+    <div class="tab-panel" id="panel-pipeline">
+      <div class="panel-header"><div class="panel-badge badge-speed">● Collection Pipeline</div><h2>수집 파이프라인</h2><p>클라이언트 SDK부터 데이터 웨어하우스까지의 5단계. 단계마다 SLO와 비용 통제 정책이 따로 정의되어야 한다.</p></div>
+
+      <div class="sub" id="client-sdk"><h3>① 클라이언트 SDK</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>핵심 책임</h4><p>이벤트 발행 API 제공, 로컬 버퍼링, <strong>배치 전송</strong>(N개 모이면 또는 N초 마다), 실패 시 재전송, 디바이스/세션 ID 관리, 타임존·타임스탬프 정확성.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>설계 포인트</h4><p>오프라인 큐(앱 종료 후 다시 시작 시 미전송 이벤트 보내기), 지수 백오프, payload 압축(gzip), 배터리·네트워크 절약 모드.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>흔한 함정</h4><p>클라이언트 시간이 <strong>틀린다</strong>(폰 시계 변경). 이벤트의 발생 시각은 클라가 보내고, <strong>도달 시각은 서버가 기록</strong>해서 둘 다 저장해야 한다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>규제 대응</h4><p>iOS는 <strong>App Tracking Transparency(ATT)</strong> 동의 없으면 IDFA 미수집. 광고 ID 없는 사용자도 게임 내 KPI는 측정 가능하도록 자체 anonymous ID 체계 필요.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="gateway"><h3>② 수집 게이트웨이</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>핵심 책임</h4><p>HTTP/gRPC 엔드포인트, <strong>인증</strong>(SDK 키·게임 ID), <strong>throttle</strong>(악성 트래픽 차단), 페이로드 검증, 다음 단계(큐) 전달.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>아키텍처</h4><p>대부분 stateless. <strong>region별 endpoint</strong>를 두고 가까운 엣지로 보내야 latency·비용 둘 다 유리. CDN을 앞에 두기도 함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>흔한 패턴</h4><p>완전 자체 구축(고비용/유연), Snowplow/Segment 같은 오픈소스/SaaS, 또는 클라우드 native(Cloud Run + Pub/Sub).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>흔한 함정</h4><p>게이트웨이가 다운되면 클라이언트는 모든 이벤트를 잃지 않고 <strong>로컬 버퍼에 쌓이게</strong> 해야 한다. 게이트웨이 복구 후 한꺼번에 몰리는 폭주(thundering herd) 대비 — 점진 재전송, jitter.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="queue-etl"><h3>③~⑤ 큐 → ETL → 웨어하우스</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">버퍼링·변환·저장의 3단계. 하나라도 막히면 데이터가 손실되거나 지연된다.</p>
+        <div class="cg">
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">③ 큐 (Kafka / Kinesis / Pub/Sub)</h4><p>게이트웨이와 ETL 사이의 <strong>버퍼·역압 흡수</strong>. ETL이 다운되어도 큐에서 며칠은 보관 가능. partition 설계(게임 ID·이벤트 타입 기준)가 throughput을 결정.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">④ ETL · 스트림 처리</h4><p>큐에서 읽어 <strong>스키마 검증·변환·enrichment</strong>(예: 디바이스 ID → 사용자 ID 매핑) 후 웨어하우스에 적재. 도구: Flink, Spark Streaming, Dataflow, dbt(배치).</p></div>
+          <div class="card" style="border-top:3px solid var(--c-teal); grid-column: 1 / -1;"><h4 style="color:var(--c-teal)">⑤ 데이터 웨어하우스 (BigQuery / Snowflake / ClickHouse)</h4><p>장기 저장 + 분석 쿼리 엔진. <strong>BigQuery</strong>: serverless, 인프라 무관, Google 생태계. <strong>Snowflake</strong>: 멀티 클라우드, 2026년부터 interactive tables/warehouses로 low-latency 강화. <strong>ClickHouse</strong>: OLAP 특화, sub-second 응답에 1000+ QPS, 실시간 대시보드 + 분석 쿼리 동시 가능. 게임 분석은 케이스별로 선택.</p></div>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>실시간 대시보드(분 단위)와 분석 쿼리(시간/일 단위)는 <strong>다른 패스</strong>로 처리하는 게 표준. 실시간은 큐에서 직접 읽어 ClickHouse나 in-memory store(Redis/Druid)에, 분석은 배치로 BigQuery/Snowflake에 넣는다.</div>
+      </div>
+
+      <div class="sub" id="cost-control"><h3>비용 통제</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">텔레메트리는 게임 인프라 비용에서 가장 빨리 폭증하는 영역. 이벤트는 자유롭게 추가하다 보면 월 비용이 매년 N배가 된다.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>전략</th><th>설명</th><th>주의</th></tr></thead>
+            <tbody>
+              <tr><td>샘플링</td><td>덜 중요한 이벤트는 1/10·1/100 샘플링 후 가중치 처리</td><td>개별 사용자 추적이 필요한 이벤트는 샘플링 금지(결제·계정 변경 등)</td></tr>
+              <tr><td>TTL · 파티션</td><td>raw 이벤트는 90일 보관, aggregate는 영구 보관</td><td>법적 보관 의무 데이터(결제·로그인) 별도 정책</td></tr>
+              <tr><td>이벤트 거버넌스</td><td>새 이벤트 추가 시 PR 리뷰, 페이로드 크기 제한, 카탈로그 등록</td><td>거버넌스 없으면 6개월 내 이벤트 수가 5배 늘어남</td></tr>
+              <tr><td>스토리지 계층화</td><td>최근 데이터는 hot 스토리지, 오래된 건 cold/object storage로 이전</td><td>분석 쿼리 시 archive 데이터 접근은 별도 워크플로우</td></tr>
+              <tr><td>쿼리 비용 통제</td><td>BigQuery 슬롯 / Snowflake credit 사용량 모니터링, 비싼 쿼리 알림</td><td>분석가가 SELECT *로 매달 수천 달러를 태우는 사례 흔함</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-warn"><strong>⚠ PITFALL</strong><br>"일단 다 수집하고 나중에 보자"는 가장 비싼 패턴이다. <strong>이벤트 추가는 쉽지만 제거는 어렵다</strong>. 처음부터 이벤트당 비용을 추산하고 거버넌스를 도입하는 게 6개월 후 비용 폭탄을 막는 유일한 방법.</div>
+      </div>
+    </div>
+
+    <!-- SCHEMA -->
+    <div class="tab-panel" id="panel-schema">
+      <div class="panel-header"><div class="panel-badge badge-stable">● Event Schema Governance</div><h2>이벤트 스키마 거버넌스</h2><p>이벤트 카탈로그·명명 규칙·버저닝·검증을 통해 데이터 품질을 유지한다. 거버넌스 없는 텔레메트리는 6개월 후 누구도 분석 못 하는 데이터 늪이 된다.</p></div>
+
+      <div class="sub" id="catalog"><h3>이벤트 카탈로그 & 명명 규칙</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>카탈로그란?</h4><p>모든 이벤트의 <strong>정의·필드·발생 조건·소유자</strong>를 한 곳에 정리한 문서/시스템. Confluence·GitHub repo·전용 도구(Atlan, Collibra) 등.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>왜 필요한가</h4><p>"이 이벤트가 정확히 언제 발생하는지" 모르면 분석 불가능. 카탈로그가 없으면 같은 이벤트를 여러 팀이 다른 의미로 사용하는 사고가 발생한다.</p></div>
+        </div>
+        <div class="box" style="margin-top:16px;"><div class="box-title">표준 명명 규칙 예시</div>
+          <div class="code-block"><span class="cm"># 권장: snake_case + 동사_명사</span>
+<span class="kw">event_name</span>: <span class="str">"item_purchased"</span>     <span class="cm"># O</span>
+<span class="kw">event_name</span>: <span class="str">"user_logged_in"</span>     <span class="cm"># O</span>
+<span class="kw">event_name</span>: <span class="str">"level_completed"</span>    <span class="cm"># O</span>
+
+<span class="cm"># 비권장</span>
+<span class="kw">event_name</span>: <span class="str">"ItemBuy"</span>             <span class="cm"># X (PascalCase, 동사 모호)</span>
+<span class="kw">event_name</span>: <span class="str">"item"</span>                <span class="cm"># X (너무 일반적)</span>
+<span class="kw">event_name</span>: <span class="str">"purchase_v2_final"</span>   <span class="cm"># X (버저닝은 별도 필드)</span>
+
+<span class="cm"># 권장 페이로드 구조</span>
+{
+  <span class="str">"event_name"</span>: <span class="str">"item_purchased"</span>,
+  <span class="str">"event_version"</span>: <span class="num">2</span>,
+  <span class="str">"timestamp_client"</span>: <span class="str">"2026-05-03T12:34:56.789Z"</span>,
+  <span class="str">"timestamp_server"</span>: <span class="str">"2026-05-03T12:34:57.123Z"</span>,
+  <span class="str">"user_id"</span>: <span class="str">"u_xxx"</span>,
+  <span class="str">"session_id"</span>: <span class="str">"s_xxx"</span>,
+  <span class="str">"game_id"</span>: <span class="str">"game_a"</span>,
+  <span class="str">"properties"</span>: {
+    <span class="str">"item_id"</span>: <span class="str">"sword_001"</span>,
+    <span class="str">"price_krw"</span>: <span class="num">5500</span>,
+    <span class="str">"currency"</span>: <span class="str">"KRW"</span>,
+    <span class="str">"payment_method"</span>: <span class="str">"google_play"</span>
+  }
+}</div>
+        </div>
+        <div class="note note-info"><strong>★ TIP</strong><br>새 이벤트 추가는 PR 리뷰. 카탈로그 등록 없는 이벤트는 ETL에서 자동 reject하는 게이트도 흔하다. "이 이벤트가 누구 거예요?"라는 질문이 6개월 후에 안 나오게 하는 핵심.</div>
+      </div>
+
+      <div class="sub" id="versioning"><h3>버저닝 & 호환성</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>왜 버저닝이 필요한가</h4><p>이벤트 페이로드는 시간이 지나며 변한다. <strong>구버전 클라이언트는 여전히 옛 스키마로 보내</strong>는데, 분석은 신구 모두 처리해야 한다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>호환성 원칙</h4><p>필드 추가는 OK(default 값 처리), <strong>필드 삭제·타입 변경은 금지</strong>. 정말 변경이 필요하면 새 이벤트로 분리(item_purchased_v2). 모바일은 강제 업데이트가 어려워 호환성이 더 중요하다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>schema registry</h4><p>중앙 schema registry(Confluent Schema Registry, AWS Glue Schema Registry)에 버전별 스키마를 등록하고 ETL에서 검증. JSON Schema, Avro, Protobuf 모두 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>ETL의 스키마 진화</h4><p>웨어하우스 테이블의 스키마도 함께 진화. BigQuery·Snowflake는 컬럼 추가는 자동 지원, 타입 변경은 마이그레이션 필요.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="validation"><h3>클라/서버 이중 검증</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">결제·아이템 획득·전투 결과 같은 <strong>매출·정합성에 영향 있는 이벤트</strong>는 클라 단독 발행 금지. 서버 검증을 거친 이벤트만 신뢰.</p>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-red-bg);color:var(--c-red);">클라 이벤트<small>의심 가능</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange);">서버 검증<small>인벤토리·결제·로그</small></div>
+          <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable);">서버 이벤트 발행<small>신뢰 가능</small></div>
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed);">텔레메트리 적재<small>두 패스 분리</small></div>
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green);">분석<small>차이 = 어뷰징 신호</small></div>
+        </div>
+        <div class="note note-danger"><strong>⚠ CRITICAL</strong><br>클라 이벤트만 보고 매출·정합성 결정 금지. 매크로/봇/해킹된 클라이언트는 가짜 이벤트를 무한히 보낼 수 있다. <strong>"클라가 산 거"와 "서버가 청구한 거"의 차이</strong>는 anti-cheat 신호로도 활용된다.</div>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div class="tab-panel" id="panel-kpi">
+      <div class="panel-header"><div class="panel-badge badge-orange">● Game KPIs</div><h2>게임 KPI · 도메인 용어</h2><p>퍼블리싱 SRE도 알아야 할 핵심 KPI 정의와 공식. 다른 가이드(LiveOps, 결제, 런칭)에서 자주 등장하므로 여기서 한 번에 정리한다.</p></div>
+
+      <div class="sub" id="engagement-kpi"><h3>참여 (Engagement)</h3>
+        <div class="metric-card" data-num="01"><div class="mc-badge">★ Engagement</div><h3>DAU / MAU / Stickiness</h3><p class="mc-desc">유저가 얼마나 자주·꾸준히 플레이하는지의 가장 기본 지표. 모든 게임이 매일 추적한다.</p>
+          <div class="mc-details">
+            <div class="mc-detail-box"><div class="label">DAU 정의</div><div class="value">하루에 1회 이상 플레이한 <strong>고유 유저 수</strong></div></div>
+            <div class="mc-detail-box"><div class="label">MAU 정의</div><div class="value">한 달 동안 1회 이상 플레이한 <strong>고유 유저 수</strong></div></div>
+            <div class="mc-detail-box"><div class="label">Stickiness</div><div class="value"><code>DAU / MAU</code> — 0.2면 보통, 0.5+ 매우 높음</div></div>
+            <div class="mc-detail-box"><div class="label">주의</div><div class="value">"고유 유저"는 device_id냐 account_id냐 정의 통일 필요. 멀티 디바이스는 같은 사람이 중복 카운트될 수 있다.</div></div>
+          </div>
+        </div>
+        <div class="metric-card" data-num="02"><div class="mc-badge">★ Engagement</div><h3>세션 수 · 세션 길이</h3><p class="mc-desc">유저가 한 번 켜서 얼마나 오래 플레이하는지, 하루에 몇 번 켜는지.</p>
+          <div class="mc-details">
+            <div class="mc-detail-box"><div class="label">세션 정의</div><div class="value">앱 부팅 ~ 백그라운드(보통 30초+) 또는 종료까지</div></div>
+            <div class="mc-detail-box"><div class="label">평균 세션 길이</div><div class="value"><code>총 세션 시간 / 세션 수</code> — 게임 종류별로 차이 큼</div></div>
+            <div class="mc-detail-box"><div class="label">DAU당 세션 수</div><div class="value"><code>일일 세션 수 / DAU</code> — 캐주얼 게임은 5+, MMO는 1~2</div></div>
+            <div class="mc-detail-box"><div class="label">활용</div><div class="value">이벤트 효과 측정, 게임 피로도 파악, 서버 부하 예측</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub" id="revenue-kpi"><h3>매출 (Revenue)</h3>
+        <div class="metric-card" data-num="03"><div class="mc-badge">$ Revenue</div><h3>ARPU (Average Revenue Per User)</h3><p class="mc-desc">전체 유저 1명당 평균 매출. 비교적 단순하지만 페이어와 비페이어를 섞어버려 해석에 주의.</p>
+          <div class="mc-details">
+            <div class="mc-detail-box"><div class="label">공식</div><div class="value"><code>총 매출 / Active Users</code> (보통 monthly: <code>monthly revenue / MAU</code>)</div></div>
+            <div class="mc-detail-box"><div class="label">변형</div><div class="value">ARPDAU = <code>일 매출 / DAU</code> — 일별 추세 파악에 유용</div></div>
+            <div class="mc-detail-box"><div class="label">한계</div><div class="value">F2P 게임은 페이어 비율 1~5%. ARPU는 너무 낮게 보일 수 있음</div></div>
+            <div class="mc-detail-box"><div class="label">활용</div><div class="value">광고 ROI 비교, 게임 간 매출 효율 비교</div></div>
+          </div>
+        </div>
+        <div class="metric-card" data-num="04"><div class="mc-badge">$ Revenue</div><h3>ARPPU (Average Revenue Per Paying User)</h3><p class="mc-desc">결제한 유저만 대상으로 한 평균 매출. F2P 게임에서 ARPU보다 훨씬 의미 있음.</p>
+          <div class="mc-details">
+            <div class="mc-detail-box"><div class="label">공식</div><div class="value"><code>총 매출 / 결제 유저 수</code></div></div>
+            <div class="mc-detail-box"><div class="label">관계</div><div class="value"><code>ARPU = ARPPU × 결제 전환율</code></div></div>
+            <div class="mc-detail-box"><div class="label">의미</div><div class="value">"한번 결제한 사람은 평균 얼마 쓰는가" — 페이어 가치 측정</div></div>
+            <div class="mc-detail-box"><div class="label">주의</div><div class="value">상위 1% 고래(whale)가 평균을 왜곡. 중앙값·구간별 분포도 함께 봐야 함</div></div>
+          </div>
+        </div>
+        <div class="metric-card" data-num="05"><div class="mc-badge">$ Revenue</div><h3>LTV (Lifetime Value)</h3><p class="mc-desc">한 유저가 게임 전 생애 동안 가져다 줄 매출의 예측치. 광고비(UA cost)와의 비교로 ROI를 판단한다.</p>
+          <div class="mc-details">
+            <div class="mc-detail-box"><div class="label">단순 공식</div><div class="value"><code>ARPU × 평균 수명(개월)</code></div></div>
+            <div class="mc-detail-box"><div class="label">정밀 공식</div><div class="value">코호트별 retention curve 적분 + 미래 예측 모델 (ML 기반)</div></div>
+            <div class="mc-detail-box"><div class="label">DN-LTV</div><div class="value">"가입 후 N일까지의 LTV" — D7-LTV, D30-LTV 등이 광고 입찰에 직접 사용</div></div>
+            <div class="mc-detail-box"><div class="label">핵심 원칙</div><div class="value"><code>LTV > UA Cost</code>가 성립해야 광고 ROI 양수. ATT 시대에 측정 정밀도가 떨어져 더 어려워짐</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub" id="retention-kpi"><h3>리텐션 & 코호트</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">유저가 가입 후 며칠 뒤에 다시 돌아오는지의 비율. 게임의 "재미" 척도이자 LTV의 가장 큰 변수.</p>
+        <div class="box" style="padding:0;overflow:hidden;"><table class="level-table">
+          <thead><tr><th>지표</th><th>정의</th><th>업계 통상치 (모바일 게임)</th></tr></thead>
+          <tbody>
+            <tr><td>D1 Retention</td><td>가입 다음날 돌아오는 비율</td><td>30~50% (좋음 50%+)</td></tr>
+            <tr><td>D7 Retention</td><td>가입 7일 후 돌아오는 비율</td><td>10~20% (좋음 20%+)</td></tr>
+            <tr><td>D30 Retention</td><td>가입 30일 후 돌아오는 비율</td><td>3~10% (좋음 10%+)</td></tr>
+          </tbody>
+        </table></div>
+        <div class="note note-info" style="margin-top:16px;"><strong>★ NOTE</strong><br>위 통상치는 장르·타겟·플랫폼·년도에 따라 크게 다르다. 캐주얼 퍼즐은 D1 50%+가 흔하고 하드코어 RPG는 D1 30%만 되어도 잘 만든 편. <strong>경쟁작 벤치마크가 아니라 자기 코호트 추이</strong>가 더 중요하다.</div>
+        <div class="cg" style="margin-top:16px;">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>코호트(Cohort) 분석</h4><p>가입일 기준으로 유저를 그룹화해 시간에 따라 추적. "2026-05-03 가입 코호트의 D7 retention은 25%" 같은 식. 신작 패치·이벤트 효과 측정의 표준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>리텐션 vs 처닝</h4><p>리텐션의 반대는 처닝(churn). 둘은 동전의 양면. <strong>D30 리텐션 5%면 D30 churn은 95%</strong>. 어느 쪽 단어를 쓰든 같은 정보.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="funnel-kpi"><h3>Funnel & Conversion</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">유저가 다단계 행동(가입 → 튜토리얼 완료 → 첫 결제)에서 각 단계 통과율을 추적. 게임의 어디서 유저를 잃는지 파악.</p>
+        <div class="box" style="padding:0;overflow:hidden;"><table class="level-table">
+          <thead><tr><th>단계</th><th>이벤트</th><th>통과율 (예시)</th></tr></thead>
+          <tbody>
+            <tr><td>0. 다운로드</td><td>install</td><td>100%</td></tr>
+            <tr><td>1. 첫 부팅</td><td>app_first_open</td><td>~75%</td></tr>
+            <tr><td>2. 튜토리얼 완료</td><td>tutorial_completed</td><td>~50%</td></tr>
+            <tr><td>3. 첫 세션 종료 (5분+)</td><td>session_5min</td><td>~40%</td></tr>
+            <tr><td>4. 첫 결제 (D7 이내)</td><td>first_purchase</td><td>~3%</td></tr>
+          </tbody>
+        </table></div>
+        <div class="note"><strong>♥ KEY</strong><br>각 단계 통과율은 <strong>UA(광고 채널)·OS·국가별로 다르다</strong>. 전체 funnel만 보면 못 보는 패턴이 세그먼트별로 나타남. funnel 단계는 게임마다 다르게 정의해야 한다 (RPG는 "전직 완료"가 funnel에 들어갈 수 있음).</div>
+      </div>
+
+      <div class="sub" id="gacha-disclosure"><h3>가챠 확률 표시 의무 (한국, 2024-03-22 시행)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">한국에서 게임산업법 개정으로 확률형 아이템의 확률 정보 표시가 법적 의무가 되었다. 텔레메트리는 이를 검증·증빙하는 핵심 시스템.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>대상</h4><p>모든 확률형 아이템: <strong>캡슐형</strong>(가챠), <strong>강화형</strong>(효과/성능 변경), <strong>합성형</strong>(아이템 조합으로 무작위 결과). 게임 본체·홈페이지·광고 모두에 표시 의무.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>위반 시</h4><p>표시하지 않거나 거짓 표시 시 문화체육관광부 시정 권고/명령. 게임물관리위원회 24명 모니터링단 운영. <strong>2026년에는 위반에 관한 소송 특례</strong>도 시행 중.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>SRE 관점 책임</h4><p>① 텔레메트리에서 <strong>실제 드롭률을 검증</strong>(표시값 ±N% 이내인지). ② 가챠 결과는 <strong>서버 권위</strong>여야 함(클라 RNG 금지). ③ 결과 로그는 법적 보관 의무 — 별도 보관 정책 필요.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>실무 체크리스트</h4><p>대시보드에 가챠별 실제 vs 표시 확률 비교. 알림 임계치 설정. 신규 가챠 출시 시 표시 검수 워크플로우. CS팀과 사용자 문의 응대 매뉴얼 공유.</p></div>
+        </div>
+        <div class="note note-warn"><strong>⚠ NOTE</strong><br>이는 한국 한정 규제. 글로벌 출시 시에는 중국(2017년 도입), 일본(자율 규제)도 비슷한 정책이 있고 EU도 논의 중. 글로벌 텔레메트리는 region별 규제 매트릭스를 별도로 관리한다.</div>
+      </div>
+    </div>
+
+    <!-- EXPERIMENTATION -->
+    <div class="tab-panel" id="panel-experimentation">
+      <div class="panel-header"><div class="panel-badge badge-red">● Dashboards & Experimentation</div><h2>대시보드 & A/B 테스트</h2><p>수집한 데이터를 의사결정에 연결하는 마지막 단계. 운영 대시보드와 분석 대시보드는 분리 운영하고, A/B 테스트는 게임 도메인의 특수성을 인정해야 한다.</p></div>
+
+      <div class="sub" id="dashboard-types"><h3>대시보드 분리 (운영 vs 분석)</h3>
+        <div class="cg">
+          <div class="card" style="border-top:3px solid var(--c-red);"><h4 style="color:var(--c-red)">운영 대시보드 (Real-time Ops)</h4><p>SRE/온콜이 항상 보는 대시보드. <strong>가용성·지연·결제 성공률·오류율</strong>. 분 단위 갱신, 알림 연동. 데이터는 큐 → 실시간 store(ClickHouse, Druid, Prometheus).</p></div>
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">분석 대시보드 (BI · 일배치)</h4><p>BI/PM/사업이 보는 대시보드. <strong>DAU/MAU/ARPU/리텐션/funnel</strong>. 일/주 단위 갱신, 더 깊은 SQL. 데이터는 웨어하우스(BigQuery/Snowflake/ClickHouse).</p></div>
+        </div>
+        <div class="note note-info"><strong>★ TIP</strong><br>두 대시보드를 한 시스템에 욱여넣으면 둘 다 망가진다. 실시간은 latency·alert이 중요하고 분석은 깊은 쿼리·복잡한 join이 중요. 도구 선택과 SLO 모두 다르게 잡아야 한다.</div>
+      </div>
+
+      <div class="sub" id="ab-testing"><h3>A/B 테스트</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">새 기능·이벤트·UI를 일부 유저에게만 노출하고 KPI 차이를 측정. 게임은 LiveOps 사이클이 빨라 실험 인프라가 매우 중요.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>플랫폼 종류</h4><p>warehouse-native(<strong>GrowthBook, Statsig</strong> — 기존 웨어하우스 위에서 동작, 비용 효율적, 오픈소스), 통합형(<strong>Optimizely</strong> — enterprise, 고가), 자체 구축(대형 게임사). 2026년 트렌드는 warehouse-native.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>구조</h4><p>① 변형 정의 → ② 사용자에게 변형 노출 (해시 기반 분배) → ③ 노출 + 결과 이벤트 로깅 → ④ 통계 검증(p-value, CI) → ⑤ 결과 결정 (롤아웃/롤백).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>게임 도메인 주의</h4><p>① <strong>밸런스 영향 실험은 위험</strong> — 일부 유저만 OP 캐릭터 받으면 형평성 이슈. ② 결제·가챠 확률 실험은 법적 리스크. ③ 단기 KPI(D1 retention)와 장기 KPI(D30 retention, LTV)가 다르게 움직일 수 있다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>표본 크기</h4><p>F2P는 결제 유저가 적어 결제 KPI 통계 검증에 <strong>큰 표본</strong>이 필요. ARPU의 5% 변화를 95% 신뢰도로 검증하려면 게임마다 다르지만 보통 수만~수십만 유저가 필요하다.</p></div>
+        </div>
+        <div class="note note-danger"><strong>⚠ CRITICAL</strong><br>가챠 확률·결제 가격·캐릭터 능력치를 임의로 A/B 테스트하면 <strong>한국 게임산업법(확률 표시 의무)·전자상거래법·약관법 모두에 저촉</strong>될 수 있다. 컴플라이언스 검토 없이 결제·확률 실험 금지.</div>
+      </div>
+
+      <div class="sub" id="att-impact"><h3>ATT 시대 측정 — 더 어려워진 LTV</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Apple iOS 14.5(2021-04)부터 시행된 ATT(App Tracking Transparency)로 IDFA 수집이 동의 기반이 됨. 게임 텔레메트리·UA 측정에 큰 영향.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>현재 상황 (2026)</h4><p>글로벌 ATT 동의율 ~50% (게임은 약간 높아 19%, 일반 앱 12% 기준 — 2025 통계). 동의율은 천천히 증가 중이나 여전히 절반 이상은 IDFA 미수집.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>영향</h4><p>광고 채널별 LTV·ROI 측정 정밀도 하락. 개별 사용자 retargeting 불가. 광고 입찰 기준이 흔들림. <strong>D7-LTV·D30-LTV의 신뢰도가 ATT 이전보다 낮아짐</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>대안</h4><p>① <strong>SKAdNetwork / AdAttributionKit</strong>(Apple 공식, aggregate 측정), ② probabilistic 모델, ③ <strong>server-side 측정</strong>(자체 SDK), ④ MMM(Media Mix Modeling), ⑤ incrementality testing(geo lift), ⑥ first-party 데이터 강화 (회원 가입·로그인 기반).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>SRE 관점</h4><p>광고 attribution 시스템(AppsFlyer, Adjust, Singular)과의 통합·정합성 모니터링이 점점 중요. SKAdNetwork 콜백 처리 인프라도 별도로 운영해야 함. <strong>"측정할 수 있는 것"과 "측정할 수 없는 것"의 경계가 매년 바뀐다</strong>.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REFERENCES -->
+    <div class="tab-panel" id="panel-references">
+      <div class="panel-header"><div class="panel-badge badge-green">● References</div><h2>참고 자료</h2><p>2026년 5월 기준으로 검증된 공식 문서·도구·모범 사례. 정책·가격은 변할 수 있으니 적용 시 출처 페이지를 다시 확인.</p></div>
+
+      <div class="sub" id="refs"><h3>분류별 참고 자료</h3>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-orange);"><span class="ref-cat" style="color:var(--c-orange);background:var(--c-orange-bg);">한국 가이드</span>법령 · 컴플라이언스</h4>
+        <ul class="ref-list">
+          <li><a href="https://www.korea.kr/multi/visualNewsView.do?newsId=148924522" target="_blank">대한민국 정책브리핑 — 게임 확률형 아이템 정보공개 의무화 (2024-03-22 시행)</a><div class="ref-desc">시행 일자, 대상 아이템 분류(캡슐형·강화형·합성형), 표시 의무 범위 공식 안내</div></li>
+          <li><a href="https://www.kocca.kr/global/2023_11+12/sub02_02.html" target="_blank">KOCCA — 2024년 3월 시행 게임 아이템 확률 공개 의무화</a><div class="ref-desc">한국콘텐츠진흥원 공식 해설. 사업자가 갖춰야 할 표시 체계와 모니터링 운영</div></li>
+          <li><a href="https://www.lawtimes.co.kr/LawFirm-NewsLetter/209870" target="_blank">법무법인 율촌 — 확률형 아이템 관련 게임산업법 시행과 시사점</a><div class="ref-desc">법조계 시각의 시행 해설 — 위반 시 시정명령·소송 특례 등 법적 리스크 정리</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-speed);"><span class="ref-cat" style="color:var(--c-speed);background:var(--c-speed-bg);">공식 문서</span>플랫폼 · 정책</h4>
+        <ul class="ref-list">
+          <li><a href="https://support.apple.com/en-us/102420" target="_blank">Apple — App Tracking Transparency (ATT)</a><div class="ref-desc">ATT 사용자 안내. 개발자가 알아야 할 동의 프롬프트와 IDFA 접근 정책</div></li>
+          <li><a href="https://developer.apple.com/documentation/storekit/skadnetwork" target="_blank">Apple — SKAdNetwork (StoreKit) Documentation</a><div class="ref-desc">ATT 시대의 공식 측정 프레임워크. aggregate attribution 처리 방법</div></li>
+          <li><a href="https://developers.google.com/analytics" target="_blank">Google Analytics for Firebase / GA4 — 공식 문서</a><div class="ref-desc">모바일 게임에서 가장 흔한 첫 텔레메트리 도구. 무료 tier 충분</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-teal);"><span class="ref-cat" style="color:var(--c-teal);background:var(--c-teal-bg);">데이터 도구</span>웨어하우스 · 스트림 · 실험</h4>
+        <ul class="ref-list">
+          <li><a href="https://clickhouse.com/resources/engineering/top-5-cloud-data-warehouses" target="_blank">ClickHouse Resource Hub — Top 5 Cloud Data Warehouses (2026)</a><div class="ref-desc">2026년 기준 BigQuery·Snowflake·ClickHouse·Redshift·Databricks 비교. 비용·성능·아키텍처</div></li>
+          <li><a href="https://www.growthbook.io/" target="_blank">GrowthBook — 오픈소스 A/B 테스트 & Feature Flag 플랫폼</a><div class="ref-desc">warehouse-native 실험 플랫폼. 게임·핀테크·헬스케어 등 컴플라이언스 강한 도메인에 적합</div></li>
+          <li><a href="https://snowplow.io/docs/" target="_blank">Snowplow — 오픈소스 이벤트 수집 파이프라인</a><div class="ref-desc">수집 게이트웨이·스키마 검증·enrichment를 모두 갖춘 자체 호스팅 솔루션</div></li>
+          <li><a href="https://kafka.apache.org/documentation/" target="_blank">Apache Kafka 공식 문서</a><div class="ref-desc">텔레메트리 큐의 사실상 표준. partition·consumer group·exactly-once 의미론</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-stable);"><span class="ref-cat" style="color:var(--c-stable);background:var(--c-stable-bg);">모범 사례</span>게임 KPI · 분석 가이드</h4>
+        <ul class="ref-list">
+          <li><a href="https://www.gameanalytics.com/blog/how-to-calculate-arpu-arppu-arpdau-and-more" target="_blank">GameAnalytics — ARPU·ARPPU·ARPDAU 계산 가이드</a><div class="ref-desc">모바일 게임 KPI 계산 공식과 해석. 산업 표준 정의의 reference</div></li>
+          <li><a href="https://www.devtodev.com/education/articles/en/138/main-metrics-arpu-and-arppu-what-s-the-difference" target="_blank">devtodev — ARPU vs ARPPU 차이</a><div class="ref-desc">F2P 게임에서 두 지표가 다르게 움직이는 이유와 활용</div></li>
+          <li><a href="https://www.devtodev.com/education/articles/en/174/main-metrics-ltv" target="_blank">devtodev — LTV (Lifetime Value)</a><div class="ref-desc">게임 LTV 계산 모델과 D-N LTV의 광고 입찰 활용</div></li>
+          <li><a href="https://gopractice.io/product/arpu/" target="_blank">GoPractice — Guide to ARPU (LTV vs ARPU)</a><div class="ref-desc">ARPU와 LTV의 관계, 흔한 오해 정리. 글로벌 인디 게임 사례 다수</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-green);"><span class="ref-cat" style="color:var(--c-green);background:var(--c-green-bg);">참고서적</span>데이터 엔지니어링</h4>
+        <ul class="ref-list">
+          <li><span style="font-weight:600;">Designing Data-Intensive Applications</span><div class="ref-desc">Martin Kleppmann 저. 텔레메트리 인프라 설계의 모든 기반 — 큐, 스트림, 정합성, 분산 처리</div></li>
+          <li><span style="font-weight:600;">Trustworthy Online Controlled Experiments</span><div class="ref-desc">Ron Kohavi 외 저. A/B 테스트의 통계적·실무적 함정. Microsoft 실험 플랫폼 운영 경험 기반</div></li>
+        </ul>
+
+        <div class="note note-info" style="margin-top:32px;"><strong>★ NOTE</strong><br>이 가이드의 정책·도구 정보는 <strong>2026년 5월 기준</strong>. 특히 Apple ATT 정책, 한국 확률 표시 시행 세부, 데이터 웨어하우스 비교는 매년 갱신된다. 적용 전 공식 자료 재확인.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + tabId).classList.add('active');
+    document.querySelector('.top-tab[data-tab="' + tabId + '"]').classList.add('active');
+
+    document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+    const firstLink = document.querySelector('.sb-nav li a[data-tab="' + tabId + '"]');
+    if (firstLink) firstLink.classList.add('active');
+  }
+
+  document.querySelectorAll('.sb-nav li a').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const tab = link.dataset.tab;
+      const section = link.dataset.section;
+      switchTab(tab);
+      setTimeout(() => {
+        const el = document.getElementById(section);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }, 50);
+    });
+  });
+</script>
+</body>
+</html>
