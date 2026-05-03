@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>글로벌 패치 & CDN</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fb; --surface: #ffffff; --surface-2: #f0f2f5;
+    --sidebar-bg: #ffffff; --border: #e2e6eb; --border-strong: #d0d5dc;
+    --text: #1a1d23; --text-dim: #5c6370; --text-muted: #8b929e;
+    --c-speed: #0969b2; --c-speed-bg: #e8f4fd; --c-speed-border: #a2d2f5;
+    --c-stable: #8b5cf6; --c-stable-bg: #f3effe; --c-stable-border: #c4b5fd;
+    --c-green: #1a7f37; --c-green-bg: #ecf7ef; --c-green-border: #a6ddb5;
+    --c-orange: #c2600c; --c-orange-bg: #fef3eb; --c-orange-border: #f5cba7;
+    --c-red: #cf222e; --c-red-bg: #fdecea; --c-red-border: #f5a8a8;
+    --c-teal: #0e7c6b; --c-teal-bg: #e6f7f4; --c-teal-border: #8ed5c5;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 10px; --sidebar-w: 252px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-weight: 400; line-height: 1.75; }
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 28px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; box-shadow: 1px 0 8px rgba(0,0,0,0.03); }
+  .sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand h1 em { font-style: normal; color: var(--c-speed); }
+  .sb-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px 6px; font-weight: 600; }
+  .sb-nav { list-style: none; }
+  .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 22px; color: var(--text-dim); text-decoration: none; font-size: 13px; transition: all 0.15s; border-left: 2.5px solid transparent; cursor: pointer; }
+  .sb-nav li a:hover { color: var(--text); background: var(--surface-2); }
+  .sb-nav li a.active { color: var(--text); background: var(--c-speed-bg); border-left-color: var(--c-speed); font-weight: 600; }
+  .sb-nav li a .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 18px 22px 0; border-top: 1px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-muted); line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
+
+  .main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+  .top-tabs { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .top-tab { flex: 1; padding: 15px 16px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: none; cursor: pointer; position: relative; transition: all 0.2s; }
+  .top-tab:hover { color: var(--text); background: var(--surface-2); }
+  .top-tab::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2.5px; border-radius: 2px; transition: all 0.25s; }
+  .top-tab.active { color: var(--text); }
+  .top-tab[data-tab="overview"].active { color: var(--c-teal); }
+  .top-tab[data-tab="overview"].active::after { background: var(--c-teal); left: 12%; right: 12%; }
+  .top-tab[data-tab="cdn-arch"].active { color: var(--c-speed); }
+  .top-tab[data-tab="cdn-arch"].active::after { background: var(--c-speed); left: 12%; right: 12%; }
+  .top-tab[data-tab="mobile-patch"].active { color: var(--c-stable); }
+  .top-tab[data-tab="mobile-patch"].active::after { background: var(--c-stable); left: 12%; right: 12%; }
+  .top-tab[data-tab="steam-patch"].active { color: var(--c-orange); }
+  .top-tab[data-tab="steam-patch"].active::after { background: var(--c-orange); left: 12%; right: 12%; }
+  .top-tab[data-tab="global-deploy"].active { color: var(--c-red); }
+  .top-tab[data-tab="global-deploy"].active::after { background: var(--c-red); left: 12%; right: 12%; }
+  .top-tab[data-tab="references"].active { color: var(--c-green); }
+  .top-tab[data-tab="references"].active::after { background: var(--c-green); left: 12%; right: 12%; }
+
+  .tab-panel { display: none; padding: 40px 52px 80px; max-width: 980px; }
+  .tab-panel.active { display: block; }
+  .panel-header { margin-bottom: 36px; }
+  .panel-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px; font-weight: 600; }
+  .badge-teal { color: var(--c-teal); background: var(--c-teal-bg); border: 1px solid var(--c-teal-border); }
+  .badge-speed { color: var(--c-speed); background: var(--c-speed-bg); border: 1px solid var(--c-speed-border); }
+  .badge-stable { color: var(--c-stable); background: var(--c-stable-bg); border: 1px solid var(--c-stable-border); }
+  .badge-green { color: var(--c-green); background: var(--c-green-bg); border: 1px solid var(--c-green-border); }
+  .badge-orange { color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .badge-red { color: var(--c-red); background: var(--c-red-bg); border: 1px solid var(--c-red-border); }
+  .panel-header h2 { font-size: 27px; font-weight: 700; margin-bottom: 8px; }
+  .panel-header p { color: var(--text-dim); font-size: 15px; max-width: 720px; line-height: 1.7; }
+  .sub { margin-top: 44px; scroll-margin-top: 72px; }
+  .sub h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+  .card h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card p { color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+  .card code { font-family: 'JetBrains Mono', monospace; background: var(--c-green-bg); color: var(--c-green); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .card-full { grid-column: 1 / -1; }
+
+  .level-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .level-table th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+  .level-table td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: top; line-height: 1.55; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .level-table tr:hover td { background: var(--surface-2); }
+  .level-table td:first-child { font-weight: 700; }
+  .lvl-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+  .lvl-elite { color: var(--c-green); background: var(--c-green-bg); }
+  .lvl-high { color: var(--c-speed); background: var(--c-speed-bg); }
+  .lvl-medium { color: var(--c-orange); background: var(--c-orange-bg); }
+  .lvl-low { color: var(--c-red); background: var(--c-red-bg); }
+  .lvl-self { color: var(--c-teal); background: var(--c-teal-bg); }
+  .lvl-pub { color: var(--c-stable); background: var(--c-stable-bg); }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 140px; box-shadow: var(--shadow-sm); }
+  .flow-node h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 3px; font-weight: 700; }
+  .flow-node p { font-size: 11px; color: var(--text-dim); }
+  .flow-arrow { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 22px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-top: 16px; overflow-x: auto; box-shadow: var(--shadow-sm); }
+  .box-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .note { background: var(--c-green-bg); border-left: 3px solid var(--c-green); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .note strong { color: var(--c-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .note-warn { background: var(--c-orange-bg); border-left-color: var(--c-orange); }
+  .note-warn strong { color: var(--c-orange); }
+  .note-info { background: var(--c-speed-bg); border-left-color: var(--c-speed); }
+  .note-info strong { color: var(--c-speed); }
+
+  .gauge-row { display: flex; gap: 14px; margin: 20px 0; }
+  .gauge-item { flex: 1; text-align: center; }
+  .gauge-bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin-bottom: 8px; }
+  .gauge-fill { height: 100%; border-radius: 4px; }
+  .gauge-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+  .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .pipe-stage { padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; text-align: center; min-width: 110px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-left: -8px; }
+  .pipe-stage:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); margin-left: 0; }
+  .pipe-stage small { display: block; font-weight: 500; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+
+  .code-block { background: #1e2530; color: #c9d1d9; padding: 18px 22px; border-radius: var(--radius); font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7; overflow-x: auto; margin: 14px 0; }
+  .code-block .cm { color: #8b949e; }
+  .code-block .kw { color: #ff7b72; }
+  .code-block .str { color: #a5d6ff; }
+  .code-block .fn { color: #d2a8ff; }
+  .code-block .num { color: #79c0ff; }
+
+  .ref-list { list-style: none; margin-top: 14px; }
+  .ref-list li { padding: 12px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; line-height: 1.6; }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list li a { color: var(--c-speed); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; }
+  .ref-list li a:hover { text-decoration: underline; }
+  .ref-list li .ref-desc { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .ref-cat { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; padding: 3px 10px; background: var(--c-teal-bg); border-radius: 12px; display: inline-block; margin-right: 8px; }
+
+  .mobile-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 18px; cursor: pointer; box-shadow: var(--shadow-md); }
+  @media (max-width: 768px) {
+    .mobile-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .tab-panel { padding: 32px 20px 60px; }
+    .cg, .cg3 { grid-template-columns: 1fr; }
+    .top-tab { font-size: 10px; padding: 12px 6px; }
+    .gauge-row { flex-wrap: wrap; }
+    .pipeline { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="label">Patch & CDN</div><h1><em>Global Patch</em> & CDN Operations</h1></div>
+    <div class="sb-label">개요</div>
+    <ul class="sb-nav">
+      <li><a data-tab="overview" data-section="what-is-patching" class="active"><span class="dot" style="background:var(--c-teal)"></span>게임 패치란?</a></li>
+      <li><a data-tab="overview" data-section="patch-kpi"><span class="dot" style="background:var(--c-teal)"></span>핵심 KPI</a></li>
+      <li><a data-tab="overview" data-section="mobile-vs-pc"><span class="dot" style="background:var(--c-teal)"></span>모바일 vs PC 차이</a></li>
+    </ul>
+    <div class="sb-label">CDN 아키텍처</div>
+    <ul class="sb-nav">
+      <li><a data-tab="cdn-arch" data-section="cdn-basics"><span class="dot" style="background:var(--c-speed)"></span>Origin · Edge 다단계</a></li>
+      <li><a data-tab="cdn-arch" data-section="multi-cdn"><span class="dot" style="background:var(--c-speed)"></span>멀티 CDN · GeoDNS</a></li>
+      <li><a data-tab="cdn-arch" data-section="game-traffic-pattern"><span class="dot" style="background:var(--c-speed)"></span>게임 트래픽 특성</a></li>
+      <li><a data-tab="cdn-arch" data-section="cdn-comparison"><span class="dot" style="background:var(--c-speed)"></span>주요 CDN 비교</a></li>
+    </ul>
+    <div class="sb-label">모바일 패치</div>
+    <ul class="sb-nav">
+      <li><a data-tab="mobile-patch" data-section="store-review"><span class="dot" style="background:var(--c-stable)"></span>스토어 심사 · 정책</a></li>
+      <li><a data-tab="mobile-patch" data-section="staged-rollout"><span class="dot" style="background:var(--c-stable)"></span>점진적 rollout</a></li>
+      <li><a data-tab="mobile-patch" data-section="in-app-update"><span class="dot" style="background:var(--c-stable)"></span>In-App Update API</a></li>
+      <li><a data-tab="mobile-patch" data-section="asset-bundle"><span class="dot" style="background:var(--c-stable)"></span>Asset Bundle · Pak</a></li>
+    </ul>
+    <div class="sb-label">Steam · PC 패치</div>
+    <ul class="sb-nav">
+      <li><a data-tab="steam-patch" data-section="steampipe"><span class="dot" style="background:var(--c-orange)"></span>SteamPipe 아키텍처</a></li>
+      <li><a data-tab="steam-patch" data-section="branch-build"><span class="dot" style="background:var(--c-orange)"></span>Branch · Build 라이프사이클</a></li>
+      <li><a data-tab="steam-patch" data-section="delta-patch"><span class="dot" style="background:var(--c-orange)"></span>Delta 패치 (1MB block)</a></li>
+      <li><a data-tab="steam-patch" data-section="pc-launcher"><span class="dot" style="background:var(--c-orange)"></span>자체 PC 런처 패처</a></li>
+    </ul>
+    <div class="sb-label">글로벌 배포 · 운영</div>
+    <ul class="sb-nav">
+      <li><a data-tab="global-deploy" data-section="region-rollout"><span class="dot" style="background:var(--c-red)"></span>Region별 점진 rollout</a></li>
+      <li><a data-tab="global-deploy" data-section="canary-kill"><span class="dot" style="background:var(--c-red)"></span>Canary · Kill Switch</a></li>
+      <li><a data-tab="global-deploy" data-section="delta-algorithms"><span class="dot" style="background:var(--c-red)"></span>Delta 알고리즘</a></li>
+      <li><a data-tab="global-deploy" data-section="cost-optimization"><span class="dot" style="background:var(--c-red)"></span>비용 최적화</a></li>
+    </ul>
+    <div class="sb-label">참고 자료</div>
+    <ul class="sb-nav">
+      <li><a data-tab="references" data-section="refs"><span class="dot" style="background:var(--c-green)"></span>공식 문서 · 모범 사례</a></li>
+    </ul>
+    <div class="sidebar-footer"><p>Patch Ops<br>= Build → CDN → Device<br>(safely, globally)</p></div>
+  </aside>
+
+  <div class="main">
+    <div class="top-tabs">
+      <button class="top-tab active" data-tab="overview" onclick="switchTab('overview')">● 개요</button>
+      <button class="top-tab" data-tab="cdn-arch" onclick="switchTab('cdn-arch')">● CDN 아키텍처</button>
+      <button class="top-tab" data-tab="mobile-patch" onclick="switchTab('mobile-patch')">● 모바일 패치</button>
+      <button class="top-tab" data-tab="steam-patch" onclick="switchTab('steam-patch')">● Steam · PC</button>
+      <button class="top-tab" data-tab="global-deploy" onclick="switchTab('global-deploy')">● 글로벌 배포</button>
+      <button class="top-tab" data-tab="references" onclick="switchTab('references')">● 참고 자료</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="panel-header"><div class="panel-badge badge-teal">● Overview</div><h2>게임 패치 운영의 본질</h2><p>게임 패치는 빌드 산출물을 전 세계 게이머의 디바이스로 안전하게 전달하는 일이다. 일반 웹 배포와 달리 <strong>대용량(GB 단위)·전 세계 동시 다운로드·플랫폼별 정책 차이</strong>가 핵심 제약이다.</p></div>
+
+      <div class="sub" id="what-is-patching"><h3>게임 패치란?</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>일반 웹 배포와 다른 점</h4><p>웹은 서버에 코드 push → 즉시 적용. 게임은 <strong>각 사용자 디바이스에 GB 단위 파일을 직접 전달</strong>해야 한다. CDN·차분 패치·점진 rollout 모두 이 제약에서 나온다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>두 종류의 패치</h4><p><strong>(1) 클라이언트 패치</strong>: 실행 파일·DLL·엔진 변경. 스토어 심사·재설치 필요. <strong>(2) 콘텐츠 패치</strong>: 에셋·데이터(아이템·이벤트)만 변경. 핫픽스가 가능해 운영의 핵심.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>운영 사이클</h4><p>정기 패치(주 1회·격주), 핫픽스(긴급), 시즌 패치(월·분기), 신작 런칭 패치(빅뱅). LiveOps 사이클과 직결되어 있어 <strong>패치 cadence가 곧 운영 리듬</strong>이다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>SRE 책임 영역</h4><p>빌드 파이프라인 → CDN 업로드 → 점진 배포 → 다운로드 모니터링 → 롤백. 게임 코드 자체가 아니라 <strong>"전달 인프라"</strong>를 책임진다. 게임팀이 만든 빌드를 사용자에게 안전히 보내는 마지막 마일.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ TIP</strong><br>"게임 데이터(아이템·드롭률·이벤트)는 서버 사이드에서 핫픽스, 클라이언트 빌드는 정기 cadence" — 이 분리가 모바일·PC 양쪽에서 표준이다. 클라이언트 패치 한 번에 모든 걸 묶지 말고, 서버 데이터로 빼낼 수 있는 건 최대한 빼낸다.</div>
+      </div>
+
+      <div class="sub" id="patch-kpi"><h3>핵심 KPI</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">패치 운영의 건강성을 측정하는 5대 지표. 각 KPI는 SLO로 정의해 두고 패치 후 자동으로 점검한다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>① 다운로드 성공률</h4><p>패치 시도 대비 완료 비율. <code>완료 / 시작</code>으로 계산. 낮으면 CDN 장애·디스크 부족·네트워크 단절 의심. 일반적으로 95% 이상 유지가 목표.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>② 시작점유율 (Adoption Rate)</h4><p>패치 N시간 후 신규 버전으로 게임을 시작한 사용자 비율. 모바일은 7일에 90%+, Steam은 24시간에 95%+가 일반적 목표.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>③ 롤백 시간 (MTTR)</h4><p>장애 감지 → 이전 버전 복귀까지의 시간. PC/Steam은 분 단위, 모바일은 단 시간~수 시간. <strong>롤백이 빨라야 적극적 rollout이 가능하다</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>④ 평균 패치 사이즈</h4><p>업데이트 1회당 다운로드 용량. <strong>차분 패치(delta)</strong>를 잘 쓰면 풀 빌드 대비 5~20%로 줄일 수 있다. 비용·완료율 모두에 직접 영향.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-speed)"></span>⑤ CDN 비용 / DAU</h4><p>월 CDN 비용을 활성 사용자 수로 나눈 단가. 신작 런칭 시 일시적으로 치솟지만 정상 상태에서는 안정. 멀티 CDN·차분 패치·prefetch 최적화의 효과를 가장 직접적으로 보여준다.</p></div>
+        </div>
+        <div class="gauge-row">
+          <div class="gauge-item"><div class="gauge-label">다운로드 성공률</div><div class="gauge-bar"><div class="gauge-fill" style="width:96%;background:var(--c-green);"></div></div><div class="gauge-value" style="color:var(--c-green);">96%</div></div>
+          <div class="gauge-item"><div class="gauge-label">7일 시작점유율</div><div class="gauge-bar"><div class="gauge-fill" style="width:92%;background:var(--c-speed);"></div></div><div class="gauge-value" style="color:var(--c-speed);">92%</div></div>
+          <div class="gauge-item"><div class="gauge-label">평균 롤백 시간</div><div class="gauge-bar"><div class="gauge-fill" style="width:30%;background:var(--c-orange);"></div></div><div class="gauge-value" style="color:var(--c-orange);">~12분</div></div>
+          <div class="gauge-item"><div class="gauge-label">차분 패치 비율</div><div class="gauge-bar"><div class="gauge-fill" style="width:88%;background:var(--c-teal);"></div></div><div class="gauge-value" style="color:var(--c-teal);">88%</div></div>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>이 4개 KPI를 게임별·플랫폼별로 분리해 추적해야 한다. "전체 평균 다운로드 성공률 96%"는 아무 의미가 없다. 게임 A의 안드로이드만 80%일 수 있고, 그게 진짜 신호다.</div>
+      </div>
+
+      <div class="sub" id="mobile-vs-pc"><h3>모바일 vs PC 패치의 근본 차이</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">같은 게임이라도 모바일과 PC의 패치 운영은 거의 다른 시스템이다. 두 플랫폼을 동시 운영하는 멀티 플랫폼 게임은 양쪽 워크플로우를 모두 이해해야 한다.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>축</th><th>모바일 (App Store / Google Play)</th><th>PC / Steam</th></tr></thead>
+            <tbody>
+              <tr><td>배포 경로</td><td>스토어 심사 → 사용자 자동 업데이트</td><td>SteamPipe 즉시 → 사용자 게임 시작 시 적용</td></tr>
+              <tr><td>심사 시간</td><td>Apple 24~48시간(일반), Google 수 시간 ~ 1일</td><td>없음 (Valve 검수는 신작 시점만)</td></tr>
+              <tr><td>긴급 핫픽스</td><td>스토어 검수 단축 신청 가능 (Expedited Review)</td><td>분 단위 즉시 배포</td></tr>
+              <tr><td>점진 rollout</td><td>Apple Phased Release(7일), Google Staged Rollout(임의 %)</td><td>Steam은 즉시 100% (단, beta branch로 사전 검증)</td></tr>
+              <tr><td>강제 업데이트</td><td>앱 자체 버전 체크 + Play In-App Update API</td><td>Steam이 자동 업데이트 (사용자 옵션 영향)</td></tr>
+              <tr><td>CDN</td><td>스토어 CDN (Apple/Google 자체)</td><td>SteamPipe + 자체 CDN 추가 가능</td></tr>
+              <tr><td>차분 패치</td><td>iOS App Thinning, Android APK Patch</td><td>SteamPipe 1MB 블록 binary delta</td></tr>
+              <tr><td>리소스 분리</td><td>Asset Bundle(Unity), Pak(Unreal) 자체 호스팅</td><td>모든 게임 데이터가 Steam Depot에 통합</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-warn"><strong>⚠ PITFALL</strong><br>같은 패치를 양 플랫폼에 동시 출시하기로 했는데 모바일이 심사에서 막히면, Steam만 새 버전이 나가서 <strong>크로스 플레이가 깨지는</strong> 사고가 흔히 발생한다. 크로스 플랫폼 게임은 패치 동기화 윈도우를 별도 설계해야 한다 (P10 크로스 플랫폼 운영에서 깊이).</div>
+      </div>
+    </div>
+
+    <!-- CDN ARCHITECTURE -->
+    <div class="tab-panel" id="panel-cdn-arch">
+      <div class="panel-header"><div class="panel-badge badge-speed">● CDN Architecture</div><h2>CDN 아키텍처</h2><p>게임 패치 CDN은 일반 웹 CDN과 트래픽 패턴이 다르다. 대용량 파일·런칭 스파이크·전 세계 동시 다운로드에 맞춘 설계가 필요하다.</p></div>
+
+      <div class="sub" id="cdn-basics"><h3>Origin · Edge 다단계 캐싱</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">CDN은 사용자에게 가까운 Edge 서버에서 콘텐츠를 캐시해 응답한다. 게임 패치는 파일이 크고 immutable(한 번 만들면 안 변함)이라 CDN과 매우 잘 맞는 워크로드다.</p>
+        <div class="flow">
+          <div class="flow-node" style="border-color:var(--c-speed);"><h4 style="color:var(--c-speed)">Origin</h4><p>S3 / GCS<br>빌드 산출물</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-stable);"><h4 style="color:var(--c-stable)">Mid-tier</h4><p>지역 캐시<br>(선택)</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-orange);"><h4 style="color:var(--c-orange)">Edge PoP</h4><p>도시별 노드<br>HTTP/3</p></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="border-color:var(--c-green);"><h4 style="color:var(--c-green)">사용자</h4><p>디바이스<br>다운로드</p></div>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Origin Shield (Mid-tier)</h4><p>모든 Edge가 Origin을 직접 때리면 캐시 미스가 폭주한다. <strong>Origin Shield</strong> 또는 <strong>Tiered Cache</strong>를 두면 Edge → Mid → Origin으로 적층, Origin 트래픽이 N분의 1로 줄어든다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Cache TTL · 무효화</h4><p>패치 파일은 immutable이므로 <strong>긴 TTL(1년+)</strong>이 정답. 새 빌드는 새 URL(파일명에 hash·BuildID 포함). 기존 URL을 invalidate할 일이 거의 없게 만드는 게 best practice.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>HTTP Range Request</h4><p>대용량 파일을 부분 다운로드하기 위한 핵심 기능. <code>Range: bytes=N-M</code> 요청을 받아 부분만 응답. 일시 중단·재개·병렬 다운로드 모두 이 위에 동작.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Prefetch · Pre-warm</h4><p>런칭 직전 또는 패치 직전에 모든 Edge에 콘텐츠를 미리 푸시. <strong>"콜드 스타트 1분 안에 100만 명이 동시 접속"</strong> 시나리오에서 결정적. 대형 CDN은 prefetch API 제공.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="multi-cdn"><h3>멀티 CDN · GeoDNS · Anycast</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">단일 CDN은 (1) 장애 시 회피 불가 (2) 지역별 성능 편차 큼 (3) 가격 협상력 약함. 글로벌 게임은 보통 2~3개 CDN을 함께 쓴다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>GeoDNS 라우팅</h4><p>DNS 응답을 사용자 위치별로 다르게 준다. 한국 사용자 → CDN A, 동남아 → CDN B, 유럽 → CDN C. <strong>DNS TTL을 짧게(60s) 잡아야 장애 시 빠른 전환</strong>이 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Anycast (CDN 내부)</h4><p>같은 IP를 전 세계 여러 PoP에 광고. BGP가 가장 가까운 곳으로 라우팅. CloudFlare·Fastly가 대표. <strong>DNS에 의존하지 않는 자동 페일오버</strong>가 강점.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>RUM (Real User Monitoring)</h4><p>클라이언트가 다운로드 속도·실패율을 텔레메트리로 보낸다. 이 데이터로 CDN별 성능을 측정해 GeoDNS 가중치를 동적으로 조정. 멀티 CDN의 핵심 기반.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Failover 전략</h4><p>(1) 헬스체크 실패 시 자동 전환 (2) 다운로드 클라이언트가 1차 실패 시 2차 CDN URL로 retry (3) 매니페스트에 다중 CDN URL을 명시. <strong>클라이언트 단의 fallback이 가장 빠르고 안정적</strong>.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ NOTE</strong><br>멀티 CDN으로 30~40% 비용 절감 사례가 많다. CloudFront(고정·통합) + BunnyCDN(저가) 같은 조합으로 평소엔 저가 CDN, 스파이크 시 메이저 CDN으로 분배하는 패턴이 일반적이다.</div>
+      </div>
+
+      <div class="sub" id="game-traffic-pattern"><h3>게임 패치 트래픽의 4가지 특성</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">웹 컨텐츠 CDN과 다른 게임 패치 CDN의 고유 특성. 이 4가지 때문에 일반 웹 CDN 설계로는 부족하다.</p>
+        <div class="cg">
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">① 폭발적 동시 다운로드</h4><p>점검 종료 시각·런칭 시각에 <strong>수십만 ~ 수백만 명이 동시</strong> 다운로드 시작. 평소 대비 100~1000배 트래픽 스파이크. 1Tbps 이상 피크가 나오는 경우도 있음.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">② 파일이 크다</h4><p>전체 빌드 30~150GB(AAA), 차분 패치 100MB ~ 5GB가 흔함. 일반 웹의 정적 자산(KB ~ MB) 대비 3~6 자릿수 큼. 단일 응답이 분 단위로 길어진다.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">③ 글로벌 동시성</h4><p>전 세계가 같은 시각에 같은 콘텐츠를 받는다. <strong>cache warmup이 실패하면 모든 region이 동시에 cold</strong>. Origin이 즉시 폭발한다.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-green);"><h4 style="color:var(--c-green)">④ Immutable</h4><p>한 번 만든 빌드는 절대 안 변한다(URL hash로 식별). <strong>캐시 hit률을 99%+ 유지하는 게 가능</strong>. 단, 빌드 단위 변경 시에는 새 URL → cold cache 위험.</p></div>
+        </div>
+        <div class="note note-warn"><strong>⚠ PITFALL</strong><br>점검 종료 시각을 똑같이 잡아두고 prefetch를 안 하면 <strong>모든 Edge가 동시에 cold cache → Origin이 모든 트래픽을 받음 → Origin 폭발</strong>. 점검 30분~1시간 전에 prefetch API로 모든 Edge에 콘텐츠를 미리 채워두는 게 표준.</div>
+      </div>
+
+      <div class="sub" id="cdn-comparison"><h3>주요 CDN 벤더 비교 (2026-05 기준)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">정확한 단가는 협상가·약정 볼륨에 크게 좌우된다. 아래는 공시 가격(on-demand) 기준의 대략적 위치. 실제 선택은 region 커버리지·Anti-DDoS·API 품질을 함께 고려.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>벤더</th><th>공시 단가 (NA·EU)</th><th>특징</th><th>게임 적합도</th></tr></thead>
+            <tbody>
+              <tr><td>AWS CloudFront</td><td>~$0.085 / GB</td><td>AWS 통합, 광범위 PoP, Origin Shield</td><td><span class="lvl-badge lvl-high">상</span></td></tr>
+              <tr><td>Akamai</td><td>협상 (대형 약정)</td><td>가장 큰 PoP 네트워크, 게임 패치 레퍼런스 多</td><td><span class="lvl-badge lvl-elite">매우 상</span></td></tr>
+              <tr><td>Cloudflare</td><td>$0.04 + 정액제 옵션</td><td>Anycast, DDoS 보호 통합</td><td><span class="lvl-badge lvl-high">상</span></td></tr>
+              <tr><td>Fastly</td><td>~$0.08 / GB</td><td>VCL 기반 Edge 로직, 빠른 invalidation</td><td><span class="lvl-badge lvl-medium">중</span></td></tr>
+              <tr><td>BunnyCDN</td><td>$0.005 ~ $0.01 / GB</td><td>저가, 게임/소프트웨어 배포에 인기</td><td><span class="lvl-badge lvl-high">상</span></td></tr>
+              <tr><td>Google Cloud CDN</td><td>~$0.08 / GB</td><td>GCP 통합, GFE 가까움</td><td><span class="lvl-badge lvl-medium">중</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>한국·일본·동남아처럼 LINE 그룹 트래픽이 많은 region은 자체 CDN이나 통신사 CDN(KT·SKB·LG U+) 직접 계약이 비용·성능 둘 다 유리한 경우가 많다. <strong>"글로벌 한 곳으로 통일"보다 region별 mix가 실제 운영에선 더 흔한 답</strong>이다.</div>
+      </div>
+    </div>
+
+    <!-- MOBILE PATCH -->
+    <div class="tab-panel" id="panel-mobile-patch">
+      <div class="panel-header"><div class="panel-badge badge-stable">● Mobile Patching</div><h2>모바일 패치 운영</h2><p>모바일은 스토어가 모든 배포 게이트를 쥔다. Apple App Store와 Google Play의 정책·rollout 메커니즘·in-app update API를 모두 이해해야 한다. 2026-05 기준 정책으로 정리.</p></div>
+
+      <div class="sub" id="store-review"><h3>스토어 심사 · 정책 (2026-05 기준)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">스토어 심사는 패치 cadence를 결정짓는 가장 큰 외부 변수다. 일반 심사 시간과 지연 시 대응을 모두 알아야 한다.</p>
+        <div class="cg">
+          <div class="card"><h4 style="color:var(--c-stable)">Apple App Store</h4><p>일반 심사: <strong>24~48시간</strong>이 평균. 단, 정책 점검·자동 검수 큐 적체 시 <strong>7~30일+</strong>까지 늘어진 사례도 2026 보고됨. 긴급 심사(Expedited Review)는 신청 가능하지만 승인은 케이스별.</p></div>
+          <div class="card"><h4 style="color:var(--c-stable)">Google Play</h4><p>심사: 보통 수 시간 ~ 1일. 정책·permission 변경 있으면 길어짐. <strong>Pre-launch report·App Bundle 검수</strong>가 자동으로 돈다. Google이 더 빠르지만 정책 위반 시 즉시 takedown 위험은 비슷.</p></div>
+          <div class="card"><h4 style="color:var(--c-stable)">긴급 패치 전략</h4><p>(1) 핫픽스 데이터는 <strong>서버에서</strong> 즉시 (스토어 심사 0초). (2) 클라이언트 변경이 필수면 Apple Expedited Review 신청. (3) Google은 Internal Testing 트랙으로 1차 검증 후 Production 적용.</p></div>
+          <div class="card"><h4 style="color:var(--c-stable)">제출 사전 점검</h4><p>크래시 + 디바이스 호환성 + permission rationale + privacy nutrition label/Data safety form. 한 번 reject되면 재심사 큐에 다시 들어가므로 <strong>제출 전 internal QA 체크리스트</strong>가 본 cadence를 좌우한다.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="staged-rollout"><h3>점진적 rollout 메커니즘</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">두 스토어 모두 점진 배포를 지원하지만 메커니즘이 다르다.</p>
+        <div class="cg">
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">Apple Phased Release</h4><p>7일에 걸쳐 자동 증가: <strong>1% → 2% → 5% → 10% → 20% → 50% → 100%</strong>. 24시간마다 한 단계씩 올라간다. 문제 발견 시 <strong>최대 30일까지 pause</strong> 가능. 일시중지 후 풀어도 동일 사용자 그룹부터 재개.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">Google Play Staged Rollout</h4><p>비율을 <strong>임의로 직접 설정</strong>(예: 1%, 5%, 50%). 자동 증가 안 함 — 수동으로 비율을 올린다. <strong>Halt rollout</strong> 가능, resume 시 동일 그룹에 재개. <code>inAppUpdatePriority</code>(0~5)로 In-App Update 우선순위 지정.</p></div>
+        </div>
+        <div class="box">
+          <div class="box-title">표준 점진 rollout 운영 시퀀스</div>
+          <div class="pipeline">
+            <div class="pipe-stage" style="background:var(--c-teal-bg);color:var(--c-teal);">제출<small>심사 통과</small></div>
+            <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable);">1%<small>크래시·CS 모니터</small></div>
+            <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed);">5~10%<small>지표 비교</small></div>
+            <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange);">50%<small>최종 검증</small></div>
+            <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green);">100%<small>풀 배포</small></div>
+          </div>
+        </div>
+        <div class="note note-info"><strong>★ TIP</strong><br>각 단계에서 <strong>최소 24시간</strong>은 보고 다음 단계로 넘어가는 게 안전하다. 모바일은 사용자가 패치를 받는 시점이 분산되어 있어 4~8시간 내 데이터로는 통계적 유의성이 부족하다.</div>
+      </div>
+
+      <div class="sub" id="in-app-update"><h3>In-App Update API</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">스토어 외에 게임 자체가 업데이트를 유도하는 메커니즘. 강제 업데이트·권장 업데이트·핫픽스 안내에 핵심.</p>
+        <div class="cg">
+          <div class="card" style="border-left:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">Google Play In-App Updates</h4><p>Play Core 라이브러리 (Android 5.0+, 모바일·태블릿·ChromeOS).<br>· <strong>Immediate</strong>: 전체 화면 블로킹 → 강제 업데이트<br>· <strong>Flexible</strong>: 백그라운드 다운로드 → 사용자 게임 계속<br>· <code>inAppUpdatePriority</code> 0~5로 우선순위 표시</p></div>
+          <div class="card" style="border-left:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">iOS — 자체 구현</h4><p>Apple은 <strong>공식 In-App Update API 미제공</strong>. 게임이 직접 부팅 시 서버에 최소 버전 체크 → 미달이면 App Store 링크 띄우는 방식. <code>SKStoreReviewController</code>는 별개(평점 요청용).</p></div>
+          <div class="card card-full"><h4>강제 업데이트 정책 설계</h4><p>서버에 <strong>버전 매트릭스</strong>(`min_required_version`, `recommended_version`, `latest_version`)를 두고 부팅 시 클라이언트가 조회한다. 미달이면 차단·권장이면 alert. <strong>같은 빌드를 여러 region에 다른 정책으로 적용</strong>할 수 있어야 한다(예: 한국은 강제, 일본은 권장).</p>
+            <pre class="code-block"><span class="cm">// 클라이언트 부팅 시 버전 체크 의사 코드</span>
+<span class="kw">const</span> {min, recommended, latest} = <span class="kw">await</span> <span class="fn">fetchVersionPolicy</span>(country, app);
+<span class="kw">if</span> (current &lt; min)         <span class="fn">forceUpdateAndExit</span>();   <span class="cm">// 강제</span>
+<span class="kw">else if</span> (current &lt; recommended) <span class="fn">showSoftUpdate</span>();      <span class="cm">// 권장</span>
+<span class="kw">else if</span> (current &lt; latest)      <span class="fn">flexibleUpdate</span>();      <span class="cm">// In-App Update</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub" id="asset-bundle"><h3>Asset Bundle · Pak — 리소스 분리 패치</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">앱 본체 패치(스토어 심사)와 리소스 패치(자체 CDN)를 분리하는 핵심 메커니즘. 모든 글로벌 모바일 게임은 이 분리를 사용한다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Unity Addressables</h4><p>Asset Bundle의 차세대 방식. <strong>Remote Catalog</strong> + <code>RemoteLoadPath</code> 설정으로 CDN에서 로드. <code>[BuildTarget]</code> placeholder로 플랫폼별 분기. 빌드 후 <strong>"Update a Previous Build"</strong> 워크플로우로 차분 카탈로그 생성.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Unreal Pak / IoStore</h4><p>UE5 IoStore: <strong>.ucas(데이터) + .utoc(메타)</strong> 분리. Pak 파일 mount 우선순위는 <strong>알파벳 순 + <code>_p</code> suffix</strong>로 patch 우선. 패치 빌드는 <code>-basedonreleaseversion</code> 옵션으로 생성.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>분리의 장점</h4><p>(1) 스토어 심사 우회 — 리소스만 갱신은 스토어 거치지 않음. (2) 초기 다운로드 작게 → 인스톨 컨버전 향상. (3) <strong>이벤트마다 새 에셋을 즉시</strong> 푸시 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>분리의 함정</h4><p>리소스가 클라이언트 코드와 incompatible 변경되면 <strong>실시간 버전 매칭 로직 필수</strong>. 카탈로그 무결성·서명 검증 안 하면 MITM·뒷주머니 어셋 주입 위험.</p></div>
+        </div>
+        <div class="note note-warn"><strong>⚠ PITFALL</strong><br>리소스 분리 패치는 "스토어 정책 회피"로 오해되기 쉽다. <strong>게임 로직·코드 자체를 우회 패치하는 건 두 스토어 모두 정책 위반</strong>. 게임 데이터·에셋·텍스처·밸런스 수치까지가 안전 영역. JS 엔진·LuaVM으로 코드 패치를 시도하면 takedown 위험.</div>
+      </div>
+    </div>
+
+    <!-- STEAM PATCH -->
+    <div class="tab-panel" id="panel-steam-patch">
+      <div class="panel-header"><div class="panel-badge badge-orange">● Steam · PC Patching</div><h2>Steam · PC 패치 운영</h2><p>Steam은 SteamPipe라는 자체 콘텐츠 배포 시스템으로 분 단위 즉시 배포가 가능하다. 모바일과 완전히 다른 운영 모델이라 별도 학습이 필요하다.</p></div>
+
+      <div class="sub" id="steampipe"><h3>SteamPipe 아키텍처</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">2013년 Valve가 도입한 콘텐츠 배포 시스템. HTTP 기반이라 일반 CDN과 동일한 캐싱·proxy 적용이 가능하고, 1MB 블록 binary delta를 자동으로 계산한다.</p>
+        <div class="flow">
+          <div class="flow-node" style="border-color:var(--c-orange);"><h4 style="color:var(--c-orange)">App</h4><p>최상위<br>(게임 제품)</p></div>
+          <span class="flow-arrow">⊃</span>
+          <div class="flow-node" style="border-color:var(--c-stable);"><h4 style="color:var(--c-stable)">Depot</h4><p>콘텐츠 패키지<br>(OS·언어별)</p></div>
+          <span class="flow-arrow">⊃</span>
+          <div class="flow-node" style="border-color:var(--c-speed);"><h4 style="color:var(--c-speed)">Manifest</h4><p>파일 목록<br>+ SHA1<br>(64-bit ID)</p></div>
+          <span class="flow-arrow">⊃</span>
+          <div class="flow-node" style="border-color:var(--c-green);"><h4 style="color:var(--c-green)">Chunks</h4><p>1MB 블록<br>(실제 파일)</p></div>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>App ID</h4><p>Steam 상에서 게임을 식별하는 최상위 ID. DLC도 별도 App ID. 이 위에 빌드·branch·depot이 붙는다.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Depot</h4><p>콘텐츠 묶음 단위. 일반적으로 <strong>OS별·언어별·DLC별로 분리</strong>. Windows depot, Linux depot, JP/CN 한정 depot 등. 사용자는 자기 환경에 맞는 depot만 받음.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Manifest</h4><p>각 depot 빌드의 <strong>파일 목록 + 사이즈 + SHA1 + flags</strong>를 담은 64-bit ID. Steam 클라이언트는 매니페스트를 기준으로 어떤 chunk를 받아야 할지 결정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>BuildID</h4><p>App 전체 빌드의 globally unique ID. 빌드 업로드 완료 시 자동 부여. branch에 어떤 BuildID를 live시키느냐로 사용자 노출 버전이 결정.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ NOTE</strong><br>SteamPipe는 HTTP 기반이라 <strong>제3자 HTTP 캐시·프록시·LAN 캐시</strong>가 모두 작동한다. 사내 OPS는 SteamPipe Local Content Server를 두고 사내 빌드 다운로드 트래픽을 외부로 안 새게 한다. PC방·인터넷 카페도 자체 LAN 캐시를 운영.</div>
+      </div>
+
+      <div class="sub" id="branch-build"><h3>Branch · Build 라이프사이클</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Steam은 빌드를 분 단위로 즉시 배포할 수 있지만, branch 분리·password 보호로 단계적 검증이 가능하다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>default branch</h4><p>모든 사용자가 자동으로 받는 라이브 브랜치. 여기 set-live한 BuildID가 곧 정식 버전.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>beta branch (password)</h4><p>이름 붙인 branch + 비밀번호로 사전 접근 제한. 사용자가 라이브러리 → Properties → Betas에서 코드 입력. <strong>QA·인플루언서·PTR 운영의 표준 도구</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>staging branch (internal)</h4><p>사내 검증용. 비밀번호로 격리. 빌드 검수 후 default로 promote.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>롤백</h4><p>이전 BuildID를 default branch에 다시 set-live하면 끝. 사용자는 다음 게임 시작 시 자동 다운로드(차분 패치). <strong>분 단위 rollback이 가능한 게 Steam의 핵심 강점</strong>.</p></div>
+        </div>
+        <div class="box">
+          <div class="box-title">Steamworks ContentBuilder 표준 워크플로우</div>
+          <pre class="code-block"><span class="cm"># 1. 빌드 산출물을 ContentBuilder/content/ 하위에 배치</span>
+ContentBuilder/
+  content/
+    <span class="kw">app_build_</span><span class="num">123456</span>.vdf      <span class="cm"># app·depot·branch 정의</span>
+    depot_<span class="num">123461</span>_win64/         <span class="cm"># Windows 64 빌드</span>
+
+<span class="cm"># 2. SteamCMD로 업로드 → 자동 manifest 생성 + delta 계산</span>
+<span class="fn">steamcmd</span> +login partner_login \
+         +run_app_build app_build_<span class="num">123456</span>.vdf \
+         +quit
+
+<span class="cm"># 3. 파트너 사이트에서 BuildID를 default 또는 beta branch에 set-live</span>
+<span class="cm"># 4. 사용자는 다음 게임 시작 시 자동 다운로드 (delta only)</span></pre>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>Steam에는 모바일 같은 staged rollout(1%→5%→...) 메커니즘이 없다. 대신 <strong>beta branch로 사전 검증 → default로 push</strong>가 표준. PTR(Public Test Realm)을 운영하는 게임도 같은 메커니즘.</div>
+      </div>
+
+      <div class="sub" id="delta-patch"><h3>Delta 패치 — 1MB block 알고리즘</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">SteamPipe는 모든 빌드를 1MB chunk로 자르고 SHA1을 계산한다. 패치 시 변경된 chunk만 다운로드 — 클라이언트 입장에선 binary delta와 동일한 효과.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>1MB chunk 경계</h4><p>모든 파일이 1MB 단위로 분할 + SHA1 해시. 파일 변경 시 해당 chunk만 다른 SHA1 → Steam 클라이언트가 그것만 다운로드. <strong>전체 빌드의 1% 변경이면 다운로드도 ~1%</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>chunk align 최적화</h4><p>대용량 파일(.pak, .ucas)이 1MB 경계에 정렬되어 있지 않으면 작은 변경에도 chunk가 줄줄이 깨진다. <strong>UE5 IoStore는 1MB align 옵션</strong>으로 SteamPipe 효율 극대화.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>compression</h4><p>chunk별 zstd 압축. 전송량과 디스크 모두 절약. Steam 클라이언트가 자동 처리해서 개발자가 신경 쓸 일은 거의 없음.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>실패 시 재다운로드</h4><p>SHA1이 안 맞으면 그 chunk만 다시 받음. 디스크 손상·다운로드 중단·MITM 시도 모두 자동 감지·복구.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ TIP</strong><br>Unity·Unreal로 게임 만들 때 빌드 옵션에서 <strong>"deterministic build" + "incremental"</strong> 옵션을 켜야 SteamPipe delta가 잘 먹는다. 매 빌드가 무작위로 재정렬되면 chunk가 모두 새 SHA1 → 사용자는 매번 풀 다운로드.</div>
+      </div>
+
+      <div class="sub" id="pc-launcher"><h3>자체 PC 런처 패처</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Steam을 거치지 않고 직접 배포하는 PC 게임은 자체 런처에 패처를 구현해야 한다. 한국 MMORPG·중국 게임이 흔히 이 모델.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>구성 요소</h4><p>(1) 매니페스트 서버(파일 목록·해시·CDN URL) (2) 차분 패치 서버(bsdiff/xdelta3) (3) 자체 CDN (4) 클라이언트 패처(런처 EXE).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>패치 흐름</h4><p>런처 시작 → 매니페스트 다운로드 → 로컬 파일과 해시 비교 → 변경된 파일만 다운로드 (또는 차분 적용) → 무결성 검증 → 게임 실행.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>장점</h4><p>스토어 수수료 0%. 패치 cadence 자유. 사용자 환경 정밀 통제(PC방 캐시·중국어 패치 분기·anti-cheat 통합).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>단점</h4><p>모든 인프라를 직접 운영(CDN·서명·anti-tamper). 사용자 발견성(discoverability) 낮음. <strong>Steam 대비 신규 유저 유입 채널이 작음</strong>.</p></div>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>Steam과 자체 런처를 동시 운영하는 듀얼 채널 게임이 늘고 있다(예: 글로벌은 Steam, 한국·중국은 자체 런처). <strong>두 채널의 빌드 동기화·매출 정산·CS 채널 분리</strong>가 운영 핵심 과제.</div>
+      </div>
+    </div>
+
+    <!-- GLOBAL DEPLOYMENT -->
+    <div class="tab-panel" id="panel-global-deploy">
+      <div class="panel-header"><div class="panel-badge badge-red">● Global Deployment</div><h2>글로벌 배포 & 운영</h2><p>플랫폼 메커니즘 위에서 실제 글로벌 패치를 안전하게 굴리는 운영 패턴. region 분할·canary·kill switch·차분 알고리즘·비용 최적화의 5축으로 본다.</p></div>
+
+      <div class="sub" id="region-rollout"><h3>Region별 점진 rollout</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">전 세계에 동시 배포하지 않고 region별로 시간차를 두면 (1) 문제를 작은 영향 범위에서 감지 (2) 시차 활용 — 한 region 장애 시 다른 region에 사전 학습.</p>
+        <div class="box">
+          <div class="box-title">표준 글로벌 rollout 시퀀스</div>
+          <div class="pipeline">
+            <div class="pipe-stage" style="background:var(--c-teal-bg);color:var(--c-teal);">JP<small>최저 위험<br>(작은 region)</small></div>
+            <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable);">KR<small>지표 비교<br>+24h</small></div>
+            <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed);">SEA<small>다국어 검증<br>+24h</small></div>
+            <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange);">EU<small>규제 영향<br>+24h</small></div>
+            <div class="pipe-stage" style="background:var(--c-red-bg);color:var(--c-red);">NA<small>최대 트래픽<br>+24h</small></div>
+            <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green);">전체<small>완료</small></div>
+          </div>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>Region 우선순위 결정</h4><p>(1) 작은 트래픽 region을 먼저 (탐지 영향 작게). (2) 단, <strong>대표성 있는 디바이스·언어 분포</strong>는 확보. KR·JP·SEA가 전형적 1차 region.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>관찰 윈도우</h4><p>region 간 <strong>최소 24시간 간격</strong>. 패치 후 24시간이 지나야 일·주간 사이클의 이벤트(접속자 시간대·BMT 결제 등)가 다 노출.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>지표 비교</h4><p>각 region에서 패치 전/후의 핵심 KPI를 비교: 크래시율, 결제 성공률, 다운로드 성공률, 로그인 실패율, 시작점유율. <strong>1개라도 회귀하면 다음 region 차단</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>cross-region 의존성</h4><p>region별 데이터 격리가 약하면(공유 DB, 글로벌 CDN) region별 rollout의 효과가 줄어든다. <strong>region별 분리도가 곧 rollout 안전성</strong>.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="canary-kill"><h3>Canary · Kill Switch · Rollback</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">패치를 안전하게 굴리는 3대 안전장치. 각각이 서로 다른 시점에 작동한다.</p>
+        <div class="cg">
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">Canary</h4><p><strong>패치 직후 ~ 첫 1시간</strong>. 1% 사용자에 먼저 노출, 크래시·에러율을 실시간 비교. Apple Phased Release의 1% 단계, Google 1% Staged Rollout이 자동 canary 역할.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">Kill Switch</h4><p><strong>"기능을 즉시 끄기"</strong>. 클라이언트 코드는 그대로 두고 서버 플래그로 신규 기능을 비활성화. 클라이언트 패치 없이 분 단위로 동작 변경 가능. <strong>롤백보다 빠르고 영향 적은 1차 방어선</strong>.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-red);"><h4 style="color:var(--c-red)">Rollback</h4><p><strong>이전 버전으로 복귀</strong>. Steam은 분 단위, 모바일은 staged rollout halt + 이전 버전 재제출(시간 소요). <strong>kill switch로 안 잡히는 근본 회귀</strong> 시 사용.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-green);"><h4 style="color:var(--c-green)">자동 트리거</h4><p>크래시율 임계 초과·결제 실패율 급증·로그인 실패율 급증 등을 모니터링 대시보드에서 자동 감지 → 자동 halt + on-call 알림. <strong>10분 안에 반응할 수 있는 자동화</strong>가 핵심.</p></div>
+        </div>
+        <div class="note note-warn"><strong>⚠ PITFALL</strong><br>"롤백하면 그만이지"는 위험한 사고방식. 모바일 패치 롤백은 <strong>이전 빌드를 다시 심사 → 다시 staged rollout</strong>이라 수 시간~수 일. 그 동안 영향이 누적된다. <strong>kill switch로 끌 수 있게 설계</strong>하는 게 본질이다.</div>
+      </div>
+
+      <div class="sub" id="delta-algorithms"><h3>Delta 알고리즘 비교</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">자체 런처·자체 패처를 만들 때 선택하는 binary delta 알고리즘. 각각 trade-off가 있어 워크로드에 맞게 고른다.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>알고리즘</th><th>특징</th><th>패치 사이즈</th><th>메모리·CPU</th><th>대표 사용처</th></tr></thead>
+            <tbody>
+              <tr><td>bsdiff</td><td>suffix sort 기반, executable 특화</td><td><span class="lvl-badge lvl-elite">매우 작음</span> (xdelta 대비 50~80%↓)</td><td><span class="lvl-badge lvl-low">매우 큼</span> (RAM 17×, 느림)</td><td>iOS/macOS 업데이트, 게임 패처</td></tr>
+              <tr><td>xdelta3</td><td>VCDIFF 표준, 범용</td><td><span class="lvl-badge lvl-medium">중간</span></td><td><span class="lvl-badge lvl-elite">작음</span></td><td>Chromium, 일반 binary delta</td></tr>
+              <tr><td>HDiffPatch</td><td>병렬 처리, 디렉토리 단위</td><td><span class="lvl-badge lvl-high">작음</span></td><td><span class="lvl-badge lvl-medium">중간</span></td><td>HoYoverse 게임(원신·붕괴)</td></tr>
+              <tr><td>SteamPipe</td><td>1MB chunk + SHA1</td><td><span class="lvl-badge lvl-medium">중간</span> (chunk 단위)</td><td><span class="lvl-badge lvl-elite">매우 작음</span></td><td>Steam 모든 게임</td></tr>
+              <tr><td>Courgette</td><td>x86 명령어 align</td><td><span class="lvl-badge lvl-elite">매우 작음</span> (실행 파일)</td><td><span class="lvl-badge lvl-low">큼</span></td><td>Chrome 자동 업데이트</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>실무 선택 가이드</h4><p>· Steam 사용 → SteamPipe만으로 충분<br>· 자체 런처 + 작은 차분 우선 → <strong>bsdiff</strong> (단, RAM 주의)<br>· 자체 런처 + 디렉토리 단위 + 병렬 → <strong>HDiffPatch</strong><br>· 게임 데이터(텍스처·음원)만 → 파일 단위 교체로 충분</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>주의 — 압축 후 바이너리</h4><p>이미 zstd·brotli·lz4로 압축된 파일에 bsdiff/xdelta를 돌리면 <strong>차분이 거의 안 줄어든다</strong>. 압축은 raw 데이터의 1bit 변화도 출력 전체로 전파시키기 때문. 차분은 <strong>raw 단계에서 만들고 그 다음 압축</strong>해야 한다.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="cost-optimization"><h3>비용 최적화</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">CDN 비용은 게임 라이프사이클 후반에 가장 비대해진다. DAU가 정체된 상태에서도 패치마다 GB가 나가기 때문. 4가지 축으로 최적화한다.</p>
+        <div class="cg">
+          <div class="card" style="border-left:3px solid var(--c-green);"><h4 style="color:var(--c-green)">① 차분 패치 적극 사용</h4><p>풀 빌드 5GB → 차분 200MB로 줄이면 <strong>96% 비용 절감</strong>. 전체 라이프타임에서 가장 큰 비용 요인. 이걸 못 하면 다른 최적화는 의미 없다.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-green);"><h4 style="color:var(--c-green)">② 멀티 CDN으로 단가 인하</h4><p>CloudFront $0.085 + BunnyCDN $0.005 mix로 평균 단가 $0.03. <strong>30~40% 절감 사례</strong>. 단, 운영 복잡도 ↑ — RUM·라우팅 자동화 필수.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-green);"><h4 style="color:var(--c-green)">③ Prefetch · LAN 캐시</h4><p>점검 종료 시각 동시 트래픽을 분산. 사전 다운로드 옵션을 주면 일부 사용자가 미리 받음. 한국 PC방·일본 인터넷 카페·기업 환경에는 <strong>LAN 캐시</strong> 적극 권장.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-green);"><h4 style="color:var(--c-green)">④ region별 CDN 선택</h4><p>한국 → 통신사 CDN, 동남아 → 지역 특화 CDN, NA·EU → 메이저 CDN. <strong>"글로벌 한 곳"보다 region별 mix가 더 싸고 빠른 경우가 많음</strong>.</p></div>
+        </div>
+        <div class="gauge-row">
+          <div class="gauge-item"><div class="gauge-label">Full Build</div><div class="gauge-bar"><div class="gauge-fill" style="width:100%;background:var(--c-red);"></div></div><div class="gauge-value" style="color:var(--c-red);">5.0 GB</div></div>
+          <div class="gauge-item"><div class="gauge-label">SteamPipe Delta</div><div class="gauge-bar"><div class="gauge-fill" style="width:8%;background:var(--c-orange);"></div></div><div class="gauge-value" style="color:var(--c-orange);">~400 MB</div></div>
+          <div class="gauge-item"><div class="gauge-label">bsdiff</div><div class="gauge-bar"><div class="gauge-fill" style="width:4%;background:var(--c-speed);"></div></div><div class="gauge-value" style="color:var(--c-speed);">~200 MB</div></div>
+          <div class="gauge-item"><div class="gauge-label">서버 데이터만</div><div class="gauge-bar"><div class="gauge-fill" style="width:0.5%;background:var(--c-green);"></div></div><div class="gauge-value" style="color:var(--c-green);">~25 MB</div></div>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>비용 최적화의 가장 큰 레버는 <strong>"클라이언트 빌드 패치 빈도를 줄이는 것"</strong>이다. 가능한 한 서버 데이터·콘피그·에셋 번들로 빼면 GB 단위 다운로드가 MB 단위로 떨어진다. 이게 LiveOps 설계의 본질.</div>
+      </div>
+    </div>
+
+    <!-- REFERENCES -->
+    <div class="tab-panel" id="panel-references">
+      <div class="panel-header"><div class="panel-badge badge-green">● References</div><h2>참고 자료</h2><p>2026년 5월 기준으로 검증된 공식 문서·정책·모범 사례 링크. 정책·수수료·심사 시간은 변할 수 있으므로 실제 적용 시 출처 페이지에서 최신 정보를 재확인할 것.</p></div>
+
+      <div class="sub" id="refs"><h3>분류별 참고 자료</h3>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-speed);"><span class="ref-cat" style="color:var(--c-speed);background:var(--c-speed-bg);">공식 문서</span>모바일 스토어 · 점진 rollout</h4>
+        <ul class="ref-list">
+          <li><a href="https://developer.apple.com/help/app-store-connect/update-your-app/release-a-version-update-in-phases/" target="_blank">Apple — Release a version update in phases</a><div class="ref-desc">Phased Release 7일 자동 증가(1·2·5·10·20·50·100%) 메커니즘 공식 문서</div></li>
+          <li><a href="https://support.google.com/googleplay/android-developer/answer/6346149?hl=en" target="_blank">Google Play Console — Staged rollouts</a><div class="ref-desc">임의 비율 점진 배포·halt/resume·동일 그룹 재개 정책</div></li>
+          <li><a href="https://developer.android.com/guide/playcore/in-app-updates" target="_blank">Android Developers — In-app updates (Play Core)</a><div class="ref-desc">Immediate vs Flexible 업데이트, Android 5.0+ 모바일·태블릿·ChromeOS 지원</div></li>
+          <li><a href="https://developers.google.com/android-publisher/tracks" target="_blank">Google Play Developer API — APKs and Tracks</a><div class="ref-desc">Internal·Closed·Open Testing 트랙과 Production rollout API</div></li>
+          <li><a href="https://developer.apple.com/documentation/appstoreconnectapi/app-store-version-phased-releases" target="_blank">App Store Connect API — Phased Releases</a><div class="ref-desc">Phased Release를 API로 제어하는 엔드포인트</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-orange);"><span class="ref-cat" style="color:var(--c-orange);background:var(--c-orange-bg);">공식 문서</span>Steam · SteamPipe</h4>
+        <ul class="ref-list">
+          <li><a href="https://partner.steamgames.com/doc/sdk/uploading" target="_blank">Steamworks — Uploading to Steam</a><div class="ref-desc">ContentBuilder 디렉토리 구조와 SteamCMD를 이용한 빌드 업로드 절차</div></li>
+          <li><a href="https://partner.steamgames.com/doc/store/application/builds" target="_blank">Steamworks — Builds</a><div class="ref-desc">BuildID·Manifest ID·depot 구조와 build set-live 워크플로우</div></li>
+          <li><a href="https://partner.steamgames.com/doc/store/application/depots" target="_blank">Steamworks — Depots</a><div class="ref-desc">OS·언어·DLC별 depot 분리, manifest 파일 목록·SHA1·flags 정의</div></li>
+          <li><a href="https://partner.steamgames.com/doc/store/application/branches" target="_blank">Steamworks — Branches (Betas)</a><div class="ref-desc">default·beta·passworded branch 운영, 비밀번호 보호 베타 배포 절차</div></li>
+          <li><a href="https://developer.valvesoftware.com/wiki/SteamPipe" target="_blank">Valve Developer — SteamPipe</a><div class="ref-desc">2013 도입된 HTTP 기반 콘텐츠 배포 시스템과 1MB chunk binary delta 메커니즘</div></li>
+          <li><a href="https://partner.steamgames.com/doc/sdk/uploading/local_content_server" target="_blank">Steamworks — SteamPipe Local Content Server</a><div class="ref-desc">사내·LAN 환경에서 SteamPipe 트래픽을 캐싱하는 로컬 콘텐츠 서버</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-stable);"><span class="ref-cat" style="color:var(--c-stable);background:var(--c-stable-bg);">공식 문서</span>엔진 · 콘텐츠 분리 패치</h4>
+        <ul class="ref-list">
+          <li><a href="https://docs.unity3d.com/Packages/com.unity.addressables@1.20/manual/RemoteContentDistribution.html" target="_blank">Unity — Addressables Remote Content Distribution</a><div class="ref-desc">RemoteLoadPath, [BuildTarget] placeholder, 원격 카탈로그 설정</div></li>
+          <li><a href="https://docs.unity3d.com/Packages/com.unity.addressables@1.20/manual/ContentUpdateWorkflow.html" target="_blank">Unity — Addressables Content Update Workflow</a><div class="ref-desc">"Update a Previous Build" 차분 카탈로그 생성 워크플로우</div></li>
+          <li><a href="https://unity.com/products/cloud-content-delivery" target="_blank">Unity — Cloud Content Delivery (UGS)</a><div class="ref-desc">Unity 자체 CDN/콘텐츠 관리 서비스. 자체 CDN 대안</div></li>
+          <li><a href="https://docs.unrealengine.com/4.27/en-US/SharingAndReleasing/Patching/" target="_blank">Unreal — Patching and DLC</a><div class="ref-desc">Pak 파일 mount 우선순위, _p suffix 패치 규칙, -basedonreleaseversion 옵션</div></li>
+          <li><a href="https://unrealution.com/packaging/aligning-unreal-pak-chunks-with-steampipe-chunks-to-optimize-delta-updates/" target="_blank">Aligning Unreal Pak Chunks with SteamPipe Chunks</a><div class="ref-desc">UE4/UE5 .pak·.ucas 파일을 1MB 경계 정렬해 Steam delta 효율을 극대화하는 실무 가이드</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-teal);"><span class="ref-cat" style="color:var(--c-teal);background:var(--c-teal-bg);">공식 문서</span>차분 알고리즘</h4>
+        <ul class="ref-list">
+          <li><a href="https://www.daemonology.net/bsdiff/" target="_blank">bsdiff — Binary diff/patch utility</a><div class="ref-desc">Colin Percival의 bsdiff 공식 페이지 — suffix sort 기반 binary delta</div></li>
+          <li><a href="https://en.wikipedia.org/wiki/Xdelta" target="_blank">Xdelta — Wikipedia</a><div class="ref-desc">VCDIFF 표준 구현, 범용 binary delta 도구의 개요</div></li>
+          <li><a href="https://github.com/sisong/HDiffPatch" target="_blank">HDiffPatch (GitHub)</a><div class="ref-desc">병렬 처리·디렉토리 단위 차분, HoYoverse 게임에서 사용되는 차세대 도구</div></li>
+          <li><a href="https://www.chromium.org/developers/design-documents/software-updates-courgette/" target="_blank">Chromium — Courgette</a><div class="ref-desc">x86 명령어 align 기반 실행 파일 특화 delta. Chrome 자동 업데이트 사례</div></li>
+          <li><a href="https://ably.com/blog/practical-guide-to-diff-algorithms" target="_blank">Ably — Practical guide to diff algorithms</a><div class="ref-desc">bsdiff·xdelta·rsync 등 주요 알고리즘 trade-off 비교 정리 (엔지니어링 관점)</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-red);"><span class="ref-cat" style="color:var(--c-red);background:var(--c-red-bg);">모범 사례</span>CDN · 운영 사례</h4>
+        <ul class="ref-list">
+          <li><a href="https://aws.amazon.com/blogs/networking-and-content-delivery/category/networking-and-content-delivery/amazon-cloudfront/" target="_blank">AWS — CloudFront 블로그</a><div class="ref-desc">Origin Shield·Tiered Cache·HTTP/3 등 게임 패치에 직접 적용 가능한 CDN 패턴</div></li>
+          <li><a href="https://www.cloudflare.com/learning/cdn/" target="_blank">Cloudflare — Learning Center (CDN)</a><div class="ref-desc">Anycast·DDoS 보호·Workers Edge 컴퓨팅 등 CDN 기본 개념</div></li>
+          <li><a href="https://blog.bunny.net/" target="_blank">BunnyCDN 블로그</a><div class="ref-desc">저가 CDN의 게임 패치·소프트웨어 배포 활용 사례</div></li>
+          <li><a href="https://www.iijlab.net/en/members/romain/pdf/chris_pam2024.pdf" target="_blank">Inside the Engine Room — Steam CDN 분석 (PAM 2024)</a><div class="ref-desc">Steam SteamPipe 콘텐츠 배포 네트워크의 글로벌 트래픽 패턴·peer 통계 학술 분석</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-green);"><span class="ref-cat" style="color:var(--c-green);background:var(--c-green-bg);">참고서적</span>도메인 이해</h4>
+        <ul class="ref-list">
+          <li><span style="font-weight:600;">High Performance Browser Networking — Ilya Grigorik</span><div class="ref-desc">HTTP/2·HTTP/3·TLS·CDN·TCP 등 패치 다운로드 stack의 모든 레이어를 다룬 표준 교과서. 무료 온라인.</div></li>
+          <li><span style="font-weight:600;">Web Performance in Action — Jeremy Wagner</span><div class="ref-desc">prefetch·차분 자원 로딩·캐시 전략 — 게임 패치 클라이언트 다운로더 설계에 직접 적용 가능</div></li>
+          <li><span style="font-weight:600;">Site Reliability Engineering (Google SRE Book)</span><div class="ref-desc">Chapter 8 "Release Engineering" — 점진 rollout·canary·rollback의 SRE 원칙</div></li>
+        </ul>
+
+        <div class="note note-info" style="margin-top:32px;"><strong>★ NOTE</strong><br>이 가이드의 수치(스토어 심사 시간·CDN 단가·Phased Release 백분율)는 <strong>2026년 5월 기준</strong>이다. Apple/Google/Steam의 정책 페이지는 자주 업데이트되므로, 실제 운영 결정 시에는 위 공식 문서 페이지에서 그 시점의 정책을 다시 확인할 것.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + tabId).classList.add('active');
+    document.querySelector('.top-tab[data-tab="' + tabId + '"]').classList.add('active');
+
+    document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+    const firstLink = document.querySelector('.sb-nav li a[data-tab="' + tabId + '"]');
+    if (firstLink) firstLink.classList.add('active');
+  }
+
+  document.querySelectorAll('.sb-nav li a').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const tab = link.dataset.tab;
+      const section = link.dataset.section;
+      switchTab(tab);
+      setTimeout(() => {
+        const el = document.getElementById(section);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }, 50);
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>크로스 플랫폼 운영</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fb; --surface: #ffffff; --surface-2: #f0f2f5;
+    --sidebar-bg: #ffffff; --border: #e2e6eb; --border-strong: #d0d5dc;
+    --text: #1a1d23; --text-dim: #5c6370; --text-muted: #8b929e;
+    --c-speed: #0969b2; --c-speed-bg: #e8f4fd; --c-speed-border: #a2d2f5;
+    --c-stable: #8b5cf6; --c-stable-bg: #f3effe; --c-stable-border: #c4b5fd;
+    --c-green: #1a7f37; --c-green-bg: #ecf7ef; --c-green-border: #a6ddb5;
+    --c-orange: #c2600c; --c-orange-bg: #fef3eb; --c-orange-border: #f5cba7;
+    --c-red: #cf222e; --c-red-bg: #fdecea; --c-red-border: #f5a8a8;
+    --c-teal: #0e7c6b; --c-teal-bg: #e6f7f4; --c-teal-border: #8ed5c5;
+    --c-indigo: #3f51b5; --c-indigo-bg: #eaecf8; --c-indigo-border: #b5bce4;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 10px; --sidebar-w: 252px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-weight: 400; line-height: 1.75; }
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 28px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; box-shadow: 1px 0 8px rgba(0,0,0,0.03); }
+  .sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand h1 em { font-style: normal; color: var(--c-speed); }
+  .sb-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px 6px; font-weight: 600; }
+  .sb-nav { list-style: none; }
+  .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 22px; color: var(--text-dim); text-decoration: none; font-size: 13px; transition: all 0.15s; border-left: 2.5px solid transparent; cursor: pointer; }
+  .sb-nav li a:hover { color: var(--text); background: var(--surface-2); }
+  .sb-nav li a.active { color: var(--text); background: var(--c-speed-bg); border-left-color: var(--c-speed); font-weight: 600; }
+  .sb-nav li a .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 18px 22px 0; border-top: 1px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-muted); line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
+
+  .main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+  .top-tabs { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .top-tab { flex: 1; padding: 15px 16px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: none; cursor: pointer; position: relative; transition: all 0.2s; }
+  .top-tab:hover { color: var(--text); background: var(--surface-2); }
+  .top-tab::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2.5px; border-radius: 2px; transition: all 0.25s; }
+  .top-tab.active { color: var(--text); }
+  .top-tab[data-tab="overview"].active { color: var(--c-teal); }
+  .top-tab[data-tab="overview"].active::after { background: var(--c-teal); left: 12%; right: 12%; }
+  .top-tab[data-tab="account"].active { color: var(--c-speed); }
+  .top-tab[data-tab="account"].active::after { background: var(--c-speed); left: 12%; right: 12%; }
+  .top-tab[data-tab="economy"].active { color: var(--c-stable); }
+  .top-tab[data-tab="economy"].active::after { background: var(--c-stable); left: 12%; right: 12%; }
+  .top-tab[data-tab="build-patch"].active { color: var(--c-indigo); }
+  .top-tab[data-tab="build-patch"].active::after { background: var(--c-indigo); left: 12%; right: 12%; }
+  .top-tab[data-tab="matching-ac"].active { color: var(--c-orange); }
+  .top-tab[data-tab="matching-ac"].active::after { background: var(--c-orange); left: 12%; right: 12%; }
+  .top-tab[data-tab="ops-integration"].active { color: var(--c-red); }
+  .top-tab[data-tab="ops-integration"].active::after { background: var(--c-red); left: 12%; right: 12%; }
+  .top-tab[data-tab="references"].active { color: var(--c-green); }
+  .top-tab[data-tab="references"].active::after { background: var(--c-green); left: 12%; right: 12%; }
+
+  .tab-panel { display: none; padding: 40px 52px 80px; max-width: 980px; }
+  .tab-panel.active { display: block; }
+  .panel-header { margin-bottom: 36px; }
+  .panel-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px; font-weight: 600; }
+  .badge-teal { color: var(--c-teal); background: var(--c-teal-bg); border: 1px solid var(--c-teal-border); }
+  .badge-speed { color: var(--c-speed); background: var(--c-speed-bg); border: 1px solid var(--c-speed-border); }
+  .badge-stable { color: var(--c-stable); background: var(--c-stable-bg); border: 1px solid var(--c-stable-border); }
+  .badge-indigo { color: var(--c-indigo); background: var(--c-indigo-bg); border: 1px solid var(--c-indigo-border); }
+  .badge-green { color: var(--c-green); background: var(--c-green-bg); border: 1px solid var(--c-green-border); }
+  .badge-orange { color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .badge-red { color: var(--c-red); background: var(--c-red-bg); border: 1px solid var(--c-red-border); }
+  .panel-header h2 { font-size: 27px; font-weight: 700; margin-bottom: 8px; }
+  .panel-header p { color: var(--text-dim); font-size: 15px; max-width: 720px; line-height: 1.7; }
+  .sub { margin-top: 44px; scroll-margin-top: 72px; }
+  .sub h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+  .card h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card p { color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+  .card code { font-family: 'JetBrains Mono', monospace; background: var(--c-green-bg); color: var(--c-green); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .card-full { grid-column: 1 / -1; }
+
+  .level-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .level-table th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+  .level-table td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: top; line-height: 1.55; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .level-table tr:hover td { background: var(--surface-2); }
+  .level-table td:first-child { font-weight: 700; }
+  .lvl-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+  .lvl-elite { color: var(--c-green); background: var(--c-green-bg); }
+  .lvl-high { color: var(--c-speed); background: var(--c-speed-bg); }
+  .lvl-medium { color: var(--c-orange); background: var(--c-orange-bg); }
+  .lvl-low { color: var(--c-red); background: var(--c-red-bg); }
+  .lvl-self { color: var(--c-teal); background: var(--c-teal-bg); }
+  .lvl-pub { color: var(--c-stable); background: var(--c-stable-bg); }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 140px; box-shadow: var(--shadow-sm); }
+  .flow-node h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 3px; font-weight: 700; }
+  .flow-node p { font-size: 11px; color: var(--text-dim); }
+  .flow-arrow { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 22px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-top: 16px; overflow-x: auto; box-shadow: var(--shadow-sm); }
+  .box-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .note { background: var(--c-green-bg); border-left: 3px solid var(--c-green); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .note strong { color: var(--c-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .note-warn { background: var(--c-orange-bg); border-left-color: var(--c-orange); }
+  .note-warn strong { color: var(--c-orange); }
+  .note-info { background: var(--c-speed-bg); border-left-color: var(--c-speed); }
+  .note-info strong { color: var(--c-speed); }
+
+  .gauge-row { display: flex; gap: 14px; margin: 20px 0; }
+  .gauge-item { flex: 1; text-align: center; }
+  .gauge-bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin-bottom: 8px; }
+  .gauge-fill { height: 100%; border-radius: 4px; }
+  .gauge-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+  .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .pipe-stage { padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; text-align: center; min-width: 110px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-left: -8px; }
+  .pipe-stage:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); margin-left: 0; }
+  .pipe-stage small { display: block; font-weight: 500; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+
+  .code-block { background: #1e2530; color: #c9d1d9; padding: 18px 22px; border-radius: var(--radius); font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7; overflow-x: auto; margin: 14px 0; }
+  .code-block .cm { color: #8b949e; }
+  .code-block .kw { color: #ff7b72; }
+  .code-block .str { color: #a5d6ff; }
+  .code-block .fn { color: #d2a8ff; }
+  .code-block .num { color: #79c0ff; }
+
+  .ref-list { list-style: none; margin-top: 14px; }
+  .ref-list li { padding: 12px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; line-height: 1.6; }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list li a { color: var(--c-speed); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; }
+  .ref-list li a:hover { text-decoration: underline; }
+  .ref-list li .ref-desc { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .ref-cat { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; padding: 3px 10px; background: var(--c-teal-bg); border-radius: 12px; display: inline-block; margin-right: 8px; }
+
+  .mobile-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 18px; cursor: pointer; box-shadow: var(--shadow-md); }
+  @media (max-width: 768px) {
+    .mobile-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .tab-panel { padding: 32px 20px 60px; }
+    .cg, .cg3 { grid-template-columns: 1fr; }
+    .top-tab { font-size: 10px; padding: 12px 6px; }
+    .gauge-row { flex-wrap: wrap; }
+    .pipeline { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="label">Cross-Platform Ops</div><h1><em>Cross-Platform</em> Operations</h1></div>
+    <div class="sb-label">개요</div>
+    <ul class="sb-nav">
+      <li><a data-tab="overview" data-section="three-cross" class="active"><span class="dot" style="background:var(--c-teal)"></span>Cross Play/Save/Progression</a></li>
+      <li><a data-tab="overview" data-section="ops-models"><span class="dot" style="background:var(--c-teal)"></span>운영 모델 매트릭스</a></li>
+      <li><a data-tab="overview" data-section="platform-compare"><span class="dot" style="background:var(--c-teal)"></span>모바일·PC·콘솔 비교</a></li>
+      <li><a data-tab="overview" data-section="five-decisions"><span class="dot" style="background:var(--c-teal)"></span>시작 전 결정 5가지</a></li>
+      <li><a data-tab="overview" data-section="sre-burden"><span class="dot" style="background:var(--c-teal)"></span>SRE 운영 부담</a></li>
+    </ul>
+    <div class="sb-label">통합 계정 &amp; 인증</div>
+    <ul class="sb-nav">
+      <li><a data-tab="account" data-section="auth-vendors"><span class="dot" style="background:var(--c-speed)"></span>플랫폼별 인증 메커니즘</a></li>
+      <li><a data-tab="account" data-section="account-mapping"><span class="dot" style="background:var(--c-speed)"></span>계정 매핑 모델</a></li>
+      <li><a data-tab="account" data-section="recovery"><span class="dot" style="background:var(--c-speed)"></span>복구 · 이전 · 이중 가입</a></li>
+      <li><a data-tab="account" data-section="apple-google-policy"><span class="dot" style="background:var(--c-speed)"></span>Apple · Google 로그인 정책</a></li>
+      <li><a data-tab="account" data-section="kr-identity"><span class="dot" style="background:var(--c-speed)"></span>한국 본인인증 통합</a></li>
+      <li><a data-tab="account" data-section="merge-split"><span class="dot" style="background:var(--c-speed)"></span>계정 통합 · 분리 운영</a></li>
+    </ul>
+    <div class="sb-label">재화 &amp; 인벤토리</div>
+    <ul class="sb-nav">
+      <li><a data-tab="economy" data-section="single-inventory"><span class="dot" style="background:var(--c-stable)"></span>단일 인벤토리 모델</a></li>
+      <li><a data-tab="economy" data-section="price-diff"><span class="dot" style="background:var(--c-stable)"></span>가격 차이 처리</a></li>
+      <li><a data-tab="economy" data-section="refund-consistency"><span class="dot" style="background:var(--c-stable)"></span>환불 정합성</a></li>
+      <li><a data-tab="economy" data-section="missing-dup"><span class="dot" style="background:var(--c-stable)"></span>미수령 · 중복 지급</a></li>
+      <li><a data-tab="economy" data-section="external-payment"><span class="dot" style="background:var(--c-stable)"></span>외부 결제 (Apple v Epic)</a></li>
+      <li><a data-tab="economy" data-section="eu-dma"><span class="dot" style="background:var(--c-stable)"></span>EU DMA · 사이드로딩</a></li>
+    </ul>
+    <div class="sb-label">빌드 &amp; 패치</div>
+    <ul class="sb-nav">
+      <li><a data-tab="build-patch" data-section="cadence-gap"><span class="dot" style="background:var(--c-indigo)"></span>플랫폼별 cadence 갭</a></li>
+      <li><a data-tab="build-patch" data-section="single-codebase"><span class="dot" style="background:var(--c-indigo)"></span>단일 코드베이스 · 다중 빌드</a></li>
+      <li><a data-tab="build-patch" data-section="feature-flag"><span class="dot" style="background:var(--c-indigo)"></span>Feature Flag · Kill Switch</a></li>
+      <li><a data-tab="build-patch" data-section="compat-matrix"><span class="dot" style="background:var(--c-indigo)"></span>호환성 매트릭스</a></li>
+      <li><a data-tab="build-patch" data-section="maintenance-window"><span class="dot" style="background:var(--c-indigo)"></span>점검 윈도우 · 시차</a></li>
+    </ul>
+    <div class="sb-label">매칭 &amp; Anti-cheat</div>
+    <ul class="sb-nav">
+      <li><a data-tab="matching-ac" data-section="cross-matching"><span class="dot" style="background:var(--c-orange)"></span>크로스 플레이 매칭</a></li>
+      <li><a data-tab="matching-ac" data-section="input-fairness"><span class="dot" style="background:var(--c-orange)"></span>Input Fairness</a></li>
+      <li><a data-tab="matching-ac" data-section="ac-integration"><span class="dot" style="background:var(--c-orange)"></span>플랫폼별 anti-cheat 통합</a></li>
+      <li><a data-tab="matching-ac" data-section="closed-vs-open"><span class="dot" style="background:var(--c-orange)"></span>콘솔 폐쇄 vs PC 개방</a></li>
+      <li><a data-tab="matching-ac" data-section="cross-friend"><span class="dot" style="background:var(--c-orange)"></span>친구 · 초대 cross-platform</a></li>
+    </ul>
+    <div class="sb-label">운영 통합</div>
+    <ul class="sb-nav">
+      <li><a data-tab="ops-integration" data-section="cs-split"><span class="dot" style="background:var(--c-red)"></span>CS 권한 분리</a></li>
+      <li><a data-tab="ops-integration" data-section="ban-appeal"><span class="dot" style="background:var(--c-red)"></span>정지 · 이의제기</a></li>
+      <li><a data-tab="ops-integration" data-section="kpi-telemetry"><span class="dot" style="background:var(--c-red)"></span>KPI · 텔레메트리 통합</a></li>
+      <li><a data-tab="ops-integration" data-section="compliance-matrix"><span class="dot" style="background:var(--c-red)"></span>컴플라이언스 매트릭스</a></li>
+      <li><a data-tab="ops-integration" data-section="ir-rr"><span class="dot" style="background:var(--c-red)"></span>사고 대응 R&amp;R</a></li>
+    </ul>
+    <div class="sb-label">참고 자료</div>
+    <ul class="sb-nav">
+      <li><a data-tab="references" data-section="refs"><span class="dot" style="background:var(--c-green)"></span>공식 문서 · 모범 사례</a></li>
+    </ul>
+    <div class="sidebar-footer"><p>Cross-Platform<br>= Account × Economy × Build<br>× Matching × Ops</p></div>
+  </aside>
+
+  <div class="main">
+    <div class="top-tabs">
+      <button class="top-tab active" data-tab="overview" onclick="switchTab('overview')">● 개요</button>
+      <button class="top-tab" data-tab="account" onclick="switchTab('account')">● 계정</button>
+      <button class="top-tab" data-tab="economy" onclick="switchTab('economy')">● 재화</button>
+      <button class="top-tab" data-tab="build-patch" onclick="switchTab('build-patch')">● 빌드 · 패치</button>
+      <button class="top-tab" data-tab="matching-ac" onclick="switchTab('matching-ac')">● 매칭</button>
+      <button class="top-tab" data-tab="ops-integration" onclick="switchTab('ops-integration')">● 운영 통합</button>
+      <button class="top-tab" data-tab="references" onclick="switchTab('references')">● 참고 자료</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="panel-header"><div class="panel-badge badge-teal">● Overview</div><h2>크로스 플랫폼 운영의 본질</h2><p>한 게임을 모바일·PC·콘솔에서 동시에 굴리면 매출은 1.5~2배가 되지만 운영 부담은 플랫폼 수의 제곱에 가깝게 늘어난다. 본 가이드는 <strong>"동시 운영"의 갭(gap)을 메우는 SRE 패턴</strong>에 집중한다. 각 플랫폼 자체 깊이는 P1·P3·P4·P9 가이드 참조.</p></div>
+
+      <div class="sub" id="three-cross"><h3>Cross Play / Cross Save / Cross Progression — 정의·구분</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">세 용어는 자주 혼용되지만 운영에서는 각각 다른 시스템·정책·KPI를 갖는다. 시작 시점에 어디까지 지원할지 명확히 정해야 한다.</p>
+        <div class="cg3">
+          <div class="card" style="border-top:3px solid var(--c-speed);"><h4 style="color:var(--c-speed)">Cross Play</h4><p>다른 플랫폼 사용자와 <strong>실시간으로 같이 플레이</strong>. PC↔모바일 또는 PC↔콘솔 매칭. 매칭·input fairness·anti-cheat이 핵심 과제.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-stable);"><h4 style="color:var(--c-stable)">Cross Save</h4><p>저장 파일·진행도를 <strong>플랫폼 간 동기화</strong>. 모바일에서 시작 → PC에서 이어 플레이. 충돌 처리·sync 빈도·인벤토리 정합이 핵심.</p></div>
+          <div class="card" style="border-top:3px solid var(--c-orange);"><h4 style="color:var(--c-orange)">Cross Progression</h4><p>레벨·도전과제·소장 아이템·결제 재화를 <strong>플랫폼 간 통합</strong>. Cross Save의 상위 개념 — 단순 저장이 아니라 계정 단위 진행도 통합. 결제 재화 정합성이 가장 큰 과제.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ TIP</strong><br>"Cross Play만 + 진행도 분리" 구조도 흔하다(콘솔 정책 때문). <strong>가장 야심찬 모델은 "Cross Play + Cross Progression"</strong> — Fortnite, Warframe, Marvel Rivals가 이 모델. 운영 복잡도가 가장 높지만 사용자 만족도도 가장 높다.</div>
+      </div>
+
+      <div class="sub" id="ops-models"><h3>운영 모델 매트릭스</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">실제 시장에 있는 5가지 운영 모델. 각각 매출·운영 부담·기술적 복잡도가 다르다.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>모델</th><th>예시 패턴</th><th>매출</th><th>운영 부담</th><th>기술 복잡도</th></tr></thead>
+            <tbody>
+              <tr><td>모바일 단독</td><td>한 빌드 + 단일 인벤토리</td><td><span class="lvl-badge lvl-medium">중</span></td><td><span class="lvl-badge lvl-elite">낮음</span></td><td><span class="lvl-badge lvl-elite">낮음</span></td></tr>
+              <tr><td>PC 단독</td><td>Steam만 또는 자체 런처</td><td><span class="lvl-badge lvl-medium">중</span></td><td><span class="lvl-badge lvl-elite">낮음</span></td><td><span class="lvl-badge lvl-elite">낮음</span></td></tr>
+              <tr><td>모바일 + PC<br>(분리 운영)</td><td>각 플랫폼 별도 진행도. "두 게임"으로 운영</td><td><span class="lvl-badge lvl-high">중상</span></td><td><span class="lvl-badge lvl-medium">중</span></td><td><span class="lvl-badge lvl-medium">중</span></td></tr>
+              <tr><td>모바일 + PC<br>(Cross Save)</td><td>저장 동기화 — 같은 게임 연속 플레이</td><td><span class="lvl-badge lvl-high">상</span></td><td><span class="lvl-badge lvl-high">상</span></td><td><span class="lvl-badge lvl-high">상</span></td></tr>
+              <tr><td>풀 멀티 (Cross Play + Progression)</td><td>모바일·PC·콘솔 통합 매칭 + 통합 인벤토리</td><td><span class="lvl-badge lvl-elite">최상</span></td><td><span class="lvl-badge lvl-low">매우 높음</span></td><td><span class="lvl-badge lvl-low">매우 높음</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sub" id="platform-compare"><h3>모바일 · PC · 콘솔 비교 (퍼블리셔 SRE 관점)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">세 플랫폼의 운영 차이를 한 표로 압축. 본 가이드는 모바일 + PC를 중심으로 다루고 콘솔은 비교 항목으로만 다룬다.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>축</th><th>모바일 (iOS/Android)</th><th>PC (Steam/자체)</th><th>콘솔 (PSN/Xbox/Switch)</th></tr></thead>
+            <tbody>
+              <tr><td>인증</td><td>Apple ID · Google · 소셜 SSO</td><td>Steam · Epic · 자체 계정</td><td>PSN ID · Microsoft 계정 · Nintendo Account</td></tr>
+              <tr><td>결제</td><td>스토어 IAP 강제 (외부 옵션 제한적)</td><td>Steam Wallet · 자체 결제</td><td>플랫폼 wallet 강제</td></tr>
+              <tr><td>패치 cadence</td><td>심사 24~48h</td><td>분 단위 즉시</td><td>심사 + 인증 (수일~1주)</td></tr>
+              <tr><td>Cross Play 정책</td><td>대체로 자유</td><td>대체로 자유</td><td>플랫폼 승인 필요 (게임별)</td></tr>
+              <tr><td>Anti-cheat</td><td>SDK + 디바이스 무결성</td><td>커널 anti-cheat</td><td>플랫폼 자체 (폐쇄 환경)</td></tr>
+              <tr><td>친구 시스템</td><td>스토어·소셜·게임 자체</td><td>Steam Friends + 게임 자체</td><td>PSN/Xbox Live 친구</td></tr>
+              <tr><td>지역 가격</td><td>스토어 자동 환산</td><td>Steam 권장가</td><td>플랫폼 권장가</td></tr>
+              <tr><td>퍼블리셔 비중</td><td><span class="lvl-badge lvl-elite">매우 높음</span></td><td><span class="lvl-badge lvl-high">높음</span></td><td><span class="lvl-badge lvl-medium">중</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-info"><strong>★ NOTE</strong><br>퍼블리셔 입장에서 콘솔은 (1) 시장 진입 장벽 ↑(첫 타이틀은 발표·인증 단계 多) (2) 매출 비중 상대적 작음 (3) 플랫폼 통제 ↑ 라 모바일·PC 대비 후순위. 단, AAA 게임은 콘솔 매출이 큰 비중. 본 가이드는 모바일 + PC 운영 패턴을 중심으로 다룬다.</div>
+      </div>
+
+      <div class="sub" id="five-decisions"><h3>시작 전 결정 5가지</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">크로스 플랫폼 게임을 출시하기 전에 운영 모델을 결정하는 5가지 핵심 질문. 한번 결정하면 나중에 바꾸기 어려운 항목들이다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>① Cross Play를 할 것인가</h4><p>같이 플레이 가능 vs 분리. <strong>매칭·anti-cheat·input fairness 모두에 영향</strong>. PvE 게임은 자유, PvP는 신중. 한 번 cross play로 시작하면 떼어내기 어려움.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>② 진행도 통합 vs 분리</h4><p>Cross Progression vs 플랫폼별 분리. <strong>결제 재화 정합·환불·세금 처리</strong>가 통합 시 매우 복잡. 분리하면 사용자 만족도 ↓.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>③ 통합 계정 시스템</h4><p>자체 계정 ID vs 플랫폼 ID 그대로. <strong>자체 계정 ID는 cross progression의 전제</strong>. 사용자가 가입을 한 번 더 해야 하는 부담.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>④ 동시 출시 vs 시차 출시</h4><p>모바일·PC·콘솔 동시 vs 순차 출시. 동시 출시는 <strong>마케팅 시너지 ↑ 운영 부담 ↑↑</strong>. 시차는 안전하지만 매출 곡선이 분산.</p></div>
+          <div class="card card-full"><h4>⑤ 콘솔 포함 여부</h4><p>모바일+PC만 vs 콘솔 추가. 콘솔은 <strong>플랫폼 인증·테스트·정책 추가 부담</strong>이 크고 첫 타이틀은 더 어려움. 그러나 일부 장르(액션 RPG·격투·협력 게임)는 콘솔 매출이 큰 비중. 매출 모델·장르 적합도로 판단.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="sre-burden"><h3>SRE 운영 부담</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">크로스 플랫폼 운영이 SRE에게 추가하는 5가지 부담. 단순히 "여러 플랫폼 모니터링"이 아니라 운영 본질이 달라진다.</p>
+        <div class="cg">
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">① 데이터 정합성 ×N</h4><p>플랫폼마다 결제·인증·진행도 데이터가 분리되어 들어옴. <strong>이걸 single source of truth로 통합</strong>하는 게 핵심. 한 곳이라도 어긋나면 사용자가 불일치를 발견.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">② 빌드 동기화</h4><p>같은 코드베이스에서 N개 빌드 — 플랫폼별 SDK·anti-cheat·UI 차이. <strong>한 빌드의 회귀가 다른 빌드를 막을 수 있음</strong>.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">③ 점검 윈도우 시차</h4><p>모바일은 심사 일정에 묶이고 PC는 즉시 — <strong>같은 시간에 점검을 시작·종료해도 사용자 영향 범위가 다름</strong>. 글로벌 region 시차까지 더해지면 점검 계획이 매우 복잡.</p></div>
+          <div class="card" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">④ CS · 컴플라이언스</h4><p>플랫폼 × 지역 매트릭스 — <strong>각 셀마다 다른 정책·답변 시나리오</strong>. CS 인력·법무 자문이 모두 늘어남.</p></div>
+          <div class="card card-full" style="border-left:3px solid var(--c-red);"><h4 style="color:var(--c-red)">⑤ 인시던트 R&amp;R</h4><p>한 플랫폼에서 사고가 나면 <strong>그 플랫폼 IR + 다른 플랫폼 영향 평가 + 통합 시스템 영향</strong>의 3중 작업. 한 사고가 N개 플랫폼에 도미노로 번지는 사례 빈번.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCOUNT -->
+    <div class="tab-panel" id="panel-account">
+      <div class="panel-header"><div class="panel-badge badge-speed">● Account &amp; Auth</div><h2>통합 계정 &amp; 인증</h2><p>크로스 플랫폼의 출발점. 사용자가 모바일·PC·콘솔 어디서든 같은 계정으로 들어갈 수 있어야 cross save·cross progression이 성립한다. 플랫폼별 인증 메커니즘을 단일 게임 계정 ID로 매핑하는 게 핵심 설계.</p></div>
+
+      <div class="sub" id="auth-vendors"><h3>플랫폼별 인증 메커니즘</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">각 플랫폼이 사용자를 인증하는 방식이 다르다. 게임은 모든 플랫폼의 ticket·token·OAuth를 받아 자체 시스템과 매핑해야 한다.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>플랫폼</th><th>인증 메커니즘</th><th>고유 식별자</th><th>특이사항</th></tr></thead>
+            <tbody>
+              <tr><td>iOS</td><td>Apple ID + Sign in with Apple</td><td>opaque user ID (app별)</td><td>이메일 private relay 옵션. 동일 사용자라도 앱별 다른 ID</td></tr>
+              <tr><td>Android</td><td>Google Sign-In · Play Games Services v2</td><td>Google Play ID</td><td><strong>v1 → v2 마이그레이션 마감 2026-05</strong></td></tr>
+              <tr><td>Steam</td><td>Encrypted App Ticket / Auth Session Ticket</td><td>SteamID (64-bit)</td><td>P9 가이드 참조 — Web API로 검증</td></tr>
+              <tr><td>PSN (PlayStation)</td><td>PSN OAuth + PlayStation Network ID</td><td>PSN Online ID</td><td>플랫폼 SDK·인증서 발급 필요</td></tr>
+              <tr><td>Xbox Live</td><td>Microsoft Account + Xbox Live</td><td>XUID</td><td>Microsoft Identity Platform 통합</td></tr>
+              <tr><td>Nintendo</td><td>Nintendo Account + NSO</td><td>NSA ID</td><td>플랫폼 SDK 필수</td></tr>
+              <tr><td>외부 SSO</td><td>OAuth 2.0 / OIDC</td><td>이메일 또는 sub claim</td><td>LINE · Facebook · Discord · X 등</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sub" id="account-mapping"><h3>계정 매핑 모델</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">자체 게임 계정 ID와 N개 플랫폼 ID를 어떻게 매핑하느냐가 운영의 기반. 잘못 설계하면 cross progression이 영원히 안 됨.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>모델 A — 1:1 (단순)</h4><p>각 플랫폼 사용자가 별도 게임 계정. <strong>cross progression 불가</strong>. 운영은 단순하지만 사용자 만족도 ↓. 모바일 단독 게임이 PC로 확장할 때 임시로 쓰는 모델.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>모델 B — 1:N (통합)</h4><p>1개 게임 계정 ↔ N개 플랫폼 ID. 사용자가 플랫폼별로 로그인하면 그 게임 계정에 매핑. <strong>cross progression의 표준 모델</strong>. 운영 복잡도 ↑.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>모델 C — 자체 ID 우선</h4><p>사용자가 게임 자체 계정(이메일·비밀번호)으로 가입 + 플랫폼 ID는 보조 매핑. <strong>가입 부담은 있지만 통제 가장 좋음</strong>. Riot ID, EA Account, Activision ID가 이 모델.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>모델 D — 플랫폼 ID 우선</h4><p>사용자가 플랫폼 ID로 자동 가입(별도 계정 X). 첫 플랫폼이 마스터 ID. 추가 플랫폼은 매핑. <strong>가입 부담은 적지만 첫 플랫폼이 사라지면 복잡</strong>.</p></div>
+        </div>
+        <div class="box">
+          <div class="box-title">표준 1:N 매핑 스키마 (모델 B/C)</div>
+          <pre class="code-block"><span class="cm">// game_account 테이블 (자체 계정)</span>
+{
+  <span class="str">"game_account_id"</span>: <span class="str">"uuid-..."</span>,           <span class="cm">// single source of truth</span>
+  <span class="str">"created_at"</span>: <span class="str">"2026-05-03"</span>,
+  <span class="str">"primary_platform"</span>: <span class="str">"steam"</span>            <span class="cm">// 첫 가입 플랫폼</span>
+}
+
+<span class="cm">// platform_links 테이블 (플랫폼 매핑)</span>
+{
+  <span class="str">"game_account_id"</span>: <span class="str">"uuid-..."</span>,
+  <span class="str">"platform"</span>: <span class="str">"steam | apple | google | psn | xbox | nintendo"</span>,
+  <span class="str">"platform_id"</span>: <span class="str">"<벤더 식별자>"</span>,
+  <span class="str">"linked_at"</span>: <span class="str">"2026-05-04"</span>,
+  <span class="str">"unlinked_at"</span>: <span class="kw">null</span>
+}</pre>
+        </div>
+      </div>
+
+      <div class="sub" id="recovery"><h3>계정 복구 · 이전 · 이중 가입 방지</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">크로스 플랫폼에서 계정 분실·이전·이중 가입은 가장 흔한 CS 사례. 표준 워크플로우 + 안전 장치가 필요하다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>본인 확인 다중 채널</h4><p>(1) 이메일 (2) 휴대폰 (3) 결제 카드 (4) 디바이스 핑거프린트 (5) 게임 내 진행도 정보. <strong>2개 이상 일치</strong>해야 복구 진행.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>이중 가입 방지</h4><p>한 플랫폼 ID가 N개 게임 계정에 매핑되면 안 됨. <strong>플랫폼 ID는 unique 제약</strong>. 사용자가 실수로 두 번째 가입 시도하면 자동으로 기존 계정으로 안내.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>플랫폼 ID 변경</h4><p>드물지만 발생 — 사용자가 Apple ID 바꾸거나 PSN ID 변경. <strong>옛 ID와 새 ID를 매핑</strong>해 같은 사용자임을 인식. Apple은 user identifier가 안 변하지만 일부 케이스에서 변경.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>데이터 보존</h4><p>한 플랫폼 ID 해제(unlink) 시 <strong>데이터를 즉시 삭제하지 말 것</strong>. 30일 grace period 두고 그 안에 사용자가 재연결 가능하게. GDPR 잊혀질 권리는 별도 처리.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="apple-google-policy"><h3>Apple · Google 로그인 정책 (2026-05)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">두 플랫폼은 자체 로그인 옵션을 강제하거나 권고하는 정책이 있다. 정책이 종종 바뀌므로 출시·갱신 시점에 재확인 필요.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Sign in with Apple — 가이드라인 4.8 (2024-01 완화)</h4><p>외부 소셜 SSO를 1차로 쓰는 앱은 Apple 또는 <strong>"동등 옵션"</strong>(이메일·이름만 수집·private email 가능·추적 안 함)을 제공해야 함. <strong>Apple 강제 의무는 완화됨</strong>. 자체 계정·교육·기업·정부 ID 앱은 예외.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Google Play Games Services v2</h4><p>v1에서 v2로 마이그레이션 마감 <strong>2026-05</strong>. 그 이후 v1 게임은 publish/update 불가. <strong>Google Sign-In이 PGS와 분리</strong>되면서 dependency 정리 필요.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>이메일 private relay</h4><p>Sign in with Apple은 <strong>random relay 이메일</strong>을 줌. 진짜 이메일이 아니라 Apple이 중계하는 alias. 게임이 이걸 보내는 메일은 사용자에게 잘 도달하지만, <strong>relay 이메일을 다른 플랫폼 인증과 매칭하지 말 것</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>다중 SSO 운영</h4><p>한 사용자가 LINE·Apple·Google 3개 SSO를 모두 가질 수 있음. 게임 계정 1개에 3개 SSO를 매핑하되 <strong>같은 SSO를 2번째 사용 시 자동 매핑</strong>. 새 게임 계정 생성하지 말 것.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="kr-identity"><h3>한국 본인인증 통합</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">한국 게임은 본인인증(휴대폰·아이핀·금융인증)이 사실상 표준이다. 청소년이용불가·결제·게임시간 선택제 모두 본인인증 기반. 크로스 플랫폼 시점에는 한 번만 받아도 모든 플랫폼에 적용되어야 한다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>본인인증 옵션</h4><p>· <strong>휴대폰 인증</strong> (가장 일반적, KISA·통신사 연동)<br>· <strong>아이핀</strong> (NICE·SCI 등)<br>· <strong>금융인증</strong> (PASS 앱·공동인증서)<br>· <strong>I-PIN</strong> (정부 통합 인증)</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>저장 데이터</h4><p>본인인증 결과는 <strong>CI/DI</strong> (연계정보·중복가입확인정보)로 저장. 실명·주민번호는 즉시 폐기. CI는 같은 사람을 여러 사이트에서 식별 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>통합 적용</h4><p>한 게임 계정에 본인인증 1회 → <strong>모바일·PC 양쪽에서 같이 적용</strong>. 게임 계정 ID 단위로 본인인증 상태 관리. 단, <strong>본인인증 유효기간</strong>(1년 등)이 지나면 재인증 필요.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>자녀 결제 동의</h4><p>청소년 결제는 법정대리인 동의 필요. <strong>한 번 동의 → 모든 플랫폼 적용</strong>. 동의 취소는 모든 플랫폼에서 결제 차단.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ NOTE</strong><br>한국 본인인증은 외부 PG·인증사를 통한 별도 비용. 1건당 수십원 단위 — DAU가 크면 무시 못할 비용. <strong>본인인증을 매번 묻지 말고 게임 계정 단위로 한 번만 받기</strong>가 비용·UX 모두 유리.</div>
+      </div>
+
+      <div class="sub" id="merge-split"><h3>계정 통합 · 분리 운영</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">출시 후에 계정 통합·분리 요청이 종종 들어온다. 정책·도구를 미리 갖춰놓지 않으면 1건 처리에 GM 수 시간이 든다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>통합 (Merge)</h4><p>실수로 두 계정 만든 사용자가 통합 요청. <strong>두 계정의 진행도·재화·결제 이력</strong>을 한 계정으로 합침. 결제 합치는 게 가장 어려움 — 환불·세금·카드사 분쟁 위험.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>분리 (Split)</h4><p>한 계정을 두 사람이 공유하다가 분리 요청. <strong>거의 들어주지 않음</strong> — 사후 분리는 거래·진행도 추적 불가능. 약관에 "계정 1인 1개" 명시.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>플랫폼 매핑 변경</h4><p>한 플랫폼 ID를 다른 게임 계정에 옮김. 어뷰징 위험 ↑(작업장이 매번 새 계정으로 매핑) — <strong>일정 cooldown + 매니저 승인</strong>이 표준.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>사망·상속 처리</h4><p>사용자가 사망한 경우 가족이 계정 인계 요청. <strong>법적 자료(사망 진단서·가족 관계 증명) + 매니저 승인</strong>. 결제 이력은 환불 또는 보존.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ECONOMY -->
+    <div class="tab-panel" id="panel-economy">
+      <div class="panel-header"><div class="panel-badge badge-stable">● Economy &amp; Inventory</div><h2>재화 &amp; 인벤토리 정합</h2><p>플랫폼별 결제는 각 스토어의 IAP를 거치지만, 사용자는 같은 게임 인벤토리를 보고 싶어한다. <strong>"플랫폼별 결제 → 단일 인벤토리"</strong>의 정합성을 어떻게 맞추는지가 cross progression의 가장 큰 과제다.</p></div>
+
+      <div class="sub" id="single-inventory"><h3>단일 인벤토리 모델</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">사용자는 모바일·PC·콘솔 어디서든 같은 인벤토리·재화를 본다. 결제·소비·전송 모두 single source of truth(게임 계정 ID 단위)에 기록되어야 한다.</p>
+        <div class="flow">
+          <div class="flow-node" style="border-color:var(--c-orange);"><h4 style="color:var(--c-orange)">Apple IAP</h4><p>iOS 결제<br>30%</p></div>
+          <span class="flow-arrow">↘</span>
+          <div class="flow-node" style="border-color:var(--c-stable);"><h4 style="color:var(--c-stable)">통합 인벤토리</h4><p>game_account_id<br>기준 단일 DB</p></div>
+          <span class="flow-arrow">↗</span>
+          <div class="flow-node" style="border-color:var(--c-speed);"><h4 style="color:var(--c-speed)">Steam 결제</h4><p>PC 결제<br>30/25/20%</p></div>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>통합 인벤토리 DB</h4><p>game_account_id 기준 단일 인벤토리 테이블. 플랫폼별 결제는 <strong>"이 결제로 인해 +N 재화 / +M 아이템"</strong>의 트랜잭션으로 추가. 어느 플랫폼에서 산 건지는 메타데이터로 보존.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>플랫폼별 영수증</h4><p>각 플랫폼의 영수증·payment ID는 별도 보존. 환불·정합 분쟁 시 추적용. <strong>인벤토리는 한 곳, 영수증은 플랫폼별</strong>이 표준 구조.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>재화 단위 통합</h4><p>"보석 100개"는 어느 플랫폼에서 사도 100개. <strong>가격은 다를 수 있어도 재화 양은 동일</strong>. 가격 차이를 사용자에게 노출할지는 정책 결정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>플랫폼 segregated 재화</h4><p>일부 게임은 <strong>플랫폼별 분리 재화</strong>(예: "iOS 보석"·"Steam 보석"). 환불·정합이 단순하지만 사용자 불만 ↑. 콘솔 정책상 강제되는 경우 있음(Sony 정책 등).</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="price-diff"><h3>가격 차이 처리</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">같은 "보석 100개"라도 Apple 30% / Steam 30~20% / 자체 결제 0%라 게임사가 받는 금액이 다르다. 사용자에게는 결제 가격이 다르고. 이 차이를 어떻게 보여주고 처리할지가 정책.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>축</th><th>모바일 IAP</th><th>Steam</th><th>자체 결제</th></tr></thead>
+            <tbody>
+              <tr><td>표시 가격 (USD)</td><td>$9.99</td><td>$9.99</td><td>$9.99</td></tr>
+              <tr><td>스토어 수수료</td><td>30% (Apple) / 20% (Google IAP)</td><td>30/25/20% 구간</td><td>0% (PG 수수료만)</td></tr>
+              <tr><td>게임사 실수령</td><td>~$7.0 / ~$7.99</td><td>~$7.0 (대부분 게임)</td><td>~$9.7 (PG 수수료 차감 후)</td></tr>
+              <tr><td>전략</td><td>가격 그대로 노출</td><td>가격 그대로 노출</td><td>같은 가격 + "더 큰 보너스" 또는 더 낮은 가격</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>전략 1 — 동일 가격</h4><p>모든 플랫폼에 같은 가격. 사용자에게 단순. <strong>게임사는 자체 결제로 마진 ↑</strong>. 외부 결제 안내가 정책에 막혀있어 마진 차이를 사용자에게 잘 안 보임.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>전략 2 — 자체 채널 보너스</h4><p>자체 결제로 사면 "보석 +20% 보너스" 등 추가 혜택. <strong>게임사 마진을 사용자와 분배</strong>해 자체 결제 유도. 합법적 + 사용자에게 매력적.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>전략 3 — 자체 채널 저가</h4><p>자체 결제 가격을 낮게 (예: $9.99 vs $7.99). 사용자가 자체 결제로 옮겨감. <strong>모바일 스토어 정책 위반 위험</strong>(가격 차이로 IAP 회피 유도가 강하면).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>region별 차이</h4><p>한국·중국·러시아처럼 권장가가 낮은 region은 절대 가격이 다름. <strong>VPN 어뷰징·차익 거래 방지를 위한 region locking</strong> 검토.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="refund-consistency"><h3>환불 정합성</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">환불은 정합성 깨지기 가장 쉬운 지점. 사용자가 모바일에서 환불 받았는데 PC에서 이미 재화를 썼다면 어떻게 할지의 정책이 필요.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>환불 처리 케이스</h4><p>· <strong>구매 직후 환불</strong>: 재화 미사용 → 그대로 회수, 단순<br>· <strong>일부 사용 후 환불</strong>: 사용한 재화는 "마이너스"로 → 사용자 인벤토리가 음수가 될 위험<br>· <strong>전부 사용 후 환불</strong>: 가장 어려움 — 게임 진행도가 이미 영향 받음</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>음수 인벤토리 방지</h4><p>환불 시 인벤토리에서 차감해서 음수 → <strong>다음 결제까지 차감 미루기</strong> 또는 <strong>다음 게임 플레이 시 재화 0으로 normalize</strong>. 두 옵션 모두 사용자 알림 필수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>환불 어뷰징</h4><p>매번 결제 → 사용 → 환불의 반복 패턴. <strong>환불 빈도·총액 임계 + 자동 차단</strong>. P3 결제 가이드와 P8 어뷰징 가이드에 깊이.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>플랫폼별 환불 정책 차이</h4><p>· <strong>Apple/Google</strong>: 스토어가 환불 결정, 게임사는 알림 받음<br>· <strong>Steam</strong>: 2시간/14일 자동, 게임사 동의 X<br>· <strong>자체 결제</strong>: 게임사가 환불 정책 결정<br>각 플랫폼 환불을 통합 인벤토리에 반영하는 webhook이 필수.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="missing-dup"><h3>미수령 · 중복 지급 방지</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">결제는 됐는데 재화가 안 들어갔다 / 한 번 결제에 두 번 들어갔다는 클레임이 CS의 큰 부분. 표준 패턴으로 자동 처리해야 한다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Idempotency (멱등성)</h4><p>같은 결제 ID를 두 번 받아도 한 번만 지급. <strong>결제 ID를 unique key로</strong> 인벤토리 트랜잭션 테이블에 저장. 중복 지급 자체가 시스템적으로 불가능해야 함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>미수령 자동 복구</h4><p>결제 영수증은 있는데 인벤토리 트랜잭션이 없으면 자동 복구. <strong>게임 시작 시 미수령 영수증 자동 query</strong>. Apple StoreKit·Google Billing·Steam 모두 영수증 query API 제공.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>네트워크 단절 처리</h4><p>결제 직후 네트워크 단절 시 클라이언트는 결제 결과를 모름. <strong>다음 접속 시 영수증 검증 → 재화 지급</strong>. 사용자가 다시 클릭해도 idempotency로 중복 X.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>플랫폼 webhook</h4><p>· Apple App Store Server Notification<br>· Google Real-time developer notifications<br>· Steam server-to-server callbacks<br><strong>결제·환불·구독 변경 모두 webhook으로 받아 통합 인벤토리에 즉시 반영</strong>.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="external-payment"><h3>외부 결제 (Apple v Epic 이후)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">2024-2026년 사이 모바일 외부 결제 정책이 크게 변동. 미국·EU·한국이 각자 다른 규제 체계라 region별 운영이 필요하다. (2026-05 기준)</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>미국 — 변동 중</h4><p>2025-04 Epic v Apple 1심: 외부 결제 링크 허용 + Apple 수수료 X. <strong>2025-12 항소법원 부분 reverse</strong> — Apple이 "합리적 수수료" 부과 가능. 정확한 비율은 1심 재검토 진행 중. 운영자는 모니터 필수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>EU — DMA 적용</h4><p>2024-03 DMA 시행 후 외부 결제·alternative payment provider 허용. <strong>2026-01부터 Core Technology Fee 폐지 + 5% commission</strong>으로 변경. 게임 스토어 진입 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>한국 — 통신사업법 개정</h4><p>2021-09 통신사업법 개정 후 Apple/Google이 한국에서 사전 승인 PSP 사용 가능. <strong>StoreKit External Purchase Entitlement (KR)</strong> 신청 필요.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>실무 운영</h4><p>각 region별로 다른 결제 흐름·수수료를 코드에서 분기. <strong>"한국·EU·미국·일반"의 4분기 코드 path</strong>가 표준. 정책이 자주 바뀌므로 feature flag로 region별 토글.</p></div>
+        </div>
+        <div class="note note-warn"><strong>⚠ NOTE</strong><br>외부 결제는 매출 중요한 레버이지만 정책이 매월 바뀌는 영역. <strong>법무·외부 자문·Apple/Google 공식 발표를 정기 모니터</strong>. P3 결제 가이드에 더 깊이.</div>
+      </div>
+
+      <div class="sub" id="eu-dma"><h3>EU DMA · 사이드로딩</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">EU Digital Markets Act는 Apple·Google에 대한 가장 큰 규제 변화. 2024-03 시행, 2026년 본격 영향. 사이드로딩·alternative app stores·외부 결제 모두 게임 운영에 영향.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>핵심 변화</h4><p>· iPhone EU 판매분에서 <strong>사이드로딩 허용</strong> (2024-03~)<br>· Alternative app store (Epic Games Store 모바일 등) 가능<br>· 외부 결제 alternative payment provider 사용<br>· Apple이 "gatekeeper"로 지정되어 강한 규제</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>게임 운영 영향</h4><p>· EU 사용자가 Epic Games Store 모바일 앱으로 게임 받을 수 있음<br>· 외부 결제로 Apple 30% 회피 가능 (단, 5% commission)<br>· <strong>iOS 게임이 더 이상 Apple App Store 단독이 아님</strong></p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>위반 과징금</h4><p>글로벌 매출 10% (CO 누적은 20%까지). 2024-2026년 EU 위원회가 Apple·Google에 적합성 조사 진행 중. <strong>"실질적 사이드로딩 방해"가 위반으로 인정</strong>되면 큰 영향.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>퍼블리셔 액션</h4><p>· EU에서 Epic Games Store 모바일 진출 시 자기 게임 등록<br>· 외부 결제 entitlement 신청·운영<br>· Region별 결제 흐름·SDK 분기 코드 정비<br>· <strong>아직 시장이 정착 중 — 보수적으로 모니터링</strong></p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUILD &amp; PATCH -->
+    <div class="tab-panel" id="panel-build-patch">
+      <div class="panel-header"><div class="panel-badge badge-indigo">● Build &amp; Patch Sync</div><h2>빌드 &amp; 패치 동기화</h2><p>같은 코드베이스에서 N개 플랫폼 빌드를 만들고, 각각 다른 cadence로 배포해야 한다. 모바일은 심사 24~48h, Steam은 즉시, 콘솔은 더 길다. 이 갭을 메우는 게 SRE의 핵심 운영 과제.</p></div>
+
+      <div class="sub" id="cadence-gap"><h3>플랫폼별 cadence 갭</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">같은 패치를 모든 플랫폼에 동시 배포하려고 해도 메커니즘이 다르다. 가장 느린 플랫폼이 출시일을 결정한다.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>플랫폼</th><th>표준 cadence</th><th>긴급 핫픽스</th><th>비고</th></tr></thead>
+            <tbody>
+              <tr><td>iOS App Store</td><td>심사 24~48h (보통), 7~30일 지연 사례 多</td><td>Expedited Review (승인 케이스별)</td><td>P4 패치 가이드 참조</td></tr>
+              <tr><td>Google Play</td><td>수 시간 ~ 1일</td><td>비교적 빠름</td><td>Internal Testing 트랙으로 검증 후 Production</td></tr>
+              <tr><td>Steam</td><td>분 단위 즉시</td><td>분 단위 즉시</td><td>SteamPipe (P9 가이드 참조)</td></tr>
+              <tr><td>PSN</td><td>심사 + 인증 (수일)</td><td>긴급 케이스 우선 처리</td><td>플랫폼 인증 단계 추가</td></tr>
+              <tr><td>Xbox</td><td>심사 + 인증 (수일)</td><td>긴급 케이스 우선 처리</td><td>Microsoft 인증</td></tr>
+              <tr><td>Switch</td><td>심사 (수일~1주)</td><td>제한적</td><td>Nintendo 정책상 가장 느림</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>"가장 느린 플랫폼이 기준"</h4><p>크로스 플레이 게임은 <strong>모든 플랫폼이 같은 버전</strong>이어야 매칭 가능. 가장 느린 플랫폼(Switch·Apple)에 맞춰 출시일 정함. 다른 플랫폼은 그날까지 대기.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>핫픽스 동기화</h4><p>긴급 패치도 마찬가지. <strong>Steam에 즉시 배포해도 모바일은 심사 대기</strong>. 그 사이 Steam 사용자만 새 버전 → 매칭 깨짐. 핫픽스는 서버 사이드만 활용 권장.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>역동기 (lag) 처리</h4><p>한 플랫폼만 출시 지연되면 <strong>다른 플랫폼도 그 기간 동안 새 콘텐츠를 막아야 함</strong>(매칭 깨지기 때문). Server-side feature flag로 통합 제어.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>예외 — 분리 운영</h4><p>크로스 플레이가 없으면 각 플랫폼 자율 cadence 가능. <strong>모바일은 매주, PC는 격주</strong> 식으로 분리 운영하는 게임도 있음.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="single-codebase"><h3>단일 코드베이스 · 다중 빌드</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">같은 코드에서 플랫폼별 빌드가 나오는 게 표준 (Unity·Unreal 모두 다중 플랫폼 빌드 지원). 그러나 플랫폼별 SDK·anti-cheat·UI 차이가 빌드 분기점.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>플랫폼별 SDK 분기</h4><p>· iOS: StoreKit·GameKit·Apple Push<br>· Android: Play Billing·Play Games·FCM<br>· Steam: Steamworks SDK<br>· PSN/Xbox: 플랫폼 SDK<br><strong>Conditional compile (#if PLATFORM_IOS)</strong>로 분기.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>UI 차이</h4><p>· 모바일: 터치 + 작은 화면<br>· PC: 마우스/키보드 + 큰 화면 + 윈도우 크기 가변<br>· 콘솔: 게임패드 + TV 뷰<br>UI 시스템이 <strong>플랫폼별 layout</strong>을 자동 선택해야 함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Anti-cheat 분기</h4><p>· 모바일: SDK + 디바이스 무결성<br>· Steam: VAC 또는 EAC/BattlEye<br>· 콘솔: 플랫폼 자체<br>각 빌드에 <strong>다른 anti-cheat 모듈을 통합</strong>. P9 가이드 참조.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>CI/CD 파이프라인</h4><p>한 git push → N개 빌드 자동 생성. <strong>빌드 시간이 N배</strong>이지만 일관성·동기화가 중요. 전용 빌드 머신·캐시·병렬 처리 필수.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="feature-flag"><h3>Feature Flag · Kill Switch</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">플랫폼별 cadence 갭과 동기 출시 요구를 동시에 만족시키는 핵심 도구. 모든 새 기능은 flag 뒤에 두는 게 표준.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Feature Flag 패턴</h4><p>· <strong>Build에 코드는 포함</strong>되지만 server flag로 비활성<br>· 모든 플랫폼에 새 빌드 출시 후 server에서 동시 활성<br>· 한 플랫폼만 문제 시 그 플랫폼만 비활성</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Kill Switch</h4><p>장애 시 즉시 기능 끄기. <strong>새 빌드 없이 server에서 분 단위 비활성</strong>. 결제·매칭·신규 콘텐츠 등에 모두 적용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>플랫폼별 분기 flag</h4><p>같은 기능이라도 플랫폼별로 다른 timing. <code>{ "newFeature": { "ios": false, "android": true, "steam": true } }</code> 같은 매트릭스. <strong>서버에서 사용자 플랫폼별 다른 응답</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Region별 flag</h4><p>한국 EU 미국에 다른 정책(외부 결제·확률 표시 등). <strong>region × platform 매트릭스</strong>로 flag 운영. 코드 복잡도 ↑이지만 컴플라이언스 안전.</p></div>
+        </div>
+        <div class="box">
+          <div class="box-title">Feature flag 매트릭스 예시</div>
+          <pre class="code-block"><span class="cm">// 서버 응답 (사용자 region·platform 기준)</span>
+{
+  <span class="str">"flags"</span>: {
+    <span class="str">"new_event"</span>:           <span class="kw">true</span>,
+    <span class="str">"external_payment"</span>: {
+      <span class="str">"ios_kr"</span>:    <span class="kw">true</span>,    <span class="cm">// 한국 통신사업법</span>
+      <span class="str">"ios_eu"</span>:    <span class="kw">true</span>,    <span class="cm">// EU DMA</span>
+      <span class="str">"ios_us"</span>:    <span class="kw">false</span>,   <span class="cm">// 항소심 결과 대기 중</span>
+      <span class="str">"ios_other"</span>: <span class="kw">false</span>,
+      <span class="str">"android"</span>:   <span class="kw">true</span>,
+      <span class="str">"steam"</span>:     <span class="kw">true</span>
+    },
+    <span class="str">"probability_display"</span>: {
+      <span class="str">"kr"</span>: <span class="kw">true</span>,         <span class="cm">// 게임산업법 §33</span>
+      <span class="str">"jp"</span>: <span class="kw">true</span>,         <span class="cm">// 자율 표시</span>
+      <span class="str">"other"</span>: <span class="kw">false</span>
+    }
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="sub" id="compat-matrix"><h3>호환성 매트릭스</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">크로스 플레이·cross save가 깨지지 않으려면 플랫폼·버전 간 호환성을 명확히 정의해야 한다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>저장 파일 호환성</h4><p>같은 게임 계정의 저장 파일을 모든 플랫폼이 읽을 수 있어야 함. <strong>schema 버전 관리 필수</strong>. 새 schema는 backward-compatible 또는 자동 migration.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>네트워크 프로토콜 호환</h4><p>크로스 플레이는 모든 플랫폼이 같은 protocol. <strong>버전 N+1을 출시할 때 N과 호환</strong>되어야 함. 한 플랫폼이 N에 멈춰 있어도 N+1 사용자와 매칭 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>Asset 호환</h4><p>플랫폼별로 텍스처 압축 포맷이 다름 (ASTC·ETC2·BC7 등). <strong>같은 콘텐츠를 다른 포맷으로 빌드</strong>. 게임 로직은 호환.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>호환성 매트릭스 표</h4><p>버전 × 플랫폼 매트릭스를 명시적으로 관리. <strong>"1.5.x ↔ 1.6.x 매칭 가능, 1.7.x는 1.6.x 매칭 차단"</strong> 식. 변경 시 모든 플랫폼 영향 사전 평가.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="maintenance-window"><h3>점검 윈도우 · 시차</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">크로스 플랫폼 게임의 점검은 단순 "한 시간 다운"이 아니다. 플랫폼별·region별 시차를 동시에 고려해야 한다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>점검 시작 정책</h4><p>· 모든 플랫폼 동시 점검 — 정합성 보장<br>· 플랫폼별 순차 — 위험 분산<br>· Region별 순차 — 시차 활용<br><strong>크로스 플레이 게임은 동시 점검이 표준</strong>(매칭 깨지지 않게).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>시간대 선택</h4><p>한국·일본 새벽 (KST 02:00~04:00)이 일반적. 그러나 <strong>북미·EU는 그 시간이 일과 시간</strong>. 글로벌 게임은 시간대 trade-off가 큼.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>점검 중 사용자 메시지</h4><p>각 플랫폼 클라이언트가 <strong>"점검 중" 화면 표시</strong>. 플랫폼별로 텍스트·UI가 약간 다를 수 있음. 점검 종료 시점·새 빌드 다운로드 안내 일관.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-indigo)"></span>점검 종료 동시성</h4><p>점검 끝나는 순간 모든 플랫폼이 동시 트래픽 폭발. <strong>P4 가이드의 prefetch + multi-CDN</strong>이 직결. 모바일·PC·콘솔 다운로드 트래픽이 한 시점에 몰림.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MATCHING & ANTI-CHEAT -->
+    <div class="tab-panel" id="panel-matching-ac">
+      <div class="panel-header"><div class="panel-badge badge-orange">● Matching &amp; Anti-cheat</div><h2>매칭 &amp; Anti-cheat</h2><p>크로스 플레이의 가장 어려운 두 영역. 플랫폼 간 input 차이로 fairness가 깨지고, 플랫폼별 anti-cheat이 다르면 cheat 침투 경로가 늘어난다. 잘 설계하지 않으면 사용자가 떠난다.</p></div>
+
+      <div class="sub" id="cross-matching"><h3>크로스 플레이 매칭</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">같은 매치에 PC·모바일·콘솔 사용자가 섞이는 시점부터 매칭 알고리즘이 복잡해진다. 표준 패턴 4가지.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>패턴 A — Full Cross</h4><p>모든 플랫폼이 한 풀에서 매칭. 가장 단순·풀 사이즈 최대. <strong>input fairness가 깨지면 큰 사용자 불만</strong>. PvE·협력 게임에 적합.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>패턴 B — Input-based 분리</h4><p>마우스+키보드 vs 컨트롤러 vs 터치 별 풀 분리. <strong>Fortnite 모델</strong>. PC 사용자가 콘솔 컨트롤러 사용 시 컨트롤러 풀로. 옵트인·아웃 정책.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>패턴 C — Platform 분리</h4><p>모바일 ↔ PC ↔ 콘솔 별 풀. <strong>cross play 없는 모델</strong>. 각 풀이 작아지지만 fairness 보장.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>패턴 D — Cross with opt-in</h4><p>기본은 같은 플랫폼끼리, 사용자가 "친구와 같이 플레이" 옵션 시에만 cross. <strong>fairness 우선 + 친구 매칭 가능</strong>. PvP 게임에 흔함.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ NOTE</strong><br>Fortnite의 매칭 정책은 잘 알려진 사례: <strong>PC와 파티 → PC 풀 강제</strong>. 콘솔 사용자가 PC 친구와 매칭 시 PC 풀에 들어가서 어려운 상대를 만남. 사용자에게 이를 명확히 표시하는 게 중요.</div>
+      </div>
+
+      <div class="sub" id="input-fairness"><h3>Input Fairness — 마키 vs 패드 vs 터치</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">PC 마우스·키보드의 정밀도, 콘솔 패드의 aim assist, 모바일 터치의 한계 — 각각이 매우 다르다. PvP 게임에서 input fairness는 매출과 직결.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>입력</th><th>정밀도</th><th>반응 속도</th><th>aim assist</th><th>표준 처리</th></tr></thead>
+            <tbody>
+              <tr><td>PC 마우스+키보드</td><td><span class="lvl-badge lvl-elite">최상</span></td><td><span class="lvl-badge lvl-elite">최상</span></td><td>없음</td><td>가장 빠른 풀</td></tr>
+              <tr><td>콘솔 게임패드</td><td><span class="lvl-badge lvl-medium">중</span></td><td><span class="lvl-badge lvl-high">상</span></td><td>aim assist 강함</td><td>aim assist 보정</td></tr>
+              <tr><td>모바일 터치</td><td><span class="lvl-badge lvl-low">낮음</span></td><td><span class="lvl-badge lvl-medium">중</span></td><td>강한 aim assist</td><td>분리 풀 또는 강한 보정</td></tr>
+              <tr><td>모바일 + 컨트롤러</td><td><span class="lvl-badge lvl-medium">중</span></td><td><span class="lvl-badge lvl-high">상</span></td><td>옵션</td><td>콘솔 풀에 합쳐도 무방</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Aim Assist 보정</h4><p>콘솔·모바일은 자동 조준 강도를 게임이 조정. <strong>PC 풀에 들어가면 aim assist 강도를 PC 매칭 풀에 맞게 자동 조정</strong>. 단, "PC + aim assist"가 너무 강하면 PC 사용자 불만.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>입력 감지</h4><p>플레이어가 어떤 입력을 쓰는지 게임이 감지 — 마지막 입력 디바이스 기준. <strong>콘솔에서 마우스 사용 → "PC급" 입력으로 인식</strong>(USB 허브 등으로 콘솔에 마우스 연결).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>매칭 풀 동적 전환</h4><p>입력 디바이스가 매치 중에 바뀌면 <strong>다음 매치부터 다른 풀</strong>로. 매치 도중 전환은 어뷰징 위험.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>FPS 제한</h4><p>모바일·콘솔은 30~60 fps, PC는 144+ fps 가능. <strong>같은 매치에 fps 차이가 크면 PC가 유리</strong>. 게임 로직을 fps에 독립적으로 설계.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="ac-integration"><h3>플랫폼별 anti-cheat 통합</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">크로스 플레이 게임은 모든 플랫폼에 anti-cheat이 있어야 한다. 한 곳이 약하면 cheater가 그 플랫폼으로 들어와 매치를 망친다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>플랫폼별 anti-cheat</h4><p>· 모바일: 디바이스 무결성 SDK (root/jailbreak·앱 변조)<br>· PC: VAC·EAC·BattlEye·nProtect (P9 참조)<br>· 콘솔: 플랫폼 자체 anti-cheat (폐쇄 환경)<br>같은 게임이 모든 플랫폼에서 보호되어야 함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Server-side 통합 검증</h4><p>플랫폼별 client anti-cheat 외에 <strong>서버에서 통합 행동 분석</strong>. 비정상 통계·패턴은 플랫폼 무관하게 탐지. P9 anti-cheat 가이드의 server-side 검증 참조.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>BAN 정책 통합</h4><p>한 플랫폼에서 cheat 적발 → <strong>모든 플랫폼에서 BAN</strong>(통합 게임 계정). 단, "이 플랫폼에서만" cheat한 사용자가 다른 플랫폼에서는 정상이라면 정책 신중. EU DSA 이의제기 권리 적용.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>가장 약한 고리</h4><p>크로스 플레이의 anti-cheat은 <strong>가장 약한 플랫폼만큼만 강함</strong>. 모바일이 약하면 모바일 cheater가 PC를 이김. <strong>모든 플랫폼 anti-cheat을 평행하게</strong> 강화.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="closed-vs-open"><h3>콘솔 폐쇄 vs PC 개방 환경</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">콘솔은 OS·하드웨어가 통제된 폐쇄 환경, PC는 열린 환경. anti-cheat·정책·운영 패턴이 근본적으로 다르다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>콘솔 — 폐쇄 환경의 장점</h4><p>· OS·드라이버·메모리 전부 통제됨<br>· 외부 프로그램 거의 실행 불가<br>· cheat 만들기 매우 어려움<br>· <strong>PC 대비 cheat 비율 1/100 수준</strong></p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>PC — 개방 환경의 부담</h4><p>· 누구나 메모리 접근·DLL 인젝션 가능<br>· 가상 머신·hypervisor cheat<br>· DMA cheat (외부 디바이스로 메모리 읽기)<br>· anti-cheat이 끝없는 군비경쟁</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>크로스 플레이 부작용</h4><p>콘솔 사용자가 <strong>"PC cheater 때문에 매치 망쳤다"</strong>고 분노. 일부 게임은 콘솔 사용자에게 "cross play OFF" 옵션 제공.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Steam Deck</h4><p>Linux 기반 PC지만 콘솔에 가까운 폐쇄성. <strong>anti-cheat 호환성이 가장 큰 변수</strong>(P9 참조). EAC·BattlEye Proton 지원으로 점차 호환성 ↑.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="cross-friend"><h3>친구 · 초대 cross-platform</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">크로스 플레이의 큰 동력은 친구. 모바일 사용자가 PC 친구를 초대하고, 콘솔 사용자가 모두에게 보이는 친구 시스템이 retention의 핵심.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>게임 자체 친구 시스템</h4><p>플랫폼별 친구(Steam Friends·PSN Friends)와 별도로 <strong>게임 계정 단위 친구 시스템</strong>. game_account_id 기반. 플랫폼 무관하게 친구.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>플랫폼 친구 import</h4><p>처음 가입 시 플랫폼 친구 중 같은 게임 사용자 자동 추천. <strong>"PC 친구가 모바일에서도 게임 중"</strong>임을 알려줌. retention 큰 효과.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Cross-platform invite</h4><p>친구 초대는 게임 계정 단위로 가능해야 함. 모바일에서 보낸 초대를 PC 친구가 받음. <strong>플랫폼 SDK invite + 게임 자체 invite를 모두 지원</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>친구 onboarding 마찰</h4><p>친구 추가가 너무 복잡하면 사용자 떠남. <strong>이메일·QR·짧은 코드</strong>로 빠른 추가 옵션. 콘솔 정책이 외부 친구 추가 막는 경우는 우회 어려움.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPS INTEGRATION -->
+    <div class="tab-panel" id="panel-ops-integration">
+      <div class="panel-header"><div class="panel-badge badge-red">● Operations Integration</div><h2>운영 통합</h2><p>크로스 플랫폼의 마지막 도전 — CS·정지·이의제기·KPI·컴플라이언스·사고 대응을 통합 운영. 잘못 분리하면 한 사용자가 두 번 답하고, 한 사고가 N번 처리된다.</p></div>
+
+      <div class="sub" id="cs-split"><h3>CS 권한 분리</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">사용자가 어느 플랫폼에서 문의를 하든 응대해야 한다. 그러나 환불·계정 권한은 플랫폼별로 다름.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>이슈</th><th>모바일 IAP</th><th>Steam</th><th>자체 결제</th><th>게임 자체</th></tr></thead>
+            <tbody>
+              <tr><td>결제 환불</td><td>스토어 결정 (Apple/Google)</td><td>Steam 자동 (2시간/14일)</td><td>게임사 결정</td><td>게임사 (재화 회수·복구)</td></tr>
+              <tr><td>계정 정지</td><td>—</td><td>VAC BAN은 Steam</td><td>—</td><td>게임사 (게임 계정 정지)</td></tr>
+              <tr><td>인벤토리 복구</td><td>—</td><td>—</td><td>—</td><td>게임사 (전 플랫폼)</td></tr>
+              <tr><td>본인 확인</td><td>스토어 인증</td><td>Steam 인증</td><td>게임사 인증</td><td>게임사 (게임 계정)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>CS 응대 흐름</h4><p>(1) 어느 플랫폼에서 문의 → 통합 티켓 시스템<br>(2) 게임 계정 ID 확인 (모든 플랫폼 ID 매핑된)<br>(3) 이슈 유형별로 권한 라우팅<br>(4) 결제는 플랫폼별 환불 흐름</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>"플랫폼 vs 게임사" 분리</h4><p>사용자에게 명확히 안내 — <strong>"환불은 Apple App Store에 신청하세요"</strong>. 게임사가 직접 환불 못하는 케이스 多. 단, 게임 내 보상은 게임사가 처리 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>크로스 플랫폼 CS 일관성</h4><p>같은 이슈가 모바일·PC에서 다르게 처리되면 사용자 분노. <strong>표준 답변·보상·정책</strong>을 플랫폼 무관하게 통일. P8 CS 가이드 참조.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>티켓 시스템 통합</h4><p>모바일 인앱 SDK·PC 웹폼·콘솔 메시지가 모두 한 시스템(Zendesk 등)으로 들어옴. <strong>플랫폼별로 다른 GM 큐</strong>는 비추 — 사용자별로 통합.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="ban-appeal"><h3>정지 · 이의제기</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">한 사용자가 cheat·어뷰징으로 적발됐을 때 모든 플랫폼에서 정지할지, 한 플랫폼만 정지할지가 정책.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>통합 정지 (표준)</h4><p>게임 계정 단위 BAN → <strong>모든 플랫폼 ID에서 정지</strong>. 새 플랫폼으로 우회 못함. 단, EU DSA 이의제기 권리 보장 필요.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>플랫폼 BAN 별도 처리</h4><p>· VAC BAN(Steam) — Valve 자동 BAN, 게임사 통제 X<br>· Apple/Google 계정 정지 — 스토어 정책<br>· 게임사 BAN과 별개 — 한 곳 BAN되어도 다른 곳은 정상</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>이의제기 — 통합 워크플로우</h4><p>사용자가 어느 플랫폼에서 이의제기해도 같은 시스템. <strong>다른 GM이 재검토 → 결정 → 통보</strong>. P8 어뷰징·CS 가이드 참조.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>인벤토리 처리</h4><p>BAN 시 인벤토리는? <strong>일반적으로 회수 (모든 플랫폼에서)</strong>. 단, 결제 아이템은 환불 또는 다른 계정 이전 옵션이 컴플라이언스에 안전. 사망·상속 케이스는 별도.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="kpi-telemetry"><h3>KPI · 텔레메트리 통합</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">"전체 DAU 100만"보다 "모바일 70만 + PC 25만 + 콘솔 5만"이 훨씬 유용. 그러나 "한 사용자가 모바일·PC 모두 쓰면 중복 계산?" 같은 정의 문제가 있다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>플랫폼별 vs 게임 단위</h4><p>· <strong>플랫폼별 DAU</strong>: 운영 KPI·플랫폼 협상에 사용<br>· <strong>게임 단위 DAU</strong>: game_account_id 기준, 중복 제거. 진짜 사용자 수<br>두 지표를 모두 추적해야 함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>매출 분리·통합</h4><p>플랫폼별 매출 (Apple·Google·Steam·자체)을 분리해서 보고. <strong>그 위에 게임 단위 ARPU</strong>도 계산. 한 사용자가 모바일+PC에서 결제하면 두 매출 모두 그 사용자에게 귀속.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>크로스 플랫폼 LTV</h4><p>한 사용자의 lifetime value를 모든 플랫폼 합산. <strong>"PC에서 무료로 시작 → 모바일에서 결제"</strong> 패턴이 있어 분리 분석으로는 missed.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>이벤트 스키마 통합</h4><p>모든 플랫폼이 같은 텔레메트리 스키마로 이벤트 보냄. <strong>"플랫폼 = 차원"</strong>으로 한 이벤트 안에 포함. P6 텔레메트리 가이드 참조.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="compliance-matrix"><h3>컴플라이언스 매트릭스 (region × platform)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">크로스 플랫폼의 컴플라이언스는 (region 수) × (플랫폼 수) 셀의 매트릭스. 각 셀에 다른 정책이 적용된다.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th></th><th>한국</th><th>EU</th><th>미국</th><th>일본</th></tr></thead>
+            <tbody>
+              <tr><td>모바일</td><td>등급분류 + 확률 표시 + 결제 (외부 PSP 가능)</td><td>GDPR + DMA + DSA + 외부 결제</td><td>COPPA + 외부 결제 (변동 중)</td><td>APPI + 자율 확률 표시</td></tr>
+              <tr><td>PC (Steam)</td><td>등급분류 (Valve) + 확률 표시</td><td>GDPR + DSA</td><td>COPPA + state 법</td><td>APPI</td></tr>
+              <tr><td>PC (자체)</td><td>등급분류 (GCRB) + 확률 표시 + 본인인증</td><td>GDPR + DSA</td><td>COPPA + state 법</td><td>APPI</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>매트릭스 운영</h4><p>각 셀별로 (1) 적용 법령 (2) 시스템 요구사항 (3) UI 차이를 명시. <strong>출시 전 체크리스트로 모든 셀 검증</strong>. 셀이 늘면 빠진 곳이 생기기 쉬움.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>변동 모니터</h4><p>법령은 자주 바뀜 — EU AI Act 2026-08, 한국 게임시간 선택제 폐지 가능성, 미국 외부 결제 항소심 등. <strong>분기별 컴플라이언스 리뷰</strong>로 매트릭스 갱신.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>플랫폼 전이 위험</h4><p>iOS 정책 변화는 Steam 운영에도 영향 (예: 동일 가격 vs 차등 가격 정책 결정). <strong>한 플랫폼 변경이 다른 플랫폼 운영에 미치는 영향</strong> 사전 분석.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>법무 자문 분리</h4><p>한국·EU·미국·일본·중국 각각 현지 로펌 1곳 이상. <strong>한 곳에서 모든 region을 보면 누락 위험</strong>. 분기 정기 미팅으로 각 region 변동 점검.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="ir-rr"><h3>사고 대응 R&amp;R</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">한 플랫폼에서 사고가 나도 다른 플랫폼·통합 인벤토리에 영향. 사고 대응이 한 플랫폼에 그치지 않는다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>통합 IR 트리거</h4><p>(1) 어느 플랫폼에서 알림 → 즉시 통합 채널 전파<br>(2) 다른 플랫폼 영향 평가<br>(3) 공통 시스템(통합 인벤토리·인증) 영향 평가<br>(4) 필요 시 모든 플랫폼 점검 윈도우 동시 시작</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>플랫폼 간 도미노</h4><p>한 플랫폼 결제 시스템 장애가 통합 인벤토리에 부정합 → <strong>다른 플랫폼 사용자도 영향</strong>. "한 플랫폼 사고"가 곧 "전 플랫폼 사고".</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>R&amp;R 명확화</h4><p>· 모바일 SDK 장애 → 모바일 SRE + 플랫폼 SDK팀<br>· Steam 장애 → PC 운영팀 + Valve 협의<br>· 통합 인벤토리 장애 → 백엔드팀 (가장 자주)<br>· 플랫폼 정책 변경 → 컴플라이언스팀<br><strong>매트릭스를 사고 대응 매뉴얼에 명시</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-red)"></span>외부 IR 조정</h4><p>외부 IP 게임은 개발사 + 퍼블리셔 공동 IR. <strong>플랫폼 IR도 추가 — Apple·Google·Valve와도 협의</strong>가 필요한 큰 사고 시. 시차·언어가 IR 부담을 키움.</p></div>
+        </div>
+        <div class="note"><strong>♥ KEY</strong><br>크로스 플랫폼 게임의 IR은 <strong>"한 사고 = N개 IR 동시 진행"</strong>이 자주 발생. 작은 사고도 도미노로 커지므로 첫 5분 안에 영향 범위를 정확히 평가하는 게 핵심. 각 플랫폼 SRE 온콜이 통합 채널에서 함께 일하는 게 표준.</div>
+      </div>
+    </div>
+
+    <!-- REFERENCES -->
+    <div class="tab-panel" id="panel-references">
+      <div class="panel-header"><div class="panel-badge badge-green">● References</div><h2>참고 자료</h2><p>2026년 5월 기준으로 검증된 공식 문서·정책·모범 사례 링크. 크로스 플랫폼 영역은 정책·기술 모두 변동이 잦다. 운영 결정 시점에는 위 출처에서 최신 정보를 재확인할 것.</p></div>
+
+      <div class="sub" id="refs"><h3>분류별 참고 자료</h3>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-speed);"><span class="ref-cat" style="color:var(--c-speed);background:var(--c-speed-bg);">공식 문서</span>인증 · SSO 정책</h4>
+        <ul class="ref-list">
+          <li><a href="https://developer.apple.com/sign-in-with-apple/" target="_blank">Apple — Sign in with Apple</a><div class="ref-desc">App Store Review Guidelines 4.8 + Sign in with Apple SDK 공식 문서</div></li>
+          <li><a href="https://developer.apple.com/news/?id=09122019b" target="_blank">Apple Developer News — Sign in with Apple Guidelines</a><div class="ref-desc">2024-01 4.8 가이드라인 완화 발표 — 외부 SSO 사용 시 동등 옵션</div></li>
+          <li><a href="https://developers.google.com/games/services/android/migrate-to-v2" target="_blank">Google — Migrate to Play Games Services Sign-In v2</a><div class="ref-desc">v1 → v2 마이그레이션 마감 2026-05 + 단계별 가이드</div></li>
+          <li><a href="https://android-developers.googleblog.com/2025/06/get-ready-for-next-generation-gameplay-play-games-services.html" target="_blank">Android Developers Blog — PGS v2</a><div class="ref-desc">PGS 차세대 발표 + v1 deprecation 일정</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-stable);"><span class="ref-cat" style="color:var(--c-stable);background:var(--c-stable-bg);">공식 문서</span>외부 결제 · DMA · 항소심</h4>
+        <ul class="ref-list">
+          <li><a href="https://developer.apple.com/support/storekit-external-entitlement-kr/" target="_blank">Apple — StoreKit External Purchase Entitlement (Korea)</a><div class="ref-desc">한국 통신사업법 개정에 따른 사전 승인 PSP 사용 entitlement</div></li>
+          <li><a href="https://developer.apple.com/support/communication-and-promotion-of-offers-on-the-app-store-in-the-eu/" target="_blank">Apple — Communication and promotion of offers in EU</a><div class="ref-desc">EU DMA 따른 alternative payments + 5% commission 정책</div></li>
+          <li><a href="https://developer.apple.com/support/dma-and-apps-in-the-eu/" target="_blank">Apple — Update on apps distributed in the EU</a><div class="ref-desc">DMA 2024-03 시행 후 사이드로딩·alternative app stores 안내</div></li>
+          <li><a href="https://digital-markets-act.ec.europa.eu/" target="_blank">EU Commission — Digital Markets Act</a><div class="ref-desc">DMA 정책 개요·gatekeeper 지정·과징금 (글로벌 매출 10%)</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-orange);"><span class="ref-cat" style="color:var(--c-orange);background:var(--c-orange-bg);">공식 문서</span>콘솔 크로스 플레이</h4>
+        <ul class="ref-list">
+          <li><a href="https://www.playstation.com/en-us/playstation-network/" target="_blank">PlayStation Network 공식</a><div class="ref-desc">PSN 계정·Cross-Buy·friends 시스템 안내</div></li>
+          <li><a href="https://support.xbox.com/en-US/help/hardware-network/connect-network/multiplayer-cross-network-play" target="_blank">Xbox — Multiplayer cross-network play</a><div class="ref-desc">Xbox Live cross-play 정책·계정 연동·친구 시스템</div></li>
+          <li><a href="https://en-americas-support.nintendo.com/" target="_blank">Nintendo Account &amp; NSO 지원</a><div class="ref-desc">Nintendo Account·Switch Online 정책</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-red);"><span class="ref-cat" style="color:var(--c-red);background:var(--c-red-bg);">모범 사례</span>Cross-platform 운영</h4>
+        <ul class="ref-list">
+          <li><a href="https://technology.riotgames.com/" target="_blank">Riot Games Tech Blog</a><div class="ref-desc">Riot ID 통합 계정 시스템·VALORANT cross-platform 운영 사례</div></li>
+          <li><a href="https://www.epicgames.com/site/en-US/eos" target="_blank">Epic Online Services (EOS)</a><div class="ref-desc">Epic이 제공하는 cross-platform SDK — Auth·Friends·Voice·Lobbies. Fortnite cross-play의 기반</div></li>
+          <li><a href="https://www.warframe.com/en/crossprogression" target="_blank">Warframe — Cross Progression</a><div class="ref-desc">Cross-progression의 대표 사례 — 모든 플랫폼 통합 계정 운영</div></li>
+          <li><a href="https://areweanticheatyet.com/" target="_blank">Are We Anti-Cheat Yet?</a><div class="ref-desc">크로스 플레이 게임의 anti-cheat Linux 호환성 추적 (Steam Deck용)</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-indigo);"><span class="ref-cat" style="color:var(--c-indigo);background:var(--c-indigo-bg);">공식 문서</span>한국 본인인증 · 통합 정책</h4>
+        <ul class="ref-list">
+          <li><a href="https://www.kisa.or.kr/" target="_blank">한국인터넷진흥원 (KISA)</a><div class="ref-desc">본인인증·CI/DI·CIS 운영 표준</div></li>
+          <li><a href="https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B2%8C%EC%9E%84%EC%82%B0%EC%97%85%EC%A7%84%ED%9D%A5%EC%97%90%EA%B4%80%ED%95%9C%EB%B2%95%EB%A5%A0" target="_blank">게임산업법 — 국가법령정보센터</a><div class="ref-desc">P8 컴플라이언스 가이드 참조 — 게임시간 선택제·확률 표시·본인인증 의무</div></li>
+        </ul>
+
+        <h4 style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c-teal);"><span class="ref-cat" style="color:var(--c-teal);background:var(--c-teal-bg);">참고서적</span>도메인 이해</h4>
+        <ul class="ref-list">
+          <li><span style="font-weight:600;">Multiplayer Game Programming — Joshua Glazer &amp; Sanjay Madhav</span><div class="ref-desc">멀티플레이어 게임의 네트워크·매칭·동기화 표준 교과서. cross-play의 기술 기반</div></li>
+          <li><span style="font-weight:600;">Designing Games — Tynan Sylvester</span><div class="ref-desc">게임 메커니즘·정책 결정에 대한 통찰. cross-platform 사용자 경험 설계에 도움</div></li>
+          <li><span style="font-weight:600;">Site Reliability Engineering (Google SRE Book)</span><div class="ref-desc">Chapter 17 "Testing for Reliability" + Chapter 22 "Addressing Cascading Failures" — cross-platform 도미노 사고 이해</div></li>
+        </ul>
+
+        <div class="note note-info" style="margin-top:32px;"><strong>★ NOTE</strong><br>이 가이드의 정보는 <strong>2026년 5월 기준</strong>이다. 외부 결제 항소심(미국), DMA 적용 게임 스토어(EU), AI Act 2026-08 시행, Play Games Services v1 deprecation(2026-05) 등 큰 변화가 임박해 있다. 운영 결정 시점에는 위 공식 페이지에서 그 시점의 정책을 다시 확인할 것.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + tabId).classList.add('active');
+    document.querySelector('.top-tab[data-tab="' + tabId + '"]').classList.add('active');
+
+    document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+    const firstLink = document.querySelector('.sb-nav li a[data-tab="' + tabId + '"]');
+    if (firstLink) firstLink.classList.add('active');
+  }
+
+  document.querySelectorAll('.sb-nav li a').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const tab = link.dataset.tab;
+      const section = link.dataset.section;
+      switchTab(tab);
+      setTimeout(() => {
+        const el = document.getElementById(section);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.sb-nav li a').forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }, 50);
+    });
+  });
+</script>
+</body>
+</html>
