@@ -131,3 +131,7 @@ categories:
       - cs-abuse-compliance
       - steam-pc-publishing
       - cross-platform-operations
+      - live-game-hotfix-config
+      - mobile-game-build-cicd
+      - steam-build-cicd
+      - game-backend-deploy-patterns

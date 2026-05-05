@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>게임 백엔드 배포 패턴</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fb; --surface: #ffffff; --surface-2: #f0f2f5;
+    --sidebar-bg: #ffffff; --border: #e2e6eb; --border-strong: #d0d5dc;
+    --text: #1a1d23; --text-dim: #5c6370; --text-muted: #8b929e;
+    --c-speed: #0969b2; --c-speed-bg: #e8f4fd; --c-speed-border: #a2d2f5;
+    --c-stable: #8b5cf6; --c-stable-bg: #f3effe; --c-stable-border: #c4b5fd;
+    --c-green: #1a7f37; --c-green-bg: #ecf7ef; --c-green-border: #a6ddb5;
+    --c-orange: #c2600c; --c-orange-bg: #fef3eb; --c-orange-border: #f5cba7;
+    --c-red: #cf222e; --c-red-bg: #fdecea; --c-red-border: #f5a8a8;
+    --c-teal: #0e7c6b; --c-teal-bg: #e6f7f4; --c-teal-border: #8ed5c5;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 10px; --sidebar-w: 252px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-weight: 400; line-height: 1.75; }
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 28px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; box-shadow: 1px 0 8px rgba(0,0,0,0.03); }
+  .sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand h1 em { font-style: normal; color: var(--c-speed); }
+  .sb-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px 6px; font-weight: 600; }
+  .sb-nav { list-style: none; }
+  .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 22px; color: var(--text-dim); text-decoration: none; font-size: 13px; transition: all 0.15s; border-left: 2.5px solid transparent; cursor: pointer; }
+  .sb-nav li a:hover { color: var(--text); background: var(--surface-2); }
+  .sb-nav li a.active { color: var(--text); background: var(--c-speed-bg); border-left-color: var(--c-speed); font-weight: 600; }
+  .sb-nav li a .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 18px 22px 0; border-top: 1px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-muted); line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
+
+  .main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+  .top-tabs { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .top-tab { flex: 1; padding: 15px 16px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: none; cursor: pointer; position: relative; transition: all 0.2s; }
+  .top-tab:hover { color: var(--text); background: var(--surface-2); }
+  .top-tab::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2.5px; border-radius: 2px; transition: all 0.25s; }
+  .top-tab.active { color: var(--text); }
+  .top-tab[data-tab="overview"].active { color: var(--c-teal); }
+  .top-tab[data-tab="overview"].active::after { background: var(--c-teal); left: 12%; right: 12%; }
+  .top-tab[data-tab="agones"].active { color: var(--c-speed); }
+  .top-tab[data-tab="agones"].active::after { background: var(--c-speed); left: 12%; right: 12%; }
+  .top-tab[data-tab="gamelift"].active { color: var(--c-orange); }
+  .top-tab[data-tab="gamelift"].active::after { background: var(--c-orange); left: 12%; right: 12%; }
+  .top-tab[data-tab="match"].active { color: var(--c-stable); }
+  .top-tab[data-tab="match"].active::after { background: var(--c-stable); left: 12%; right: 12%; }
+  .top-tab[data-tab="compat"].active { color: var(--c-green); }
+  .top-tab[data-tab="compat"].active::after { background: var(--c-green); left: 12%; right: 12%; }
+  .top-tab[data-tab="references"].active { color: var(--c-red); }
+  .top-tab[data-tab="references"].active::after { background: var(--c-red); left: 12%; right: 12%; }
+
+  .tab-panel { display: none; padding: 40px 52px 80px; max-width: 980px; }
+  .tab-panel.active { display: block; }
+  .panel-header { margin-bottom: 36px; }
+  .panel-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px; font-weight: 600; }
+  .badge-teal { color: var(--c-teal); background: var(--c-teal-bg); border: 1px solid var(--c-teal-border); }
+  .badge-speed { color: var(--c-speed); background: var(--c-speed-bg); border: 1px solid var(--c-speed-border); }
+  .badge-stable { color: var(--c-stable); background: var(--c-stable-bg); border: 1px solid var(--c-stable-border); }
+  .badge-green { color: var(--c-green); background: var(--c-green-bg); border: 1px solid var(--c-green-border); }
+  .badge-orange { color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .badge-red { color: var(--c-red); background: var(--c-red-bg); border: 1px solid var(--c-red-border); }
+  .panel-header h2 { font-size: 27px; font-weight: 700; margin-bottom: 8px; }
+  .panel-header p { color: var(--text-dim); font-size: 15px; max-width: 720px; line-height: 1.7; }
+  .sub { margin-top: 44px; scroll-margin-top: 72px; }
+  .sub h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+  .card h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card p { color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+  .card code { font-family: 'JetBrains Mono', monospace; background: var(--c-green-bg); color: var(--c-green); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .card-full { grid-column: 1 / -1; }
+
+  .level-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .level-table th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+  .level-table td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: top; line-height: 1.55; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .level-table tr:hover td { background: var(--surface-2); }
+  .level-table td:first-child { font-weight: 700; }
+  .lvl-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+  .lvl-elite { color: var(--c-green); background: var(--c-green-bg); }
+  .lvl-high { color: var(--c-speed); background: var(--c-speed-bg); }
+  .lvl-medium { color: var(--c-orange); background: var(--c-orange-bg); }
+  .lvl-low { color: var(--c-red); background: var(--c-red-bg); }
+  .lvl-self { color: var(--c-teal); background: var(--c-teal-bg); }
+  .lvl-pub { color: var(--c-stable); background: var(--c-stable-bg); }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 140px; box-shadow: var(--shadow-sm); }
+  .flow-node h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 3px; font-weight: 700; }
+  .flow-node p { font-size: 11px; color: var(--text-dim); }
+  .flow-arrow { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 22px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-top: 16px; overflow-x: auto; box-shadow: var(--shadow-sm); }
+  .box-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .note { background: var(--c-green-bg); border-left: 3px solid var(--c-green); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .note strong { color: var(--c-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .note-warn { background: var(--c-orange-bg); border-left-color: var(--c-orange); }
+  .note-warn strong { color: var(--c-orange); }
+  .note-info { background: var(--c-speed-bg); border-left-color: var(--c-speed); }
+  .note-info strong { color: var(--c-speed); }
+
+  .gauge-row { display: flex; gap: 14px; margin: 20px 0; }
+  .gauge-item { flex: 1; text-align: center; }
+  .gauge-bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin-bottom: 8px; }
+  .gauge-fill { height: 100%; border-radius: 4px; }
+  .gauge-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+  .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .pipe-stage { padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; text-align: center; min-width: 110px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-left: -8px; }
+  .pipe-stage:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); margin-left: 0; }
+  .pipe-stage small { display: block; font-weight: 500; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+
+  .code-block { background: #1e2530; color: #c9d1d9; padding: 18px 22px; border-radius: var(--radius); font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7; overflow-x: auto; margin: 14px 0; }
+  .code-block .cm { color: #8b949e; }
+  .code-block .kw { color: #ff7b72; }
+  .code-block .str { color: #a5d6ff; }
+  .code-block .fn { color: #d2a8ff; }
+  .code-block .num { color: #79c0ff; }
+
+  .ref-list { list-style: none; margin-top: 14px; }
+  .ref-list li { padding: 12px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; line-height: 1.6; }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list li a { color: var(--c-speed); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; }
+  .ref-list li a:hover { text-decoration: underline; }
+  .ref-list li .ref-desc { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .ref-cat { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; padding: 3px 10px; background: var(--c-teal-bg); border-radius: 12px; display: inline-block; margin-right: 8px; }
+
+  .mobile-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 18px; cursor: pointer; box-shadow: var(--shadow-md); }
+  @media (max-width: 768px) {
+    .mobile-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .tab-panel { padding: 32px 20px 60px; }
+    .cg, .cg3 { grid-template-columns: 1fr; }
+    .top-tab { font-size: 10px; padding: 12px 6px; }
+    .gauge-row { flex-wrap: wrap; }
+    .pipeline { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="label">Backend Deploy</div><h1><em>Game Backend</em><br>Deploy Patterns</h1></div>
+    <div class="sb-label">개요</div>
+    <ul class="sb-nav">
+      <li><a data-tab="overview" data-section="why-different" class="active"><span class="dot" style="background:var(--c-teal)"></span>왜 일반 백엔드와 다른가</a></li>
+      <li><a data-tab="overview" data-section="server-types"><span class="dot" style="background:var(--c-teal)"></span>게임 서버 유형</a></li>
+      <li><a data-tab="overview" data-section="solution-compare"><span class="dot" style="background:var(--c-teal)"></span>솔루션 비교</a></li>
+    </ul>
+    <div class="sb-label">Agones</div>
+    <ul class="sb-nav">
+      <li><a data-tab="agones" data-section="agones-state"><span class="dot" style="background:var(--c-speed)"></span>GameServer 상태 머신</a></li>
+      <li><a data-tab="agones" data-section="fleet"><span class="dot" style="background:var(--c-speed)"></span>Fleet & Allocation</a></li>
+      <li><a data-tab="agones" data-section="rolling-update"><span class="dot" style="background:var(--c-speed)"></span>세션 인지 롤링 업데이트</a></li>
+      <li><a data-tab="agones" data-section="agones-sdk"><span class="dot" style="background:var(--c-speed)"></span>SDK 통합</a></li>
+    </ul>
+    <div class="sb-label">AWS GameLift</div>
+    <ul class="sb-nav">
+      <li><a data-tab="gamelift" data-section="gamelift-types"><span class="dot" style="background:var(--c-orange)"></span>GameLift 3가지 모델</a></li>
+      <li><a data-tab="gamelift" data-section="fleetiq"><span class="dot" style="background:var(--c-orange)"></span>FleetIQ + Spot</a></li>
+      <li><a data-tab="gamelift" data-section="anywhere"><span class="dot" style="background:var(--c-orange)"></span>Anywhere — 자체 인프라</a></li>
+      <li><a data-tab="gamelift" data-section="region-rollout"><span class="dot" style="background:var(--c-orange)"></span>Region 롤아웃</a></li>
+    </ul>
+    <div class="sb-label">매치메이킹</div>
+    <ul class="sb-nav">
+      <li><a data-tab="match" data-section="open-match"><span class="dot" style="background:var(--c-stable)"></span>Open Match</a></li>
+      <li><a data-tab="match" data-section="flexmatch"><span class="dot" style="background:var(--c-stable)"></span>FlexMatch</a></li>
+      <li><a data-tab="match" data-section="match-deploy"><span class="dot" style="background:var(--c-stable)"></span>매치메이커 배포</a></li>
+    </ul>
+    <div class="sb-label">호환성 & 운영</div>
+    <ul class="sb-nav">
+      <li><a data-tab="compat" data-section="compat-matrix"><span class="dot" style="background:var(--c-green)"></span>클/서 호환 매트릭스</a></li>
+      <li><a data-tab="compat" data-section="proto-versioning"><span class="dot" style="background:var(--c-green)"></span>프로토콜 버저닝</a></li>
+      <li><a data-tab="compat" data-section="capacity-rollout"><span class="dot" style="background:var(--c-green)"></span>Capacity-aware 배포</a></li>
+      <li><a data-tab="compat" data-section="canary-game"><span class="dot" style="background:var(--c-green)"></span>게임 서버 Canary</a></li>
+    </ul>
+    <div class="sb-label">참고 자료</div>
+    <ul class="sb-nav">
+      <li><a data-tab="references" data-section="refs"><span class="dot" style="background:var(--c-red)"></span>공식 문서 · 모범 사례</a></li>
+    </ul>
+    <div class="sidebar-footer"><p>Match in flight ≠<br>request in flight.<br>Drain, don't drop.</p></div>
+  </aside>
+
+  <div class="main">
+    <div class="top-tabs">
+      <button class="top-tab active" data-tab="overview" onclick="switchTab('overview')">● 개요</button>
+      <button class="top-tab" data-tab="agones" onclick="switchTab('agones')">● Agones</button>
+      <button class="top-tab" data-tab="gamelift" onclick="switchTab('gamelift')">● GameLift</button>
+      <button class="top-tab" data-tab="match" onclick="switchTab('match')">● 매치메이킹</button>
+      <button class="top-tab" data-tab="compat" onclick="switchTab('compat')">● 호환성</button>
+      <button class="top-tab" data-tab="references" onclick="switchTab('references')">● 참고 자료</button>
+    </div>
+
+    <!-- ===== OVERVIEW ===== -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="panel-header"><div class="panel-badge badge-teal">● Overview</div><h2>게임 백엔드 배포 — 일반 HTTP 서비스와 다른 세계</h2><p>게임 서버는 <strong>긴 세션</strong>, <strong>stateful</strong>, <strong>실시간 통신</strong>이 본질. 일반 HTTP 백엔드의 rolling/blue-green이 그대로 안 통하고, 매치 한복판에서 사용자를 끊지 않으려면 세션 인지 배포가 필수. <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--c-teal);">2026-05 기준</span></p></div>
+
+      <div class="sub" id="why-different"><h3>왜 일반 백엔드 배포 패턴이 부족한가</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>① 긴 세션</h4><p>HTTP 요청: 100ms~수 초. 게임 매치: <strong>10분~수 시간</strong>. 매치 한복판에 pod 종료 = 진행 중인 모든 사용자 끊김. 일반 rolling update의 maxUnavailable 모델로 안 됨.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>② Stateful 인스턴스</h4><p>일반 백엔드: 임의의 인스턴스가 임의의 요청 처리. 게임: <strong>특정 인스턴스가 특정 매치 소유</strong> — 다른 인스턴스로 못 옮김 (메모리 안의 게임 상태). LoadBalancer round-robin 안 통함.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>③ 실시간 통신</h4><p>UDP/TCP 직접 연결, 30Hz tick. <strong>readiness probe로 트래픽 차단해도 이미 연결된 사용자엔 무영향</strong>. 일반 LB drain 패턴 부적합.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>④ 클라/서 강결합</h4><p>HTTP API는 보통 클라가 새로고침 가능. 게임은 클라 빌드와 서버 빌드가 <strong>프로토콜 호환</strong>이어야. 클라 빌드 cadence가 서버보다 느려 — 서버는 구 프로토콜과 호환 의무.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ 핵심 원칙</strong><br>"세션이 끝날 때까지 인스턴스 살려둔다" — drain pattern. 진행 중인 매치는 끝까지, 새 매치는 신버전으로. 인스턴스 종료는 <strong>활성 세션 0이 된 후</strong>. 이 한 가지만 지켜도 게임 서버 배포의 90% 사고 방지.</div>
+      </div>
+
+      <div class="sub" id="server-types"><h3>게임 서버 유형 — 각자 다른 배포 전략</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>Dedicated Server (DS)</h4><p>매치 한 개에 인스턴스 한 개. <strong>FPS / MOBA / 배틀 로얄</strong>. 매치 종료 → 인스턴스 종료 또는 재사용. 가장 stateful, drain pattern 핵심.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>Persistent World</h4><p>MMORPG / Survival. <strong>한 인스턴스에 수십~수백 명, 24/7 운영</strong>. drain 시간 너무 길어 (사용자가 자연 떠날 때까지) — 점검 시간 활용 + 인스턴스별 마이그레이션.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>Lobby / Matchmaker</h4><p>매치 시작 전 사용자가 머무는 곳. <strong>짧은 stateful</strong>. lobby drain은 비교적 쉬움 (사용자가 매치 시작하면 lobby 떠남).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>일반 백엔드 (HTTP API)</h4><p>인증, 결제, 친구 목록, 인벤토리, 리더보드. <strong>전형적 stateless HTTP</strong> — 일반 rolling update 그대로 적용. Argo Rollouts, 그냥 k8s Deployment OK.</p></div>
+        </div>
+        <div class="note"><strong>♥ 한 게임에 4가지 모두 존재</strong><br>현대 게임은 보통 4가지 백엔드 모두 운영. <strong>각자 다른 배포 전략</strong>이 필요. "게임 서버 배포 전략"이라고 하나로 묶으면 안 됨 — DS는 drain pattern, persistent world는 점검 마이그레이션, lobby는 짧은 drain, HTTP API는 일반 rolling.</div>
+      </div>
+
+      <div class="sub" id="solution-compare"><h3>게임 서버 운영 솔루션 비교 (2026-05)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">자체 운영 vs 매니지드, OSS vs 상용. 게임 규모와 운영 역량에 따라 선택. 2026 시점 큰 변동: <strong>Unity Multiplay가 2026-03-31 Unity 직접 운영 종료</strong>, Rocket Science Group으로 이전.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>솔루션</th><th>모델</th><th>강점</th><th>제약</th></tr></thead>
+            <tbody>
+              <tr><td>Agones (OSS)</td><td>k8s 위 자체 운영</td><td>완전 제어, 클라우드 무관, 무료</td><td>k8s 운영 역량 필수, 매치메이킹 별도</td></tr>
+              <tr><td>AWS GameLift FleetIQ</td><td>매니지드 (EC2 fleet)</td><td>Spot 90% 절감, 매치메이킹(FlexMatch) 통합</td><td>AWS 종속, 비용 큰 게임에는 부담</td></tr>
+              <tr><td>AWS GameLift Anywhere</td><td>BYO 인프라 + 매니지드 매치메이킹</td><td>온프레/타 클라우드 + AWS 매치메이킹</td><td>2024 출시, 생태계 발전 중</td></tr>
+              <tr><td>Multiplay (Rocket Science Group)</td><td>매니지드 (멀티 클라우드)</td><td>AAA 검증, 글로벌 region, BYO 옵션</td><td><strong>2026-03-31 Unity 운영 종료</strong>, RSG로 이전</td></tr>
+              <tr><td>Edgegap</td><td>매니지드 edge</td><td>500+ edge 위치, 자동 region 선택</td><td>새로움, 일부 큰 게임 미검증</td></tr>
+              <tr><td>PlayFab Multiplayer</td><td>매니지드 (Azure)</td><td>PlayFab 통합 (auth, 결제 등)</td><td>Azure 종속, 큰 fleet 비용 ↑</td></tr>
+              <tr><td>자체 + bare metal</td><td>전체 자체</td><td>최대 성능, 비용 최적</td><td>운영 부담 max — AAA 큰 팀만</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-warn"><strong>⚠ Unity Multiplay 종료 영향</strong><br>2026-03-31부터 <strong>Unity가 Multiplay 직접 운영 중단</strong>, Rocket Science Group(RSG)이 라이선스 인수해 운영 지속. 기존 Multiplay 사용자는 RSG로 자동 이전. <strong>새 게임 시작 시 검토 사항</strong>: RSG 운영 안정성 검증, 다른 솔루션과 비교. 2026 신규 프로젝트는 Agones 또는 AWS GameLift가 더 안정적 선택일 수 있음.</div>
+      </div>
+    </div>
+
+    <!-- ===== AGONES ===== -->
+    <div class="tab-panel" id="panel-agones">
+      <div class="panel-header"><div class="panel-badge badge-speed">● Agones</div><h2>Agones — k8s 위의 게임 서버 운영 표준</h2><p>Google + Ubisoft가 시작한 OSS 프로젝트. <strong>k8s를 게임 서버 호스팅 플랫폼으로</strong> 변환. GameServer CRD, Fleet, Allocation으로 게임 특화 워크로드 관리.</p></div>
+
+      <div class="sub" id="agones-state"><h3>GameServer 상태 머신</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Agones GameServer는 5가지 주요 상태로 lifecycle 관리. 일반 Pod의 Pending/Running/Terminating과 다른 game-specific state.</p>
+        <div class="flow">
+          <div class="flow-node" style="background:var(--c-stable-bg);"><h4>Scheduled</h4><p>Pod 생성 중</p></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node" style="background:var(--c-speed-bg);"><h4>Ready</h4><p>매치 받을 준비</p></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node" style="background:var(--c-orange-bg);"><h4>Allocated</h4><p>매치 진행 중</p></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node" style="background:var(--c-red-bg);"><h4>Shutdown</h4><p>매치 종료, Pod 삭제</p></div>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Ready</h4><p>매치 할당 가능 풀(pool)에 있음. <strong>SDK.Ready() 호출</strong>로 진입. 헬스체크 통과 + 게임 로딩 완료 후. matchmaker가 이 상태의 GameServer를 선택해 사용자 매칭.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Allocated</h4><p>매치 진행 중. <strong>matchmaker의 Allocation 요청</strong>으로 Ready → Allocated 전환. 핵심: <strong>Allocated GameServer는 Fleet update로 자동 삭제 안 됨</strong> — drain pattern의 본질.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Reserved</h4><p>일정 시간 동안 삭제 보호. matchmaker가 Allocate하기 전에 잠시 holding하는 용도. 기간 만료 시 Ready로 자동 복귀.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Shutdown</h4><p>매치 종료. <strong>SDK.Shutdown() 호출</strong>로 Agones에 알림 → Agones가 Pod 삭제. 이 상태가 되어야 Fleet의 진짜 종료.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="fleet"><h3>Fleet & Allocation — 풀 운영</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Fleet은 GameServer 풀의 운영 단위 — Deployment에 해당. <strong>replicas로 풀 크기 관리</strong>, GameServerAllocation으로 매치메이커가 GameServer 할당.</p>
+        <div class="box">
+          <div class="box-title">Fleet 정의</div>
+          <pre class="code-block"><span class="kw">apiVersion</span>: agones.dev/v1
+<span class="kw">kind</span>: Fleet
+<span class="kw">metadata</span>: { <span class="kw">name</span>: shooter-game }
+<span class="kw">spec</span>:
+  <span class="kw">replicas</span>: <span class="num">100</span>                           <span class="cm"># Ready 풀 크기</span>
+  <span class="kw">strategy</span>:
+    <span class="kw">type</span>: RollingUpdate                  <span class="cm"># Allocated는 보호됨</span>
+    <span class="kw">rollingUpdate</span>:
+      <span class="kw">maxSurge</span>: <span class="str">"25%"</span>
+      <span class="kw">maxUnavailable</span>: <span class="str">"25%"</span>             <span class="cm"># Ready 상태에만 적용</span>
+  <span class="kw">template</span>:
+    <span class="kw">spec</span>:
+      <span class="kw">ports</span>:
+      - <span class="kw">name</span>: default
+        <span class="kw">portPolicy</span>: Dynamic              <span class="cm"># Agones가 포트 자동 할당</span>
+        <span class="kw">containerPort</span>: <span class="num">7654</span>
+      <span class="kw">template</span>:
+        <span class="kw">spec</span>:
+          <span class="kw">containers</span>:
+          - <span class="kw">name</span>: shooter
+            <span class="kw">image</span>: ghcr.io/myorg/shooter:v2.3.1
+            <span class="kw">resources</span>:
+              <span class="kw">requests</span>: { <span class="kw">cpu</span>: <span class="str">"500m"</span>, <span class="kw">memory</span>: <span class="str">"512Mi"</span> }
+              <span class="kw">limits</span>: { <span class="kw">cpu</span>: <span class="str">"1000m"</span>, <span class="kw">memory</span>: <span class="str">"1Gi"</span> }</pre>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Allocation 흐름</h4><p>(1) matchmaker가 <code>GameServerAllocation</code> CRD 생성. (2) Agones가 <code>Ready</code> 상태 GameServer 1개 선택 → <code>Allocated</code>로 전환. (3) GameServer의 IP/port 반환. (4) 클라들이 그 주소로 직접 연결.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Buffer 정책</h4><p><code>BufferPolicy</code>로 항상 N개의 Ready 유지 — <strong>매치 시작 지연 방지</strong>. 사용자가 매칭 누른 시점에 Ready GameServer가 부족하면 새로 띄울 시간 (~수 초~분) 동안 대기. Buffer 충분히 크게.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="rolling-update"><h3>세션 인지 롤링 업데이트</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Agones의 핵심 기능. <strong>Fleet update 시 Allocated GameServer는 그대로 유지</strong>, Ready GameServer만 신버전으로 교체. 진행 중인 매치 영향 zero.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>업데이트 흐름</h4><p>(1) Fleet의 <code>spec.template</code> 변경 (새 image 태그). (2) Agones가 <strong>Ready 상태 GameServer만</strong> 점진적으로 신버전으로 교체. (3) Allocated GameServer는 매치 종료 후 SDK.Shutdown() 호출 → 자연 삭제. (4) 모든 Ready가 신버전이 되고 모든 구버전 Allocated가 종료될 때 업데이트 완료.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>긴 매치의 함정</h4><p>구버전 Allocated가 매치 1시간 이상 지속하면 업데이트 wall clock도 1시간 이상. <strong>두 버전 동시 운영</strong>이 매치 시간 동안 지속. 클라/서 호환성 + 메트릭 분리 필수.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-speed)"></span>Lobby 같은 긴 운영 — 라벨 트리거 패턴</h4><p>Lobby GameServer 같이 매치 종료 trigger가 자연적으로 안 오는 경우. <strong>Fleet update 시 Allocated GameServer에 라벨 추가</strong>(Agones 1.27+) → 게임 코드가 그 라벨 감지 → graceful shutdown 시작 (신규 사용자 차단, 기존은 자연 떠남, 마지막에 SDK.Shutdown).</p></div>
+        </div>
+        <div class="note note-info"><strong>★ Argo Rollouts와의 차이</strong><br>일반 Argo Rollouts는 readiness/liveness 기반. Agones는 <strong>game-specific Allocated 상태</strong>를 알기 때문에 매치를 보호. Argo Rollouts를 게임 서버에 그냥 쓰면 매치 진행 중 pod이 종료되어 사용자 끊김 — 이게 game-specific 도구가 필요한 이유.</div>
+      </div>
+
+      <div class="sub" id="agones-sdk"><h3>SDK 통합 — 게임 코드에서 호출</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Agones SDK는 게임 코드에서 직접 호출. <strong>SDK.Ready(), SDK.Allocate(), SDK.Shutdown(), SDK.Health()</strong> 4가지가 핵심. 다양한 언어 client (C++, C#, Go, Rust, Unity, Unreal).</p>
+        <div class="box">
+          <div class="box-title">표준 게임 서버 lifecycle (의사 코드)</div>
+          <pre class="code-block"><span class="kw">async function</span> <span class="fn">main</span>() {
+  <span class="kw">const</span> sdk = <span class="kw">new</span> <span class="fn">AgonesSDK</span>();
+  <span class="kw">await</span> sdk.<span class="fn">connect</span>();
+
+  <span class="cm">// 1. Health ping을 5초마다 (필수 — Agones가 죽었다고 판정 막기)</span>
+  <span class="fn">setInterval</span>(() <span class="kw">=&gt;</span> sdk.<span class="fn">health</span>(), <span class="num">5000</span>);
+
+  <span class="cm">// 2. 게임 로딩, 맵 로드 등 준비 작업</span>
+  <span class="kw">await</span> <span class="fn">loadGameContent</span>();
+  <span class="kw">await</span> <span class="fn">setupNetworking</span>();
+
+  <span class="cm">// 3. Ready — matchmaker가 할당 가능</span>
+  <span class="kw">await</span> sdk.<span class="fn">ready</span>();
+
+  <span class="cm">// 4. matchmaker로부터 Allocation 받음 (외부 트리거)</span>
+  <span class="kw">await</span> <span class="fn">waitForAllocation</span>(sdk);
+
+  <span class="cm">// 5. 매치 진행</span>
+  <span class="kw">await</span> <span class="fn">runMatch</span>();
+
+  <span class="cm">// 6. Shutdown — Agones에 매치 종료 알림</span>
+  <span class="kw">await</span> sdk.<span class="fn">shutdown</span>();
+  process.<span class="fn">exit</span>(<span class="num">0</span>);
+}</pre>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Health ping 실패</h4><p>Agones는 일정 시간 health ping 안 오면 GameServer를 <code>Unhealthy</code>로 마크 → Pod 삭제. <strong>5초 간격 + grace period 30초</strong> 권장. 게임 로직이 한 프레임 무거워도 ping 별도 thread로 보장.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Reserve 패턴</h4><p>matchmaker가 매치 만들기 위해 N개 player 모으는 동안, GameServer를 미리 holding. <code>SDK.Reserve(60s)</code> → 60초간 다른 매치에 할당 안 됨. 매치 만들기 실패하면 자동으로 Ready 복귀.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== GAMELIFT ===== -->
+    <div class="tab-panel" id="panel-gamelift">
+      <div class="panel-header"><div class="panel-badge badge-orange">● AWS GameLift</div><h2>AWS GameLift — 매니지드 게임 서버</h2><p>AWS의 매니지드 게임 서버 호스팅. 3가지 모델(Servers, FleetIQ, Anywhere) + FlexMatch 매치메이킹. <strong>23 region + 10 Local Zone(33 location)</strong>으로 글로벌 커버리지가 강점.</p></div>
+
+      <div class="sub" id="gamelift-types"><h3>GameLift 3가지 모델</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">GameLift는 단일 제품이 아니라 3가지 다른 운영 모델의 묶음. 게임 규모와 인프라 통제 욕구에 따라 선택.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>모델</th><th>인프라</th><th>가격 모델</th><th>적합 상황</th></tr></thead>
+            <tbody>
+              <tr><td>GameLift Servers</td><td>AWS 매니지드 EC2</td><td>EC2 instance hour + GameLift 마진</td><td>완전 매니지드 원할 때</td></tr>
+              <tr><td>GameLift FleetIQ</td><td>본인 EC2 + GameLift가 관리</td><td>EC2 instance hour만 (GameLift 무료)</td><td>비용 최적화 + AWS 운영</td></tr>
+              <tr><td>GameLift Anywhere (2023+)</td><td>자체 인프라 (온프레/타 클라우드)</td><td>game session count + connection minutes</td><td>BYO 인프라 + AWS 매치메이킹</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>FlexMatch — 공통 매치메이커</h4><p>3 모델 모두 FlexMatch 통합. <strong>JSON으로 매칭 룰 정의</strong>, latency-based + skill-based 매칭. 큰 강점이지만 AWS 종속.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>글로벌 region</h4><p>23 region + 10 Local Zone (33 location, 2026 Q1 기준). <strong>아시아 (서울, 도쿄, 싱가포르, 인도, 홍콩 등) 충분</strong> 한국 게임의 KR/JP/SEA 운영에 적합.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="fleetiq"><h3>FleetIQ + Spot — 비용 최적화</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">FleetIQ의 가장 큰 강점. <strong>Spot instance + 자동 회복</strong>으로 EC2 비용 90% 절감 가능. 게임 서버는 매치당 인스턴스 분리되어 spot interruption tolerance 높음.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Spot Interruption 회복</h4><p>FleetIQ는 <strong>spot 중단율 모니터링</strong> → 중단 빈도 낮은 instance type 자동 선택. 중단 받아도 GameLift가 새 인스턴스에 자동 reschedule.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>매치 영향 최소화</h4><p>Spot 중단 알림 받으면 (보통 2분 전) → <strong>새 매치 받지 않기 + 진행 중 매치는 강제 종료</strong>. 사용자 경험: 갑자기 매치 종료 — 하지만 빈도 낮으면 (월 0.5% 이하) 허용 가능.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-orange)"></span>가격 절감 시나리오</h4><p>예: c5.xlarge On-Demand $0.17/h × 100 instances × 720h = $12,240/월. <strong>Spot 평균 $0.05/h</strong> = $3,600/월. 70% 절감. 단, AAA 인기 게임은 spot price 변동성 + 가용성 위험 — fallback to on-demand 정책.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="anywhere"><h3>GameLift Anywhere — BYO 인프라</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">2023년 출시. <strong>"AWS 매니지드 매치메이킹 + 본인 인프라"</strong> 모델. 온프레미스, 타 클라우드, 자체 데이터센터에서 게임 서버 운영하면서 GameLift의 매칭/오케스트레이션은 활용.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>적합 상황</h4><p>(1) <strong>이미 자체 인프라 있음</strong> (한국 IDC, 자체 베어메탈), (2) 멀티 클라우드 정책, (3) AWS region에 없는 지역 (한국 IDC 직접), (4) 매치메이킹 자체 만들기 부담스러움.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>가격 모델</h4><p>EC2 비용 X. <strong>매치 세션 수 + connection minute</strong>로 과금. 자체 인프라 비용 + GameLift 매니지먼트 비용 별도.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-orange)"></span>BYO + AWS 매치메이커 패턴</h4><p>한국 시장 게임에서 흔한 시나리오: KR 사용자는 한국 IDC 게임 서버, JP/SEA는 AWS region. <strong>FlexMatch는 글로벌 통합</strong>, 인스턴스 위치만 본인 + AWS 혼합. region별 latency-based 라우팅 자동.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="region-rollout"><h3>Region 점진 롤아웃</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">글로벌 게임의 배포는 region별로 단계적. <strong>한 region에서 검증 후 다음 region</strong>. 사고 발생 시 그 region만 영향, 다른 region 사용자 보호.</p>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable);">Internal QA<small>특정 region<br>QA만</small></div>
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed);">KR<small>1~7일<br>한국 사용자</small></div>
+          <div class="pipe-stage" style="background:var(--c-teal-bg);color:var(--c-teal);">JP/TW<small>3~7일<br>인접 region</small></div>
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green);">SEA<small>3일</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange);">NA/EU<small>그 후</small></div>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Region 단계 결정</h4><p>(1) <strong>운영팀 timezone</strong>에 가까운 region 먼저 — 사고 시 즉시 대응. (2) <strong>사용자 규모 작은 region</strong> 먼저 — 영향 최소. (3) 큰 region(NA, EU)는 마지막. <strong>한국 게임 + 한국 운영팀이면 KR 먼저 자연스러움</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Region 메트릭 분리</h4><p>대시보드는 region별 분리 필수. <strong>"글로벌 평균 crash rate"는 의미 없음</strong> — KR만 5% 폭증해도 글로벌 평균은 정상. region × game version 매트릭스로 각 셀의 메트릭 모니터.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MATCH ===== -->
+    <div class="tab-panel" id="panel-match">
+      <div class="panel-header"><div class="panel-badge badge-stable">● Matchmaking</div><h2>매치메이킹 시스템 배포</h2><p>매치메이커는 게임 서버와 별도의 백엔드 컴포넌트. <strong>Open Match (OSS, k8s 위)</strong> 또는 <strong>FlexMatch (AWS)</strong>가 대표 선택. 자체 매치메이커 구축도 흔하나 운영 부담 큼.</p></div>
+
+      <div class="sub" id="open-match"><h3>Open Match — Google + Riot 시작 OSS</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Kubernetes 위에서 동작하는 OSS 매치메이커. 2019 Google Cloud + Riot Games + Unity 협업으로 시작. <strong>매치 로직 자체는 게임팀이 작성</strong>, Open Match는 인프라.</p>
+        <div class="flow">
+          <div class="flow-node" style="background:var(--c-stable-bg);"><h4>FrontendService</h4><p>클라가 ticket 생성</p></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node" style="background:var(--c-speed-bg);"><h4>Match Function</h4><p>매치 알고리즘 (커스텀)</p></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node" style="background:var(--c-teal-bg);"><h4>Director</h4><p>매치 → GameServer 할당</p></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node" style="background:var(--c-green-bg);"><h4>BackendService</h4><p>Assignment 반환</p></div>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>3가지 컴포넌트</h4><p><strong>FrontendService</strong>: 클라이언트가 매치 ticket 만들고 상태 조회. <strong>BackendService</strong>: Director가 매치 결과 받음. <strong>Director</strong>: 게임팀이 작성하는 자체 코드 — 매치 알고리즘 + GameServer 할당 로직.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>인프라 — Redis + gRPC</h4><p>State storage는 Redis. 컴포넌트 간 통신은 gRPC. <strong>k8s 위에 설치, autoscaling 표준</strong>. Helm chart 제공 — k8s 운영 역량 있으면 시작 쉬움.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-stable)"></span>커스텀 매치 함수</h4><p>"latency 50ms 이내 + skill 차이 100 이내 + 5명 모임"같은 룰을 <strong>게임팀이 Go/Python/등으로 작성</strong>. Open Match는 그 함수에 후보 ticket을 전달, 매치 결과 받음. 룰 변경 시 함수만 재배포.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="flexmatch"><h3>FlexMatch — AWS GameLift 통합</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">AWS의 매치메이커. <strong>JSON으로 룰 정의</strong>, latency-based + skill-based + custom attribute. GameLift Servers/FleetIQ/Anywhere 모두 통합.</p>
+        <div class="box">
+          <div class="box-title">FlexMatch 매치메이킹 룰 (JSON)</div>
+          <pre class="code-block">{
+  <span class="str">"name"</span>: <span class="str">"BR_5v5"</span>,
+  <span class="str">"ruleLanguageVersion"</span>: <span class="str">"1.0"</span>,
+  <span class="str">"playerAttributes"</span>: [
+    { <span class="str">"name"</span>: <span class="str">"skill"</span>, <span class="str">"type"</span>: <span class="str">"number"</span>, <span class="str">"default"</span>: <span class="num">100</span> }
+  ],
+  <span class="str">"teams"</span>: [
+    { <span class="str">"name"</span>: <span class="str">"red"</span>, <span class="str">"minPlayers"</span>: <span class="num">5</span>, <span class="str">"maxPlayers"</span>: <span class="num">5</span> },
+    { <span class="str">"name"</span>: <span class="str">"blue"</span>, <span class="str">"minPlayers"</span>: <span class="num">5</span>, <span class="str">"maxPlayers"</span>: <span class="num">5</span> }
+  ],
+  <span class="str">"rules"</span>: [
+    {
+      <span class="str">"name"</span>: <span class="str">"FairTeamSkill"</span>,
+      <span class="str">"description"</span>: <span class="str">"평균 skill 차이 100 이내"</span>,
+      <span class="str">"type"</span>: <span class="str">"distance"</span>,
+      <span class="str">"measurements"</span>: [<span class="str">"avg(teams[red].players.attributes[skill])"</span>],
+      <span class="str">"referenceValue"</span>: <span class="str">"avg(teams[blue].players.attributes[skill])"</span>,
+      <span class="str">"maxDistance"</span>: <span class="num">100</span>
+    }
+  ],
+  <span class="str">"expansions"</span>: [
+    {
+      <span class="str">"target"</span>: <span class="str">"rules[FairTeamSkill].maxDistance"</span>,
+      <span class="str">"steps"</span>: [
+        { <span class="str">"waitTimeSeconds"</span>: <span class="num">15</span>, <span class="str">"value"</span>: <span class="num">200</span> },
+        { <span class="str">"waitTimeSeconds"</span>: <span class="num">30</span>, <span class="str">"value"</span>: <span class="num">500</span> }
+      ]
+    }
+  ]
+}</pre>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Expansion — 시간에 따라 완화</h4><p>매칭 대기 시간 길어지면 룰 자동 완화. <strong>15초 후 skill 차이 200 허용, 30초 후 500</strong>. 사용자가 무한정 기다리지 않게.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>장점</h4><p>JSON으로 정의 → <strong>코드 변경 없이 룰 갱신 가능</strong>. AWS 매니지드 — 인프라 운영 부담 X. GameLift와 통합 — Allocation 자동.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="match-deploy"><h3>매치메이커 배포 — 무중단의 본질</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">매치메이커는 게임 서버와 다른 배포 패턴. <strong>일반 stateless HTTP에 가까움</strong> — 매치 만드는 동안 일시 중단되어도 사용자는 다시 시도하면 OK. 단, 새 매치 만들기 자체가 멈추면 게임 서버는 텅 비고 사용자는 매칭 실패.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>매치메이커 배포 = HTTP API 배포</h4><p>일반 rolling update 적용 가능. <strong>readinessProbe + maxUnavailable: 0</strong>으로 가용성 유지. 매치 ticket은 short-lived (수 초~분) — drain 시간 짧음.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>룰 변경 — 컨피그 푸시</h4><p>매치 룰은 <strong>코드가 아닌 컨피그</strong>로 관리. JSON/YAML이 Remote Config 또는 ConfigMap에 저장. 룰 변경은 컨피그 푸시 — 매치메이커 재배포 불필요.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-stable)"></span>스파이크 처리</h4><p>이벤트 시작·점검 종료·신작 런칭 시 매치메이커 호출 spike. <strong>HPA + 사전 warmup</strong>으로 대응. Pod 시작 시간이 길면(JVM 등) 미리 capacity 키워두기 — 사후 대응으로는 늦음.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== COMPAT ===== -->
+    <div class="tab-panel" id="panel-compat">
+      <div class="panel-header"><div class="panel-badge badge-green">● Compatibility</div><h2>호환성 매트릭스 & 운영</h2><p>클라/서버 버전이 항상 동기화되지 않는 게 현실. 모바일은 스토어 심사로 며칠 지연, Steam은 즉시 — 같은 시점에 클라 N개 / 서버 1개의 호환을 운영해야 한다.</p></div>
+
+      <div class="sub" id="compat-matrix"><h3>클/서 호환성 매트릭스</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">"클 v1 + 서 v1, 클 v2 + 서 v2"라는 단순 매칭은 비현실적. <strong>구버전 클라이언트도 신버전 서버에 접속 가능</strong>해야 사용자 영향 최소.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>클라 버전 → 서버 버전</th><th>v1.0 (구)</th><th>v1.1 (현재)</th><th>v1.2 (신)</th></tr></thead>
+            <tbody>
+              <tr><td>v1.0 (구) 클라</td><td><span class="lvl-badge lvl-elite">OK</span></td><td><span class="lvl-badge lvl-elite">OK</span></td><td><span class="lvl-badge lvl-medium">제한 OK</span></td></tr>
+              <tr><td>v1.1 (현재) 클라</td><td><span class="lvl-badge lvl-low">제한</span></td><td><span class="lvl-badge lvl-elite">OK</span></td><td><span class="lvl-badge lvl-elite">OK</span></td></tr>
+              <tr><td>v1.2 (신) 클라</td><td><span class="lvl-badge lvl-low">제한</span></td><td><span class="lvl-badge lvl-medium">제한 OK</span></td><td><span class="lvl-badge lvl-elite">OK</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>구 클라 + 신 서버 → OK</h4><p>가장 흔한 상황 (모바일 스토어 심사 지연 등). <strong>서버는 구 프로토콜과 호환 의무</strong>. 신 기능은 클라가 모르므로 서버에서 자동 비활성화 (graceful degradation).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>신 클라 + 구 서버 → 제한 OK</h4><p>Steam이 빨리 신 클라 받았는데 서버는 region별 점진 배포로 일부 region 구 서버. <strong>클라가 서버 버전 감지 후 신 기능 자체 비활성화</strong>. UI에서 "이 region은 점검 중" 안내.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-green)"></span>호환성 윈도우</h4><p>모든 버전을 영원히 지원할 순 없다. <strong>운영 정책: 최근 3개 클라 버전 + 최근 1개 서버 버전</strong>. 그 이전 클라는 강제 업데이트 트리거. 호환성 매트릭스가 너무 커지면 코드 복잡도 ↑ — 관리 가능 범위 명시.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="proto-versioning"><h3>프로토콜 버저닝 — 깨지는 변경 vs 호환</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">클라/서 통신 프로토콜의 변경 패턴. Backward-compatible 변경(새 필드 추가 등)과 breaking 변경(필드 제거·타입 변경)을 구분해 관리.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>Backward-compatible 변경 (대부분)</h4><p>· 새 RPC 메서드 추가<br>· 메시지에 새 optional 필드 추가<br>· 새 enum 값 추가 (기본 케이스 fallback)<br>· 프로토콜 옵션 변경<br><strong>구 클라가 신 서버에 정상 통신 가능</strong>. protobuf의 기본 설계 원칙.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>Breaking 변경 (드물게)</h4><p>· 필드 타입 변경 (int32 → int64)<br>· 필드 제거 후 ID 재사용<br>· RPC signature 변경<br>· 의미 변경 (같은 필드 다른 의미)<br><strong>서버 버전을 새 메이저로</strong> + 호환 윈도우 동안 두 버전 동시 운영.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-green)"></span>protobuf의 함정 — required vs optional</h4><p><strong>proto3는 모든 필드 optional</strong>. 빠진 필드는 기본값. 매우 backward-compatible 친화. <strong>proto2의 required는 절대 사용 X</strong> — 한 번 박으면 영원히 호환성 파괴 위험. 모든 신규 프로젝트는 proto3.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="capacity-rollout"><h3>Capacity-aware 배포</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">게임 서버 fleet의 크기는 시간대별로 크게 다름. <strong>배포 시점이 peak time이면 capacity 부족</strong>. 일반 백엔드보다 더 강한 시간대 의존성.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>피크 시간 회피</h4><p>한국 게임의 평일 피크: 저녁 8~11시. <strong>이 시간에 배포 금지 정책</strong>. 새벽 4~6시에 배포 + 점검 가능. 핫픽스만 피크 중 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>배포 자체의 capacity 영향</h4><p>Rolling 시 maxSurge로 +25% capacity, maxUnavailable -25%. <strong>피크 시간에 -25%면 매치메이킹 대기열 폭증</strong>. 사전에 capacity 1.5x로 키워놓고 배포 (HPA min replicas 일시 상향).</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-green)"></span>게임 서버 빌드 시간</h4><p>Pod 시작 시간이 길면(컨테이너 이미지 큰 경우, GB 단위) capacity 회복도 느림. <strong>이미지 슬림화</strong> + <strong>multi-stage 빌드</strong> + <strong>이미지 prepull</strong>(노드에 미리 받아두기). 배포 시 신 이미지 prepull로 시작 시간 ↓.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="canary-game"><h3>게임 서버 Canary — 일부 매치만 신버전</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">일반 HTTP의 traffic-weighted canary는 게임 서버에 안 통함. 매치 단위로 분기해야. <strong>"이 매치는 v2 서버로, 저 매치는 v1로"</strong>.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>매치 단위 라우팅</h4><p>matchmaker가 GameServer 선택 시 <strong>label 기반 분기</strong>. Agones GameServerAllocation의 selector로 <code>version=v2</code> 5%, <code>version=v1</code> 95%. 사용자가 어느 버전에 가는지 매칭 시점 결정.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>코호트 sticky</h4><p>같은 사용자가 여러 매치 사이에서 다른 버전 받으면 혼란. <strong>user ID hash로 결정적 라우팅</strong> — 한 번 v2 받은 사용자는 계속 v2. 사용자 단위 코호트 분리.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-green)"></span>메트릭 격리</h4><p>v1 / v2 메트릭 분리 — crash rate, match completion rate, latency. <strong>버전 라벨로 Prometheus 시계열 분리</strong>. baseline 대비 회귀 자동 감지 + 자동 abort. Argo Rollouts의 AnalysisTemplate 패턴 차용 가능.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== REFERENCES ===== -->
+    <div class="tab-panel" id="panel-references">
+      <div class="panel-header"><div class="panel-badge badge-red">● References</div><h2>참고 자료</h2><p>이 가이드 작성에 참고한 공식 문서. <strong>2026-05 기준</strong>이며 정기 재확인 필요.</p></div>
+
+      <div class="sub" id="refs"><h3>공식 문서 · 모범 사례</h3>
+
+        <div style="margin-top:24px;">
+          <div class="ref-cat">Agones</div>
+          <ul class="ref-list">
+            <li><a href="https://agones.dev/site/docs/">Agones 공식 문서</a><div class="ref-desc">k8s 위 게임 서버 운영. GameServer / Fleet / Allocation CRD.</div></li>
+            <li><a href="https://agones.dev/site/docs/reference/gameserver/">GameServer Specification</a><div class="ref-desc">Ready / Allocated / Reserved / Shutdown 상태 머신.</div></li>
+            <li><a href="https://agones.dev/site/docs/guides/fleet-updates/">Fleet Updates 가이드</a><div class="ref-desc">Allocated GameServer 보호 + Ready만 rolling update.</div></li>
+            <li><a href="https://agones.dev/site/docs/advanced/controlling-disruption/">Controlling Disruption — Lobby 패턴</a><div class="ref-desc">긴 Allocated 세션의 graceful shutdown — 라벨 트리거 패턴.</div></li>
+            <li><a href="https://agones.dev/site/docs/guides/client-sdks/">Agones Client SDK</a><div class="ref-desc">SDK.Ready/Allocate/Shutdown/Health, 다양한 언어 지원.</div></li>
+          </ul>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="ref-cat">AWS GameLift</div>
+          <ul class="ref-list">
+            <li><a href="https://aws.amazon.com/gamelift/">AWS GameLift (공식)</a><div class="ref-desc">3가지 모델: Servers / FleetIQ / Anywhere. 23 region + 10 Local Zone.</div></li>
+            <li><a href="https://aws.amazon.com/gamelift/servers/pricing/fleetiq-pricing/">GameLift FleetIQ Pricing</a><div class="ref-desc">EC2 Spot 통합으로 90%까지 비용 절감.</div></li>
+            <li><a href="https://aws.amazon.com/blogs/aws/introducing-amazon-gamelift-anywhere-run-your-game-servers-on-your-own-infrastructure/">Introducing GameLift Anywhere</a><div class="ref-desc">2023 출시. 자체 인프라 + AWS 매치메이킹.</div></li>
+            <li><a href="https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/">FlexMatch Developer Guide</a><div class="ref-desc">JSON 기반 매치메이킹 룰, expansion (시간 따라 완화).</div></li>
+          </ul>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="ref-cat">Multiplay (Rocket Science Group)</div>
+          <ul class="ref-list">
+            <li><a href="https://docs.unity.com/ugs/en-us/manual/game-server-hosting/manual">Multiplay Game Server Hosting (공식)</a><div class="ref-desc"><strong>2026-03-31 Unity 직접 운영 종료</strong>, Rocket Science Group이 라이선스 인수.</div></li>
+          </ul>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="ref-cat">Open Match</div>
+          <ul class="ref-list">
+            <li><a href="https://open-match.dev/site/docs/">Open Match 공식 문서</a><div class="ref-desc">Google + Riot + Unity 협업 OSS 매치메이커. K8s + Redis + gRPC.</div></li>
+            <li><a href="https://github.com/googleforgames/open-match">Open Match GitHub</a><div class="ref-desc">소스 코드, Helm chart, 예시 매치 함수.</div></li>
+            <li><a href="https://cloud.google.com/blog/products/open-source/open-match-flexible-and-extensible-matchmaking-for-games">Open Match 발표 (Google Cloud Blog)</a><div class="ref-desc">설계 원칙, FrontendService / BackendService / Director 구조.</div></li>
+          </ul>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="ref-cat">진보적 배포</div>
+          <ul class="ref-list">
+            <li><a href="https://argo-rollouts.readthedocs.io/">Argo Rollouts 공식 문서</a><div class="ref-desc">일반 HTTP 백엔드 진보적 배포. AnalysisTemplate으로 자동 게이트.</div></li>
+            <li><a href="https://github.com/agones-dev/agones/issues/2549">Agones — Allocated GameServer Fleet update</a><div class="ref-desc">긴 매치/Lobby의 graceful drain 디자인 토론.</div></li>
+          </ul>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="ref-cat">버저닝 & 호환성</div>
+          <ul class="ref-list">
+            <li><a href="https://protobuf.dev/programming-guides/proto3/">Protocol Buffers — proto3</a><div class="ref-desc">backward-compatible 필드 추가, optional 기본 동작.</div></li>
+            <li><a href="https://google.aip.dev/180">Google AIP-180 — Backwards compatibility</a><div class="ref-desc">API 변경 호환성 가이드 — Google의 표준 룰.</div></li>
+          </ul>
+        </div>
+
+        <div class="note note-info" style="margin-top:32px;"><strong>★ 정기 재확인 필요</strong><br>매니지드 솔루션의 운영자 변경(Multiplay 사례)·가격 정책·기능 변동은 분기마다 재확인. <strong>Agones는 Google이 driving</strong>이라 안정적이지만 새 기능 출시 cadence 빠름. AWS GameLift도 지속 진화 — 새 region/모델 출시 시 적합도 재평가.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(tabId) {
+  document.querySelectorAll('.top-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tabId));
+}
+document.querySelectorAll('.sb-nav a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const t = a.dataset.tab, s = a.dataset.section;
+    switchTab(t);
+    document.querySelectorAll('.sb-nav a').forEach(x => x.classList.toggle('active', x === a));
+    setTimeout(() => document.getElementById(s)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  });
+});
+</script>
+</body>
+</html>

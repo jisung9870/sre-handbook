@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>모바일 게임 빌드 & CI/CD</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fb; --surface: #ffffff; --surface-2: #f0f2f5;
+    --sidebar-bg: #ffffff; --border: #e2e6eb; --border-strong: #d0d5dc;
+    --text: #1a1d23; --text-dim: #5c6370; --text-muted: #8b929e;
+    --c-speed: #0969b2; --c-speed-bg: #e8f4fd; --c-speed-border: #a2d2f5;
+    --c-stable: #8b5cf6; --c-stable-bg: #f3effe; --c-stable-border: #c4b5fd;
+    --c-green: #1a7f37; --c-green-bg: #ecf7ef; --c-green-border: #a6ddb5;
+    --c-orange: #c2600c; --c-orange-bg: #fef3eb; --c-orange-border: #f5cba7;
+    --c-red: #cf222e; --c-red-bg: #fdecea; --c-red-border: #f5a8a8;
+    --c-teal: #0e7c6b; --c-teal-bg: #e6f7f4; --c-teal-border: #8ed5c5;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 10px; --sidebar-w: 252px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-weight: 400; line-height: 1.75; }
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 28px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; box-shadow: 1px 0 8px rgba(0,0,0,0.03); }
+  .sidebar-brand { padding: 0 22px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand h1 em { font-style: normal; color: var(--c-speed); }
+  .sb-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px 6px; font-weight: 600; }
+  .sb-nav { list-style: none; }
+  .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 22px; color: var(--text-dim); text-decoration: none; font-size: 13px; transition: all 0.15s; border-left: 2.5px solid transparent; cursor: pointer; }
+  .sb-nav li a:hover { color: var(--text); background: var(--surface-2); }
+  .sb-nav li a.active { color: var(--text); background: var(--c-speed-bg); border-left-color: var(--c-speed); font-weight: 600; }
+  .sb-nav li a .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 18px 22px 0; border-top: 1px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-muted); line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
+
+  .main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+  .top-tabs { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .top-tab { flex: 1; padding: 15px 16px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-muted); border: none; background: none; cursor: pointer; position: relative; transition: all 0.2s; }
+  .top-tab:hover { color: var(--text); background: var(--surface-2); }
+  .top-tab::after { content: ''; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2.5px; border-radius: 2px; transition: all 0.25s; }
+  .top-tab.active { color: var(--text); }
+  .top-tab[data-tab="overview"].active { color: var(--c-teal); }
+  .top-tab[data-tab="overview"].active::after { background: var(--c-teal); left: 12%; right: 12%; }
+  .top-tab[data-tab="ios"].active { color: var(--c-speed); }
+  .top-tab[data-tab="ios"].active::after { background: var(--c-speed); left: 12%; right: 12%; }
+  .top-tab[data-tab="android"].active { color: var(--c-green); }
+  .top-tab[data-tab="android"].active::after { background: var(--c-green); left: 12%; right: 12%; }
+  .top-tab[data-tab="fastlane"].active { color: var(--c-stable); }
+  .top-tab[data-tab="fastlane"].active::after { background: var(--c-stable); left: 12%; right: 12%; }
+  .top-tab[data-tab="engine"].active { color: var(--c-orange); }
+  .top-tab[data-tab="engine"].active::after { background: var(--c-orange); left: 12%; right: 12%; }
+  .top-tab[data-tab="references"].active { color: var(--c-red); }
+  .top-tab[data-tab="references"].active::after { background: var(--c-red); left: 12%; right: 12%; }
+
+  .tab-panel { display: none; padding: 40px 52px 80px; max-width: 980px; }
+  .tab-panel.active { display: block; }
+  .panel-header { margin-bottom: 36px; }
+  .panel-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px; font-weight: 600; }
+  .badge-teal { color: var(--c-teal); background: var(--c-teal-bg); border: 1px solid var(--c-teal-border); }
+  .badge-speed { color: var(--c-speed); background: var(--c-speed-bg); border: 1px solid var(--c-speed-border); }
+  .badge-stable { color: var(--c-stable); background: var(--c-stable-bg); border: 1px solid var(--c-stable-border); }
+  .badge-green { color: var(--c-green); background: var(--c-green-bg); border: 1px solid var(--c-green-border); }
+  .badge-orange { color: var(--c-orange); background: var(--c-orange-bg); border: 1px solid var(--c-orange-border); }
+  .badge-red { color: var(--c-red); background: var(--c-red-bg); border: 1px solid var(--c-red-border); }
+  .panel-header h2 { font-size: 27px; font-weight: 700; margin-bottom: 8px; }
+  .panel-header p { color: var(--text-dim); font-size: 15px; max-width: 720px; line-height: 1.7; }
+  .sub { margin-top: 44px; scroll-margin-top: 72px; }
+  .sub h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+  .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+  .card h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card p { color: var(--text-dim); font-size: 13px; line-height: 1.65; }
+  .card code { font-family: 'JetBrains Mono', monospace; background: var(--c-green-bg); color: var(--c-green); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .card-full { grid-column: 1 / -1; }
+
+  .level-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .level-table th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 12px 16px; border-bottom: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+  .level-table td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: top; line-height: 1.55; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .level-table tr:hover td { background: var(--surface-2); }
+  .level-table td:first-child { font-weight: 700; }
+  .lvl-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+  .lvl-elite { color: var(--c-green); background: var(--c-green-bg); }
+  .lvl-high { color: var(--c-speed); background: var(--c-speed-bg); }
+  .lvl-medium { color: var(--c-orange); background: var(--c-orange-bg); }
+  .lvl-low { color: var(--c-red); background: var(--c-red-bg); }
+  .lvl-self { color: var(--c-teal); background: var(--c-teal-bg); }
+  .lvl-pub { color: var(--c-stable); background: var(--c-stable-bg); }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 140px; box-shadow: var(--shadow-sm); }
+  .flow-node h4 { font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 3px; font-weight: 700; }
+  .flow-node p { font-size: 11px; color: var(--text-dim); }
+  .flow-arrow { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 22px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-top: 16px; overflow-x: auto; box-shadow: var(--shadow-sm); }
+  .box-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .note { background: var(--c-green-bg); border-left: 3px solid var(--c-green); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .note strong { color: var(--c-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .note-warn { background: var(--c-orange-bg); border-left-color: var(--c-orange); }
+  .note-warn strong { color: var(--c-orange); }
+  .note-info { background: var(--c-speed-bg); border-left-color: var(--c-speed); }
+  .note-info strong { color: var(--c-speed); }
+
+  .gauge-row { display: flex; gap: 14px; margin: 20px 0; }
+  .gauge-item { flex: 1; text-align: center; }
+  .gauge-bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin-bottom: 8px; }
+  .gauge-fill { height: 100%; border-radius: 4px; }
+  .gauge-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+  .gauge-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .pipe-stage { padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; text-align: center; min-width: 110px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-left: -8px; }
+  .pipe-stage:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); margin-left: 0; }
+  .pipe-stage small { display: block; font-weight: 500; font-size: 9px; opacity: 0.8; margin-top: 2px; }
+
+  .code-block { background: #1e2530; color: #c9d1d9; padding: 18px 22px; border-radius: var(--radius); font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7; overflow-x: auto; margin: 14px 0; }
+  .code-block .cm { color: #8b949e; }
+  .code-block .kw { color: #ff7b72; }
+  .code-block .str { color: #a5d6ff; }
+  .code-block .fn { color: #d2a8ff; }
+  .code-block .num { color: #79c0ff; }
+
+  .ref-list { list-style: none; margin-top: 14px; }
+  .ref-list li { padding: 12px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; line-height: 1.6; }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list li a { color: var(--c-speed); text-decoration: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; }
+  .ref-list li a:hover { text-decoration: underline; }
+  .ref-list li .ref-desc { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  .ref-cat { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-teal); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; padding: 3px 10px; background: var(--c-teal-bg); border-radius: 12px; display: inline-block; margin-right: 8px; }
+
+  .mobile-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 18px; cursor: pointer; box-shadow: var(--shadow-md); }
+  @media (max-width: 768px) {
+    .mobile-toggle { display: block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .tab-panel { padding: 32px 20px 60px; }
+    .cg, .cg3 { grid-template-columns: 1fr; }
+    .top-tab { font-size: 10px; padding: 12px 6px; }
+    .gauge-row { flex-wrap: wrap; }
+    .pipeline { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="label">Mobile Build</div><h1><em>Mobile Game</em><br>Build & CI/CD</h1></div>
+    <div class="sb-label">개요</div>
+    <ul class="sb-nav">
+      <li><a data-tab="overview" data-section="why-different" class="active"><span class="dot" style="background:var(--c-teal)"></span>모바일 게임 빌드의 특수성</a></li>
+      <li><a data-tab="overview" data-section="ci-tools-compare"><span class="dot" style="background:var(--c-teal)"></span>CI 도구 비교</a></li>
+      <li><a data-tab="overview" data-section="pipeline-stages"><span class="dot" style="background:var(--c-teal)"></span>표준 파이프라인 단계</a></li>
+    </ul>
+    <div class="sb-label">iOS 빌드</div>
+    <ul class="sb-nav">
+      <li><a data-tab="ios" data-section="ios-essentials"><span class="dot" style="background:var(--c-speed)"></span>iOS 빌드 필수 요소</a></li>
+      <li><a data-tab="ios" data-section="cert-provisioning"><span class="dot" style="background:var(--c-speed)"></span>인증서 / 프로파일 관리</a></li>
+      <li><a data-tab="ios" data-section="xcode-cloud"><span class="dot" style="background:var(--c-speed)"></span>Xcode Cloud</a></li>
+      <li><a data-tab="ios" data-section="testflight"><span class="dot" style="background:var(--c-speed)"></span>TestFlight 배포</a></li>
+      <li><a data-tab="ios" data-section="asc-api"><span class="dot" style="background:var(--c-speed)"></span>App Store Connect API</a></li>
+    </ul>
+    <div class="sb-label">Android 빌드</div>
+    <ul class="sb-nav">
+      <li><a data-tab="android" data-section="android-essentials"><span class="dot" style="background:var(--c-green)"></span>Android 빌드 필수 요소</a></li>
+      <li><a data-tab="android" data-section="play-app-signing"><span class="dot" style="background:var(--c-green)"></span>Play App Signing</a></li>
+      <li><a data-tab="android" data-section="aab-vs-apk"><span class="dot" style="background:var(--c-green)"></span>AAB vs APK</a></li>
+      <li><a data-tab="android" data-section="play-tracks"><span class="dot" style="background:var(--c-green)"></span>Play Console Tracks</a></li>
+      <li><a data-tab="android" data-section="play-api"><span class="dot" style="background:var(--c-green)"></span>Play Developer API</a></li>
+    </ul>
+    <div class="sb-label">Fastlane & 자동화</div>
+    <ul class="sb-nav">
+      <li><a data-tab="fastlane" data-section="fastlane-basics"><span class="dot" style="background:var(--c-stable)"></span>Fastlane 핵심</a></li>
+      <li><a data-tab="fastlane" data-section="match-pattern"><span class="dot" style="background:var(--c-stable)"></span>match — 인증서 자동화</a></li>
+      <li><a data-tab="fastlane" data-section="lane-patterns"><span class="dot" style="background:var(--c-stable)"></span>lane 패턴</a></li>
+      <li><a data-tab="fastlane" data-section="ci-secrets"><span class="dot" style="background:var(--c-stable)"></span>CI 시크릿 관리</a></li>
+    </ul>
+    <div class="sb-label">엔진 빌드</div>
+    <ul class="sb-nav">
+      <li><a data-tab="engine" data-section="unity-pipeline"><span class="dot" style="background:var(--c-orange)"></span>Unity 빌드 파이프라인</a></li>
+      <li><a data-tab="engine" data-section="il2cpp"><span class="dot" style="background:var(--c-orange)"></span>IL2CPP 최적화</a></li>
+      <li><a data-tab="engine" data-section="addressables-build"><span class="dot" style="background:var(--c-orange)"></span>Addressables 빌드</a></li>
+      <li><a data-tab="engine" data-section="unreal-pipeline"><span class="dot" style="background:var(--c-orange)"></span>Unreal Build Pipeline</a></li>
+      <li><a data-tab="engine" data-section="build-cache"><span class="dot" style="background:var(--c-orange)"></span>빌드 캐싱</a></li>
+    </ul>
+    <div class="sb-label">참고 자료</div>
+    <ul class="sb-nav">
+      <li><a data-tab="references" data-section="refs"><span class="dot" style="background:var(--c-red)"></span>공식 문서 · 모범 사례</a></li>
+    </ul>
+    <div class="sidebar-footer"><p>Build artifacts are<br>code, certs, assets,<br>and signing — all four.</p></div>
+  </aside>
+
+  <div class="main">
+    <div class="top-tabs">
+      <button class="top-tab active" data-tab="overview" onclick="switchTab('overview')">● 개요</button>
+      <button class="top-tab" data-tab="ios" onclick="switchTab('ios')">● iOS</button>
+      <button class="top-tab" data-tab="android" onclick="switchTab('android')">● Android</button>
+      <button class="top-tab" data-tab="fastlane" onclick="switchTab('fastlane')">● Fastlane</button>
+      <button class="top-tab" data-tab="engine" onclick="switchTab('engine')">● 엔진</button>
+      <button class="top-tab" data-tab="references" onclick="switchTab('references')">● 참고 자료</button>
+    </div>
+
+    <!-- ===== OVERVIEW ===== -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="panel-header"><div class="panel-badge badge-teal">● Overview</div><h2>모바일 게임 빌드의 특수성</h2><p>모바일 게임 빌드는 일반 모바일 앱과 다르고, 일반 모바일 앱 빌드는 웹 빌드와 다르다. 큰 산출물·플랫폼별 사이닝·스토어 정책·엔진 빌드 시간이 모든 의사결정의 제약이다. <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--c-teal);">2026-05 기준</span></p></div>
+
+      <div class="sub" id="why-different"><h3>왜 일반 앱 빌드와 다른가</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>① 산출물 크기</h4><p>일반 앱: 수십 MB. 모바일 게임: <strong>수백 MB ~ 수 GB</strong>. AAA급 게임은 압축 후에도 4~10GB. 빌드 시간·CI 비용·아티팩트 저장 비용이 비례 증가.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>② 빌드 시간</h4><p>일반 앱(Swift/Kotlin): 1~5분. 모바일 게임(Unity/Unreal): <strong>30분 ~ 2시간</strong>. IL2CPP·셰이더 컴파일·에셋 import가 주범. 캐싱·증분 빌드가 필수.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>③ 플랫폼별 사이닝</h4><p>iOS: Apple Developer 인증서 + provisioning profile + (App Store) notarization. Android: Play App Signing + upload key. <strong>잘못 사이닝하면 스토어 거부</strong> — 빌드 자동화의 가장 흔한 실패 지점.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-teal)"></span>④ 에셋 파이프라인</h4><p>코드뿐 아니라 <strong>에셋(텍스처·모델·사운드)</strong>도 빌드 산출물의 일부. Unity는 Library/, Unreal은 Cooked/에 변환된 에셋. 일반 앱에서 보지 못하는 빌드 단계.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ 운영 함의</strong><br>모바일 게임 CI는 <strong>일반 모바일 앱 CI 도구만으로는 부족</strong>한 경우가 많다. Bitrise/Codemagic은 모바일 앱에 특화, EAS Build는 RN/Expo 특화. 큰 게임 프로젝트는 <strong>Unity Build Automation 또는 자체 GitHub Actions + 큰 self-hosted runner</strong> 조합이 일반적.</div>
+      </div>
+
+      <div class="sub" id="ci-tools-compare"><h3>모바일 게임 CI 도구 비교 (2026-05)</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">모바일 빌드 가능한 도구는 다양하지만, 게임 빌드에 적합한 건 일부. macOS 러너(iOS 빌드 필수)와 큰 RAM/CPU(Unity/Unreal 빌드)가 핵심 요건.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>도구</th><th>강점</th><th>가격 (2026-05)</th><th>게임 적합도</th></tr></thead>
+            <tbody>
+              <tr><td>Xcode Cloud</td><td>Apple 공식, Apple Dev Program 포함</td><td>25h 무료/월, 100h $49.99, 1000h $399.99</td><td><span class="lvl-badge lvl-medium">iOS만 → 한정</span></td></tr>
+              <tr><td>Bitrise</td><td>모바일 특화, macOS/Linux 둘 다, 큰 step 라이브러리</td><td>$36/월~ (Pro 250 builds/월)</td><td><span class="lvl-badge lvl-high">중소 게임 OK</span></td></tr>
+              <tr><td>Codemagic</td><td>Flutter/RN 특화, M2 빌드 빠름, 단순 가격</td><td>$3,990/년 (M2 무제한)</td><td><span class="lvl-badge lvl-medium">하이브리드 게임</span></td></tr>
+              <tr><td>EAS Build (Expo)</td><td>RN/Expo 표준, OTA 통합</td><td>30 builds/월 무료, $29/seat 무제한</td><td><span class="lvl-badge lvl-medium">RN 게임</span></td></tr>
+              <tr><td>Unity Build Automation</td><td>Unity 전용, 에셋 import 빠름</td><td>25GB+200/100/100 min 무료, $0.14/GB 추가</td><td><span class="lvl-badge lvl-elite">Unity 게임 1순위</span></td></tr>
+              <tr><td>GitHub Actions self-hosted</td><td>큰 RAM/CPU 가능, 비용 통제</td><td>인프라 비용만</td><td><span class="lvl-badge lvl-elite">큰 프로젝트 1순위</span></td></tr>
+              <tr><td>GitHub Actions hosted (macOS)</td><td>설정 즉시</td><td>분당 $0.08 (macOS, private)</td><td><span class="lvl-badge lvl-low">큰 게임 비용 폭발</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-warn"><strong>⚠ macOS 러너 비용</strong><br>iOS 빌드는 macOS 필수. GitHub Actions hosted macOS는 분당 $0.08 — 1시간 빌드 = $4.8. 일 50회 빌드면 월 $7,200. 게임 프로젝트는 <strong>self-hosted Mac mini 또는 Mac Studio 한두 대</strong>로 손익분기점이 빠르다 (월 50,000분 이상부터).</div>
+      </div>
+
+      <div class="sub" id="pipeline-stages"><h3>표준 파이프라인 단계</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">모바일 게임 빌드 파이프라인은 일반 앱 대비 단계가 많다. 각 단계가 5~20분 — 단계 분리 + 캐싱이 wall clock time을 결정.</p>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-teal-bg);color:var(--c-teal);">Checkout<small>~30s</small></div>
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed);">Asset Import<small>~5min</small></div>
+          <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable);">Compile/Cook<small>~20min</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange);">Sign<small>~1min</small></div>
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green);">Test<small>~10min</small></div>
+          <div class="pipe-stage" style="background:var(--c-red-bg);color:var(--c-red);">Submit<small>~5min</small></div>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>① Asset Import (Unity)</h4><p>Unity는 첫 빌드 시 <code>Library/</code> 디렉토리 생성 — 텍스처 압축, 셰이더 컴파일, 메시 변환. <strong>한 번 만들면 캐싱 가능</strong>. CI 러너 간 공유하면 5분 → 30초.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>② Compile / Cook</h4><p>가장 긴 단계. Unity IL2CPP는 C# → C++ → 네이티브 코드. Unreal "cooking"은 에셋 → 플랫폼 native 형식. <strong>증분 빌드 + 분산 컴파일</strong>로 줄임.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>③ Sign</h4><p>iOS: provisioning profile + 인증서로 서명. Android: AAB sign. <strong>실패 시 build 자체 실패</strong>. CI 시크릿 관리 + match 패턴(Fastlane).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>④ Test</h4><p>유닛 테스트 + 디바이스 팜에서 실행 테스트. Firebase Test Lab(Android), Xcode 시뮬레이터(iOS). 모든 디바이스 매트릭스 돌리면 시간 폭발 — 핵심 디바이스만.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-red)"></span>⑤ Submit</h4><p>App Store Connect API / Play Developer API로 업로드. <strong>심사 트리거는 별도</strong> — 자동으로 release 안 함, internal/alpha track으로 우선. 심사 거부 시 자동 실패 처리.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== iOS ===== -->
+    <div class="tab-panel" id="panel-ios">
+      <div class="panel-header"><div class="panel-badge badge-speed">● iOS Build</div><h2>iOS 빌드 — 인증서 지옥에서 살아남기</h2><p>iOS 빌드의 90% 사고는 인증서 / 프로파일 / 사이닝 관련. macOS 러너 + Xcode + 인증서 자동화가 핵심. 2026-04-28부터 iOS 26 SDK + Xcode 26 빌드 의무.</p></div>
+
+      <div class="sub" id="ios-essentials"><h3>iOS 빌드 필수 요소</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>① Apple Developer Program</h4><p>$99/년 (개인) 또는 $299/년 (Enterprise). App Store 배포는 일반 Program. <strong>Enterprise는 사내 배포 전용</strong>으로 App Store 사용 불가.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>② Xcode + macOS</h4><p>iOS 빌드는 macOS 필수. <strong>2026-04-28부터 Xcode 26 + iOS 26 SDK</strong>로 빌드 의무. CI 러너의 Xcode/macOS 버전을 정기 업데이트.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>③ 인증서 (Certificates)</h4><p><strong>Development</strong>: 개발 디바이스 설치용. <strong>Distribution</strong>: App Store / Ad Hoc / Enterprise. Distribution 인증서는 1개만 두는 게 권장 (분실 시 모든 빌드 영향).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>④ Provisioning Profile</h4><p>인증서 + Bundle ID + Device(개발용) + Capability를 묶음. 만료 1년. <strong>App Store 배포용 profile은 Bundle ID당 1개</strong>. 자동 갱신 도구 필수.</p></div>
+        </div>
+        <div class="note note-warn"><strong>⚠ 인증서 분실의 비용</strong><br>Distribution 인증서를 분실하면 새 인증서를 만들어야 하고, 그 인증서로 만든 새 빌드만 App Store에 업로드 가능. <strong>이전 빌드 hotfix가 어려워진다</strong>. 인증서 .p12 파일을 안전한 곳에 백업 + 사이닝 파워는 최소 인원만.</div>
+      </div>
+
+      <div class="sub" id="cert-provisioning"><h3>인증서 / 프로파일 관리 — 자동화 패턴</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">모든 개발자 머신과 CI에 인증서를 수동 설치하는 건 운영 지옥. <strong>git 저장소에 암호화된 인증서를 두고 자동 동기화</strong>하는 패턴이 표준 (Fastlane match).</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>전통 방식 — 수동</h4><p>Apple Developer Portal에서 인증서/프로파일 생성 → 다운로드 → 각 머신에 설치. <strong>인원이 늘면 동기화 불가능</strong>. 한 사람이 인증서 갱신하면 다른 사람들 빌드 깨짐.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>현대 방식 — match (Fastlane)</h4><p>인증서/프로파일을 <strong>git private repo에 암호화 저장</strong>. <code>fastlane match</code>으로 동기화. 새 사람도 <code>match development</code> 한 번이면 환경 셋업 완료.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-speed)"></span>현대 방식 + ASC API — 더 진보</h4><p>App Store Connect API로 인증서/프로파일을 <strong>코드로 생성·갱신</strong>. <code>fastlane match</code>는 ASC API를 backed로 사용하므로 (1) 인증서 만료 자동 갱신, (2) 새 device 자동 등록, (3) 사람의 Apple ID 인증 불필요.</p></div>
+        </div>
+        <div class="box" style="margin-top:16px;">
+          <div class="box-title">match — git 기반 인증서 동기화</div>
+          <pre class="code-block"><span class="cm"># Matchfile</span>
+<span class="fn">git_url</span>(<span class="str">"git@github.com:myorg/ios-certificates.git"</span>)
+<span class="fn">storage_mode</span>(<span class="str">"git"</span>)
+<span class="fn">type</span>(<span class="str">"appstore"</span>)
+<span class="fn">app_identifier</span>([<span class="str">"com.example.game"</span>])
+<span class="fn">api_key_path</span>(<span class="str">"./asc-api-key.json"</span>)
+
+<span class="cm"># 새 머신 / CI에서 한 번만 실행</span>
+<span class="cm"># 1) 인증서 + 프로파일 다운로드 (없으면 자동 생성)</span>
+<span class="cm"># 2) keychain에 import</span>
+<span class="cm"># 3) Xcode가 자동 인식</span>
+$ fastlane match appstore --readonly</pre>
+        </div>
+        <div class="note"><strong>♥ 보안 — match 암호</strong><br>match는 git repo에 인증서를 암호화 저장한다. <code>MATCH_PASSWORD</code> 환경 변수를 시크릿으로 관리. <strong>이 password가 유출되면 인증서 통째로 노출</strong>. CI는 OIDC + Vault에서 받아 쓰고, 사람은 1Password 같은 manager로.</div>
+      </div>
+
+      <div class="sub" id="xcode-cloud"><h3>Xcode Cloud — Apple 공식 CI</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Apple이 직접 운영하는 CI/CD. Xcode 안에서 설정, GitHub/Bitbucket/GitLab 연동, TestFlight 자동 배포. <strong>인증서/프로파일 자동 관리</strong>가 가장 큰 장점 — match 같은 도구 불필요.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>플랜</th><th>월 컴퓨트 시간</th><th>가격 (2026-05)</th></tr></thead>
+            <tbody>
+              <tr><td>Apple Developer Program 포함</td><td>25시간</td><td>무료 (Dev Program 회비 $99/년에 포함)</td></tr>
+              <tr><td>100시간</td><td>100시간</td><td>$49.99/월</td></tr>
+              <tr><td>250시간</td><td>250시간</td><td>$99.99/월</td></tr>
+              <tr><td>1,000시간</td><td>1,000시간</td><td>$399.99/월</td></tr>
+              <tr><td>10,000시간</td><td>10,000시간</td><td>$3,999.99/월</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>장점</h4><p>(1) 인증서/프로파일 완전 자동, (2) Xcode 통합 (push 시 자동 빌드), (3) TestFlight 자동 업로드, (4) Apple 인프라 최적화 — 빠른 macOS 러너.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>한계</h4><p>(1) iOS / macOS / tvOS / watchOS만, Android X, (2) 컴퓨트 시간 비싸짐 빠름 (1000h $399.99 = 시간당 $0.40), (3) <strong>Unity/Unreal 빌드 어려움</strong> — 보통 별도 단계로 빌드 후 Xcode 프로젝트만 Xcode Cloud로.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-speed)"></span>게임 적합도</h4><p>네이티브 iOS 게임(Swift/Objective-C)이라면 좋은 선택. <strong>Unity/Unreal 게임은 적합도 낮음</strong> — 엔진 빌드는 다른 CI(Unity Build Automation, self-hosted runner)에서, 마지막 archive/sign/upload만 Xcode Cloud로 분리하는 패턴은 가능.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="testflight"><h3>TestFlight — 베타 배포 표준</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">App Store 출시 전 베타 테스터에게 배포. 내부(Internal) + 외부(External) 두 그룹. 내부는 즉시, 외부는 짧은 검토(보통 24시간 이내).</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>Internal Testing</h4><p>App Store Connect 팀 멤버 최대 100명. <strong>Apple 검토 없이 즉시</strong> 배포. 일일 빌드를 자동으로 internal로 push하는 게 표준 워크플로우.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>External Testing</h4><p>외부 테스터 최대 10,000명. 첫 빌드는 Beta App Review 필수 (보통 24시간 이내, 내용 변경 없으면 이후 빌드는 fast-track).</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-speed)"></span>운영 패턴 — daily / nightly / canary</h4><p><strong>Daily build</strong>: main branch push → 자동 internal 배포. 개발팀이 즉시 검증.<br><strong>Weekly external</strong>: 안정화된 빌드만 external group에. 외부 테스터 피드백 수집.<br><strong>Pre-release canary</strong>: App Store 직전 빌드를 100% external에 우선 배포 → 1주 검증 → 문제 없으면 prod release.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="asc-api"><h3>App Store Connect API — 자동화의 핵심</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Apple ID + 2FA로 사람이 매번 로그인하는 시대는 끝났다. App Store Connect API Key는 토큰 기반 인증으로 <strong>완전 자동화 가능</strong>. CI에서 사람 개입 없이 빌드 → 업로드 → release까지.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>API Key 구성 요소</h4><p>(1) <strong>Key ID</strong>: 10자 알파벳/숫자, (2) <strong>Issuer ID</strong>: UUID 포맷, (3) <strong>Private Key</strong>: <code>.p8</code> 파일 — <strong>한 번만 다운로드 가능</strong>, 분실 시 재발급. CI 시크릿에 안전 저장.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-speed)"></span>최소 권한 원칙</h4><p>API Key는 role 단위 권한. <strong>Developer role</strong>로 notarytool, fastlane 인증 가능. Admin은 절대 금지 — 노출 시 영향 막대. 키마다 한 가지 용도로.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-speed)"></span>실전 — 자동화로 할 수 있는 것</h4><p>(1) <strong>빌드 업로드</strong>: <code>xcrun altool</code> 또는 <code>fastlane pilot</code>. (2) <strong>TestFlight 그룹 관리</strong>: 테스터 추가/제거, 빌드 알림. (3) <strong>App Store metadata</strong>: 설명, 스크린샷 업데이트. (4) <strong>Release 트리거</strong>: 검토 완료된 빌드 자동 release. (5) <strong>Notarization</strong>: macOS 게임 사전 검증.</p></div>
+        </div>
+        <div class="box" style="margin-top:16px;">
+          <div class="box-title">ASC API key를 fastlane에서 사용</div>
+          <pre class="code-block"><span class="cm"># asc-api-key.json (CI secret으로 관리)</span>
+{
+  <span class="str">"key_id"</span>: <span class="str">"ABC1234XYZ"</span>,
+  <span class="str">"issuer_id"</span>: <span class="str">"57246542-96fe-1a63-..."</span>,
+  <span class="str">"key"</span>: <span class="str">"-----BEGIN PRIVATE KEY-----\\n..."</span>,
+  <span class="str">"is_key_content_base64"</span>: <span class="kw">false</span>
+}
+
+<span class="cm"># Fastfile</span>
+<span class="kw">lane</span> :beta <span class="kw">do</span>
+  <span class="fn">app_store_connect_api_key</span>(
+    <span class="kw">key_filepath</span>: <span class="str">"./asc-api-key.json"</span>,
+    <span class="kw">in_house</span>: <span class="kw">false</span>
+  )
+  <span class="fn">build_app</span>(<span class="kw">scheme</span>: <span class="str">"GameApp"</span>)
+  <span class="fn">upload_to_testflight</span>
+<span class="kw">end</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ANDROID ===== -->
+    <div class="tab-panel" id="panel-android">
+      <div class="panel-header"><div class="panel-badge badge-green">● Android Build</div><h2>Android 빌드 — Play App Signing 시대</h2><p>Android 빌드는 iOS 대비 단순한 면이 있지만, 2021년 이후 모든 신규 앱이 <strong>Play App Signing 의무</strong>가 되며 keystore 관리 모델이 바뀌었다. AAB 형식, 다양한 track, Play Developer API.</p></div>
+
+      <div class="sub" id="android-essentials"><h3>Android 빌드 필수 요소</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>① Android Studio + Gradle</h4><p>Gradle이 빌드 시스템. <code>build.gradle</code>(또는 <code>build.gradle.kts</code>)에 의존성·signing·flavor 정의. 큰 프로젝트는 빌드 5~30분.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>② Keystore (Upload Key)</h4><p>Play App Signing 등록 후에는 <strong>upload key</strong>로 서명 → Play가 receive → Play의 app signing key로 재서명. <strong>upload key 분실 시 Google support 통해 reset 가능</strong> (이전엔 분실 = 앱 영원히 업데이트 불가).</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>③ Java/Kotlin → DEX</h4><p>Java/Kotlin 코드 → bytecode → <strong>D8/R8 컴파일러로 DEX</strong>. R8은 ProGuard 후신 — minify + obfuscate + optimize. 게임에선 Unity/Unreal이 자체 빌드 도구 사용해 이 단계 hidden.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>④ Multiple ABI</h4><p>Android는 <strong>arm64-v8a, armeabi-v7a, x86_64</strong> 등 여러 CPU 아키텍처. 각 ABI마다 네이티브 라이브러리 다름. AAB로 빌드 시 Play가 디바이스별로 자동 분배.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="play-app-signing"><h3>Play App Signing — 필수 가입</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">신규 앱은 <strong>Play App Signing 가입 의무</strong> (2021년 이후). 기존 앱도 점진 의무화. Google이 app signing key를 안전하게 관리, 개발자는 upload key만 사용.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>흐름</h4><p>(1) 개발자 → upload key로 AAB 서명 → Play 업로드. (2) Play가 upload signature 검증. (3) Play가 자체 app signing key로 재서명. (4) 사용자에게 Play app signing key로 서명된 APK 배포.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>Upload Key 요구사항</h4><p><strong>RSA 2048-bit 이상</strong>. <code>keytool</code>로 생성. 만료 25년 권장 (앱 수명보다 길게). <strong>분실 시 Google에 reset 요청</strong> 가능 — 이전엔 절대 불가능했음.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-green)"></span>장점 + 함정</h4><p><strong>장점:</strong> upload key 분실 가능, 키 회전 가능, Play가 디바이스별 최적화 APK 생성 (size ↓). <strong>함정:</strong> "사용자가 받는 APK는 개발자 keystore 시그니처가 아니다" — 다른 스토어(Galaxy Store, 화웨이 AppGallery, 자체 APK)에 같은 빌드를 못 올림. 멀티 스토어 운영 시 빌드 파이프라인 분기 필요.</p></div>
+        </div>
+        <div class="note note-warn"><strong>⚠ Galaxy Store / 화웨이 / Steam</strong><br>한국 시장은 Google Play 외에도 <strong>Galaxy Store(삼성)</strong>, <strong>One Store(KT/SKT/LG)</strong>가 있다. Play App Signing은 Google Play 전용 — 다른 스토어용은 자체 keystore로 별도 빌드. 빌드 파이프라인이 N개 스토어 × M개 ABI 조합으로 늘어남.</div>
+      </div>
+
+      <div class="sub" id="aab-vs-apk"><h3>AAB (Android App Bundle) vs APK</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">2021년 8월 이후 Play Store 신규 앱은 <strong>AAB 의무</strong>. APK 시대는 끝났다. AAB는 빌드 산출물이고, Play가 디바이스별로 최적화된 APK를 동적 생성.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>AAB의 본질</h4><p>"한 번 빌드, 디바이스별 최적화 APK 생성". 사용자 디바이스의 <strong>ABI / 화면 해상도 / 언어 / DPI</strong>에 맞는 리소스만 다운로드 → APK 사이즈 평균 15~50% 감소.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>Dynamic Feature Modules</h4><p>한 앱을 모듈로 쪼개 <strong>필요할 때 다운로드</strong>. 게임에서는 잘 안 씀 — 게임은 보통 한 덩어리. 단, 큰 게임의 <strong>language pack</strong>이나 <strong>고해상도 에셋</strong>은 dynamic feature로 분리 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>Play Asset Delivery</h4><p>큰 에셋(게임 데이터)을 <strong>install-time / fast-follow / on-demand</strong>로 분리. 150MB APK 한도 우회. 게임에서 가장 자주 쓰는 AAB 기능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>APK는 언제?</h4><p><strong>다른 스토어 배포</strong>(Galaxy Store, 직접 배포): APK 필요. AAB → APK 변환은 <code>bundletool</code>로. 단 Play App Signing 적용된 AAB는 그 키로 서명되므로 다른 스토어용은 별도 keystore로 빌드.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="play-tracks"><h3>Play Console Tracks — 단계별 출시</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Play Console은 4개 release track을 제공. <strong>internal → closed → open → production</strong>의 단계적 출시 패턴.</p>
+        <div class="box" style="padding:0;overflow:hidden;">
+          <table class="level-table">
+            <thead><tr><th>Track</th><th>대상</th><th>심사</th><th>적합 단계</th></tr></thead>
+            <tbody>
+              <tr><td>Internal Testing</td><td>최대 100명 (이메일)</td><td>없음 (몇 분)</td><td>일일 빌드, 사내 QA</td></tr>
+              <tr><td>Closed Testing (Alpha)</td><td>이메일 리스트 / Google 그룹</td><td>1차 심사 (수 시간 ~ 1일)</td><td>외부 베타 테스터</td></tr>
+              <tr><td>Open Testing (Beta)</td><td>opt-in 누구나</td><td>심사 완료 (1일~)</td><td>대규모 베타 (소프트 런칭)</td></tr>
+              <tr><td>Production</td><td>모든 사용자</td><td>완전 심사</td><td>정식 배포</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>Staged Rollout</h4><p>Production track도 100% 즉시 배포 안 함. <strong>1% → 5% → 20% → 50% → 100%</strong> 점진. 각 단계에서 crash rate 모니터 → 이상 시 halt + rollback. Play Console UI에서 staged rollout 설정 가능.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-green)"></span>Halt vs Rollback</h4><p><strong>Halt</strong>: 새 버전 분배 중단 (이미 받은 사용자는 그대로). <strong>Rollback</strong>: 이전 버전 신규 분배 — 단, 이미 받은 사용자는 새 버전 유지 (downgrade는 데이터 호환 문제). 새 신규 다운로드만 이전 버전.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="play-api"><h3>Play Developer API — 자동화</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Apple과 마찬가지로 자동 업로드/release/track 관리 가능. <strong>Service account JSON key</strong>로 인증, REST API 또는 fastlane <code>supply</code>으로 사용.</p>
+        <div class="box">
+          <div class="box-title">Play Developer API — 자동 internal track 업로드</div>
+          <pre class="code-block"><span class="cm"># Fastfile (supply 액션)</span>
+<span class="kw">lane</span> :beta_android <span class="kw">do</span>
+  <span class="fn">gradle</span>(<span class="kw">task</span>: <span class="str">"bundle"</span>, <span class="kw">build_type</span>: <span class="str">"Release"</span>)
+
+  <span class="fn">upload_to_play_store</span>(
+    <span class="kw">track</span>: <span class="str">"internal"</span>,                <span class="cm"># internal | alpha | beta | production</span>
+    <span class="kw">aab</span>: <span class="str">"app/build/outputs/bundle/release/app.aab"</span>,
+    <span class="kw">json_key</span>: <span class="str">"./play-service-account.json"</span>,
+    <span class="kw">skip_upload_apk</span>: <span class="kw">true</span>,           <span class="cm"># AAB 우선</span>
+    <span class="kw">release_status</span>: <span class="str">"completed"</span>          <span class="cm"># draft | inProgress | completed | halted</span>
+  )
+<span class="kw">end</span></pre>
+        </div>
+        <div class="note"><strong>♥ Service Account 보안</strong><br>Play Developer API 인증의 service account JSON key는 <strong>Apple ASC API key와 동일 수준의 시크릿</strong>. 분실 시 즉시 Google Cloud Console에서 disable + 새 key 발급. CI 시크릿에 저장, Vault/Secret Manager 권장.</div>
+      </div>
+    </div>
+
+    <!-- ===== FASTLANE ===== -->
+    <div class="tab-panel" id="panel-fastlane">
+      <div class="panel-header"><div class="panel-badge badge-stable">● Fastlane</div><h2>Fastlane — 모바일 빌드 자동화의 사실상 표준</h2><p>2014년부터 운영, 모바일 CI/CD의 사실상 표준. 인증서 관리(match), 빌드(gym/gradle), 업로드(pilot/supply), 메타데이터 관리(deliver/produce). Fastlane 없이 모바일 자동화는 어렵다.</p></div>
+
+      <div class="sub" id="fastlane-basics"><h3>Fastlane 핵심 — lane, action, plugin</h3>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Lane</h4><p>실행 단위. <code>fastlane beta</code>로 호출. <strong>lane은 action들의 시퀀스</strong>. 일반적으로 dev / beta / release 같은 단계별 lane 정의.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Action</h4><p>한 작업. <code>build_app</code>, <code>upload_to_testflight</code>, <code>match</code> 등 200+ built-in. 자체 action 정의 가능 (Ruby).</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-stable)"></span>Plugin</h4><p>community-contributed action. <code>fastlane add_plugin firebase_app_distribution</code>으로 추가. <strong>Firebase, AWS, Slack 등 외부 통합</strong> 대부분 plugin으로 제공.</p></div>
+        </div>
+        <div class="note note-info"><strong>★ Fastlane 2026 상태</strong><br>Fastlane은 여전히 활발히 유지보수 중. <strong>App Store Connect API를 backend로 사용</strong>하는 방향으로 점진 전환 — 사람의 Apple ID + 2FA 의존 줄임. 단 일부 메타데이터/스크린샷 업로드는 ASC API 미지원으로 여전히 spaceship(legacy iTunes Connect API) 사용.</div>
+      </div>
+
+      <div class="sub" id="match-pattern"><h3>match — 인증서/프로파일 git 동기화</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Fastlane의 가장 강력한 도구. <strong>인증서·프로파일을 git private repo에 암호화 저장</strong> → 모든 머신에서 동일 환경. 새 개발자 온보딩 5초.</p>
+        <div class="flow">
+          <div class="flow-node" style="background:var(--c-speed-bg);"><h4>1. Generate</h4><p>match가 ASC API로 cert/profile 생성</p></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node" style="background:var(--c-stable-bg);"><h4>2. Encrypt</h4><p>OpenSSL로 암호화</p></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node" style="background:var(--c-orange-bg);"><h4>3. Push</h4><p>git private repo 저장</p></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node" style="background:var(--c-green-bg);"><h4>4. Sync</h4><p>다른 머신에서 pull + decrypt</p></div>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>Storage 옵션</h4><p><strong>git</strong>: 가장 일반적, private repo. <strong>S3</strong>: AWS 환경, 더 빠름. <strong>Google Cloud Storage</strong>: GCP 환경. 어느 backend든 <code>MATCH_PASSWORD</code>로 암호화.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>readonly 모드 in CI</h4><p>CI는 <code>match --readonly</code>로 실행. 새 인증서 생성 안 함, 기존 것만 다운로드. <strong>실수로 CI가 새 인증서 만드는 사고 방지</strong>. 인증서 갱신은 사람 머신에서만.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="lane-patterns"><h3>Lane 패턴 — 표준 구성</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">실전에서 많이 쓰는 lane 구조. dev → beta → release의 단계별 lane + 플랫폼별 분리.</p>
+        <div class="box">
+          <div class="box-title">Fastfile — 표준 패턴</div>
+          <pre class="code-block"><span class="kw">platform</span> :ios <span class="kw">do</span>
+  <span class="kw">before_all do</span>
+    <span class="fn">setup_ci</span>                              <span class="cm"># CI 환경 자동 감지 + keychain 설정</span>
+    <span class="fn">app_store_connect_api_key</span>(
+      <span class="kw">key_filepath</span>: ENV[<span class="str">"ASC_API_KEY_PATH"</span>]
+    )
+  <span class="kw">end</span>
+
+  <span class="kw">desc</span> <span class="str">"개발용 빌드 (사내 배포)"</span>
+  <span class="kw">lane</span> :dev <span class="kw">do</span>
+    <span class="fn">match</span>(<span class="kw">type</span>: <span class="str">"adhoc"</span>, <span class="kw">readonly</span>: <span class="kw">true</span>)
+    <span class="fn">build_app</span>(<span class="kw">scheme</span>: <span class="str">"Game-Dev"</span>, <span class="kw">export_method</span>: <span class="str">"ad-hoc"</span>)
+    <span class="fn">firebase_app_distribution</span>(
+      <span class="kw">app</span>: <span class="str">"1:..."</span>,
+      <span class="kw">groups</span>: <span class="str">"qa-team"</span>
+    )
+  <span class="kw">end</span>
+
+  <span class="kw">desc</span> <span class="str">"TestFlight internal 배포"</span>
+  <span class="kw">lane</span> :beta <span class="kw">do</span>
+    <span class="fn">match</span>(<span class="kw">type</span>: <span class="str">"appstore"</span>, <span class="kw">readonly</span>: <span class="kw">true</span>)
+    <span class="fn">build_app</span>(<span class="kw">scheme</span>: <span class="str">"Game"</span>, <span class="kw">export_method</span>: <span class="str">"app-store"</span>)
+    <span class="fn">upload_to_testflight</span>(
+      <span class="kw">skip_waiting_for_build_processing</span>: <span class="kw">true</span>,
+      <span class="kw">groups</span>: [<span class="str">"Internal QA"</span>]
+    )
+  <span class="kw">end</span>
+
+  <span class="kw">desc</span> <span class="str">"App Store 제출"</span>
+  <span class="kw">lane</span> :release <span class="kw">do</span>
+    <span class="fn">match</span>(<span class="kw">type</span>: <span class="str">"appstore"</span>, <span class="kw">readonly</span>: <span class="kw">true</span>)
+    <span class="fn">build_app</span>(<span class="kw">scheme</span>: <span class="str">"Game"</span>)
+    <span class="fn">deliver</span>(
+      <span class="kw">submit_for_review</span>: <span class="kw">true</span>,
+      <span class="kw">automatic_release</span>: <span class="kw">false</span>,            <span class="cm"># 수동 release</span>
+      <span class="kw">force</span>: <span class="kw">true</span>
+    )
+  <span class="kw">end</span>
+<span class="kw">end</span>
+
+<span class="kw">platform</span> :android <span class="kw">do</span>
+  <span class="kw">lane</span> :beta <span class="kw">do</span>
+    <span class="fn">gradle</span>(<span class="kw">task</span>: <span class="str">"bundle"</span>, <span class="kw">build_type</span>: <span class="str">"Release"</span>)
+    <span class="fn">upload_to_play_store</span>(<span class="kw">track</span>: <span class="str">"internal"</span>, <span class="kw">aab</span>: <span class="str">"app/build/.../app.aab"</span>)
+  <span class="kw">end</span>
+<span class="kw">end</span></pre>
+        </div>
+      </div>
+
+      <div class="sub" id="ci-secrets"><h3>CI 시크릿 관리</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Fastlane은 시크릿을 많이 다룬다 — match password, ASC API key, Play service account, Firebase token. CI에서 이걸 어떻게 안전하게 주입할지가 보안 핵심.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>관리해야 할 시크릿</h4><p><code>MATCH_PASSWORD</code>, <code>FASTLANE_PASSWORD</code> (legacy), <code>ASC_API_KEY_*</code>, <code>PLAY_SERVICE_ACCOUNT_JSON</code>, <code>FIREBASE_TOKEN</code>, <code>SLACK_WEBHOOK</code>. 각각 다른 권한 범위로.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-stable)"></span>저장 위치</h4><p>(1) <strong>GitHub Secrets / GitLab CI variables</strong>: 가장 단순, repo 단위. (2) <strong>HashiCorp Vault</strong>: 큰 조직, 다양한 환경. (3) <strong>AWS Secrets Manager + OIDC</strong>: 정적 키 zero. CI가 OIDC로 인증.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-stable)"></span>회전 — 정기 / 사고 시</h4><p><strong>정기 회전</strong>: 분기마다 ASC API key, Play service account, match password 회전. <strong>사고 시</strong>: 시크릿 leak 의심 시 즉시 무효화. ASC API key는 Apple Dev Portal에서 즉시 revoke. <strong>회전 가능한 구조</strong>는 평소 검증 — 분기 회전 자동화로 검증 겸 운영.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ENGINE ===== -->
+    <div class="tab-panel" id="panel-engine">
+      <div class="panel-header"><div class="panel-badge badge-orange">● Engine Build</div><h2>Unity / Unreal 모바일 빌드</h2><p>엔진 빌드는 일반 모바일 앱과 별도의 세계. IL2CPP 컴파일, 에셋 import/cooking, Addressables/Pak 패키징. 빌드 시간 30분~2시간이 일반적, 캐싱이 곧 생산성.</p></div>
+
+      <div class="sub" id="unity-pipeline"><h3>Unity 빌드 파이프라인</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Unity의 모바일 빌드는 7단계 — Editor 시작 → Library 빌드 → Asset import → Script compile → IL2CPP 변환 → 네이티브 컴파일 → archive. 각 단계가 캐싱 대상.</p>
+        <div class="pipeline">
+          <div class="pipe-stage" style="background:var(--c-teal-bg);color:var(--c-teal);">Editor<small>2~5min<br>버전 매칭</small></div>
+          <div class="pipe-stage" style="background:var(--c-speed-bg);color:var(--c-speed);">Library<small>5~30min<br>asset import</small></div>
+          <div class="pipe-stage" style="background:var(--c-stable-bg);color:var(--c-stable);">Compile<small>3~10min<br>C# → DLL</small></div>
+          <div class="pipe-stage" style="background:var(--c-orange-bg);color:var(--c-orange);">IL2CPP<small>10~30min<br>C++ 변환</small></div>
+          <div class="pipe-stage" style="background:var(--c-green-bg);color:var(--c-green);">Native<small>5~20min<br>플랫폼 컴파일</small></div>
+          <div class="pipe-stage" style="background:var(--c-red-bg);color:var(--c-red);">Archive<small>1~5min<br>AAB/IPA</small></div>
+        </div>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Editor 자동화</h4><p>UI 없이 빌드 — <code>Unity -batchmode -nographics -executeMethod BuildScript.BuildAndroid</code>. <code>BuildScript.cs</code>에 빌드 로직. <strong>Unity 라이센스 활성화</strong>가 CI 첫 단계 — Personal/Plus/Pro/Enterprise.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Library 캐싱</h4><p><strong>가장 큰 빌드 시간 단축 효과</strong>. <code>Library/</code> 디렉토리를 CI 러너 간 공유. GitHub Actions <code>actions/cache</code>로 ~1GB 캐시. 매 빌드 5분 → 30초.</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-orange)"></span>Unity Build Automation (구 Cloud Build)</h4><p>Unity 공식 CI — Unity DevOps의 일부. <strong>2026-03-01 가격 정책 변경</strong>: 25GB 무료, Windows 200분/Mac 100분/Linux 100분 무료, 추가 $0.14/GB. <strong>asset import 캐싱이 자동</strong>이라 self-managed 대비 빌드 시간 절반. Unity 게임은 1순위 후보.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="il2cpp"><h3>IL2CPP 최적화 — 빌드 시간의 30%</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">IL2CPP(Intermediate Language to C++)는 Unity의 AOT 컴파일러. C# IL → C++ → 플랫폼 native 코드. 런타임 성능 좋지만 <strong>빌드 시간 길고 메모리 많이 씀</strong>.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Code Generation 옵션</h4><p>Player Settings에 <code>Faster runtime</code> vs <code>Faster (smaller) builds</code>. 후자는 <strong>빌드 시간 + 사이즈 최적화</strong>, 런타임 약간 느림. Dev / staging 빌드는 후자, prod는 전자 권장.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Storage — SSD 필수</h4><p>IL2CPP는 <strong>대량 read/write</strong>. HDD 사용 시 빌드 시간 2~5배. CI 러너는 NVMe SSD 권장. Mac mini M2/M3은 기본 SSD 충분.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>증분 빌드</h4><p>같은 빌드 디렉토리에 다시 빌드하면 IL2CPP가 변경된 부분만 재컴파일. <strong>CI에서는 보통 새 디렉토리 → 증분 안 됨</strong>. 캐싱 디렉토리 보존하면 증분 가능 — 다만 stale 위험 있어 정기적 clean build 필요.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Mono vs IL2CPP</h4><p>iOS는 <strong>IL2CPP 강제</strong>. Android는 선택 가능 — Mono는 빌드 빠르나 런타임 느리고 64-bit 제한. <strong>2026 기준 Android도 IL2CPP 표준</strong>이며 Mono는 빌드/디버그 환경 한정.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="addressables-build"><h3>Addressables 빌드 — 에셋 분리</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">큰 에셋(텍스처·모델·사운드)은 빌드에 박지 말고 별도 번들로 빌드 → CDN에 업로드. 클라는 첫 실행 시 다운로드 또는 on-demand. <strong>패치 사이클이 클라이언트 사이클과 분리</strong>되는 핵심 도구.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>빌드 흐름</h4><p>(1) <strong>Build Content</strong>: Addressable group → bundle 생성. (2) <strong>Catalog 생성</strong>: catalog.json (어떤 키가 어떤 번들에). (3) <strong>CDN 업로드</strong>: bundle + catalog. (4) <strong>Player Build</strong>: 클라 빌드는 catalog URL만 박고 빌드.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>CI에서</h4><p>Addressable build를 <strong>일반 빌드와 분리</strong>. Addressable이 변경된 PR만 별도 step에서 빌드 → CDN 업로드. 클라이언트 빌드는 catalog URL만 참조 (Remote Config로 catalog 버전 관리).</p></div>
+          <div class="card card-full"><h4><span class="dot" style="background:var(--c-orange)"></span>운영 — catalog 버전 관리</h4><p>여러 catalog 버전이 동시 운영 가능 (구 클라가 구 catalog 사용 중). <strong>강제 업데이트로 catalog 통합</strong> 또는 <strong>호환성 유지</strong> 둘 중 선택. 보통 메이저 패치는 새 catalog, 마이너는 기존 catalog에 변경 추가.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="unreal-pipeline"><h3>Unreal Build Pipeline</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">Unreal의 모바일 빌드는 Unity와 비슷한 구조 — 다만 더 복잡. <strong>Cooking + Packaging + Staging + Archiving</strong> 4단계 + UnrealBuildTool. AAA급 게임은 빌드 1~2시간이 일반.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>UnrealBuildTool (UBT)</h4><p>C++ 코드 빌드 매니저. 모듈 단위 컴파일, 헤더 의존성 관리. <strong>분산 컴파일</strong>(Incredibuild, FASTBuild) 지원 — 큰 팀에선 빌드 시간 1/4로.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Cooking</h4><p>에셋을 플랫폼 native 형식으로 변환. 텍스처 압축, 메시 최적화. iOS/Android 각각 별도 cooking — <strong>같은 에셋이 플랫폼별 다른 결과</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Pak / IO Store</h4><p>Cooked 에셋을 <strong>Pak 파일로 패키징</strong>. UE 5.x는 IO Store로 진화 — 더 효율적, 에셋 의존성 메타데이터 보유. delta 패치에 유리.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>BuildGraph</h4><p>Unreal 공식 빌드 자동화 도구. <strong>XML로 빌드 단계 정의</strong>, 분산 실행 가능. <code>RunUAT BuildGraph -script=path/to/Game.xml</code>. 큰 프로젝트 표준.</p></div>
+        </div>
+      </div>
+
+      <div class="sub" id="build-cache"><h3>빌드 캐싱 — 시간 단축의 핵심</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">엔진 빌드 30분~2시간을 2분으로 줄이는 가장 큰 lever. 캐싱 안 한 CI는 게임 프로젝트에서 비용·생산성 둘 다 잡아먹는다.</p>
+        <div class="cg">
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>캐시 대상</h4><p><strong>Unity</strong>: <code>Library/</code>, <code>Library/PackageCache/</code>, <code>Builds/</code> (증분). <strong>Unreal</strong>: <code>Intermediate/</code>, <code>DerivedDataCache/</code>, <code>Saved/</code>. <strong>플러그인</strong>: <code>Library/PackageCache/</code> 또는 <code>Plugins/</code>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>캐시 키 설계</h4><p><code>${{ hashFiles('**/*.cs', 'ProjectSettings/**') }}</code> — 코드/설정 변경 시에만 invalidate. 파일이 정말 영향을 미치는 것만 hash에 포함. <strong>Library/만 캐싱하면 90% hit rate 가능</strong>.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>분산 컴파일</h4><p><strong>Unreal</strong>: Incredibuild ($commercial), FASTBuild (OSS), Unreal Horde. C++ 컴파일을 여러 머신에 분산 → 빌드 시간 1/4. <strong>Unity</strong>: 분산 컴파일 도구는 적음, 대신 캐싱이 핵심.</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--c-orange)"></span>Self-hosted runner의 이점</h4><p>큰 게임 프로젝트는 <strong>self-hosted runner의 로컬 캐시</strong>가 hosted runner의 네트워크 캐시보다 빠름. Mac Studio/PC 한 대에 SSD 1TB + 8GB+ RAM이 일반적.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== REFERENCES ===== -->
+    <div class="tab-panel" id="panel-references">
+      <div class="panel-header"><div class="panel-badge badge-red">● References</div><h2>참고 자료</h2><p>이 가이드 작성에 참고한 공식 문서·정책. 변동 정보(가격·정책·SDK 요구사항)는 <strong>2026-05 기준</strong>이며 정기 재확인 필요.</p></div>
+
+      <div class="sub" id="refs"><h3>공식 문서 · 모범 사례</h3>
+
+        <div style="margin-top:24px;">
+          <div class="ref-cat">Apple iOS</div>
+          <ul class="ref-list">
+            <li><a href="https://developer.apple.com/xcode-cloud/">Xcode Cloud (공식)</a><div class="ref-desc">Apple Dev Program 25h/월 무료, 100h $49.99~10000h $3,999.99. 가격은 2026-05 기준.</div></li>
+            <li><a href="https://developer.apple.com/news/upcoming-requirements/">Apple Developer — Upcoming Requirements</a><div class="ref-desc">2026-04-28 Xcode 26 + iOS 26 SDK 빌드 의무. 정기 재확인 권장.</div></li>
+            <li><a href="https://developer.apple.com/documentation/appstoreconnectapi/creating-api-keys-for-app-store-connect-api">App Store Connect API Keys (공식)</a><div class="ref-desc">Key ID, Issuer ID, .p8 private key. Developer role로 notarytool/fastlane 인증 가능.</div></li>
+            <li><a href="https://developer.apple.com/documentation/notaryapi">Apple Notary API (공식)</a><div class="ref-desc">macOS 게임 사전 검증, App Store Connect API key로 인증.</div></li>
+          </ul>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="ref-cat">Google Android</div>
+          <ul class="ref-list">
+            <li><a href="https://support.google.com/googleplay/android-developer/answer/9842756">Play App Signing (공식)</a><div class="ref-desc">2048-bit RSA upload key, app signing key는 Google이 보관. upload key reset 가능.</div></li>
+            <li><a href="https://developer.android.com/guide/playcore/in-app-updates">Android In-App Updates (Play Core)</a><div class="ref-desc">Flexible/Immediate update flow. iOS와 달리 Google이 직접 API 제공.</div></li>
+            <li><a href="https://developer.android.com/guide/app-bundle">Android App Bundle (공식)</a><div class="ref-desc">2021-08 이후 신규 앱 AAB 의무, Dynamic Feature Modules, Play Asset Delivery.</div></li>
+          </ul>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="ref-cat">CI 도구 (2026-05 가격)</div>
+          <ul class="ref-list">
+            <li><a href="https://bitrise.io/pricing">Bitrise Pricing</a><div class="ref-desc">$36/월~ (yearly), Pro 250 builds/월. 모바일 특화.</div></li>
+            <li><a href="https://codemagic.io/pricing/">Codemagic Pricing</a><div class="ref-desc">$3,990/년 unlimited M2 build. Flutter/RN 특화.</div></li>
+            <li><a href="https://expo.dev/pricing">Expo EAS Pricing</a><div class="ref-desc">30 builds/월 무료, $29/seat 무제한. EAS Updates 통합.</div></li>
+            <li><a href="https://support.unity.com/hc/en-us/articles/34748492914964">Unity DevOps 2026-03 가격 변경</a><div class="ref-desc">25GB + Windows 200min/Mac 100min/Linux 100min 무료. $0.14/GB 추가.</div></li>
+          </ul>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="ref-cat">Fastlane</div>
+          <ul class="ref-list">
+            <li><a href="https://docs.fastlane.tools/">Fastlane 공식 문서</a><div class="ref-desc">match (인증서 동기화), lane / action / plugin 패턴.</div></li>
+            <li><a href="https://docs.fastlane.tools/app-store-connect-api/">Fastlane — Using App Store Connect API</a><div class="ref-desc">Apple ID + 2FA 의존 줄이기. ASC API key로 자동화.</div></li>
+            <li><a href="https://docs.fastlane.tools/actions/match/">Fastlane match (공식)</a><div class="ref-desc">git-backed 인증서 동기화 패턴.</div></li>
+          </ul>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="ref-cat">엔진 빌드</div>
+          <ul class="ref-list">
+            <li><a href="https://docs.unity3d.com/Manual/IL2CPP.html">Unity IL2CPP (공식)</a><div class="ref-desc">AOT 컴파일러, 빌드 시간 vs 런타임 성능 트레이드오프.</div></li>
+            <li><a href="https://docs.unity.com/ugs/manual/devops/manual/build-automation/getting-started">Unity Build Automation (공식)</a><div class="ref-desc">Unity DevOps의 일부. asset import 캐싱 자동.</div></li>
+            <li><a href="https://docs.unity3d.com/Packages/com.unity.addressables@latest">Unity Addressables (공식)</a><div class="ref-desc">에셋 번들 빌드 분리, CDN 배포, catalog 관리.</div></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/buildgraph-script-anatomy-in-unreal-engine">Unreal BuildGraph (공식)</a><div class="ref-desc">Unreal 공식 빌드 자동화. XML 정의 + 분산 실행.</div></li>
+          </ul>
+        </div>
+
+        <div class="note note-info" style="margin-top:32px;"><strong>★ 정기 재확인 필요</strong><br>SDK 요구사항(매년 업데이트), 가격 정책(분기별 변동 가능), Play App Signing/Store 정책은 빠르게 변한다. 분기마다 위 링크 1차 점검. 특히 <strong>iOS SDK 강제 업데이트 일정 (2026-04-28)</strong>은 빌드 환경 전체 마이그레이션 필요.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(tabId) {
+  document.querySelectorAll('.top-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tabId));
+}
+document.querySelectorAll('.sb-nav a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const t = a.dataset.tab, s = a.dataset.section;
+    switchTab(t);
+    document.querySelectorAll('.sb-nav a').forEach(x => x.classList.toggle('active', x === a));
+    setTimeout(() => document.getElementById(s)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  });
+});
+</script>
+</body>
+</html>
