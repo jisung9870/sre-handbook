@@ -80,6 +80,15 @@ categories:
       - iac-gitops-deep-dive
       - service-mesh-istio
 
+  - id: devops-practices
+    label: DevOps 실천
+    icon: Workflow
+    color: indigo
+    docs:
+      - cicd-pipeline-deep-dive
+      - progressive-delivery-strategies
+      - devsecops-shift-left
+
   - id: culture-cost
     label: 문화 & 비용
     icon: Users

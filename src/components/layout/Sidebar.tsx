@@ -14,6 +14,7 @@ import {
   Container,
   Gamepad2,
   Joystick,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -41,6 +42,7 @@ const iconMap: Record<string, LucideIcon> = {
   Container,
   Gamepad2,
   Joystick,
+  Workflow,
 };
 
 function loadCollapsed(): Record<string, boolean> {

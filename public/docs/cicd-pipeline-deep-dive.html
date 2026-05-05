@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CI/CD Pipeline Deep Dive — DevOps Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--indigo);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--indigo)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--ibg);border-left-color:var(--indigo);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="design"].on{color:var(--indigo)}.T[data-t="design"].on::after{background:var(--indigo);left:8%;right:8%}
+.T[data-t="gha"].on{color:var(--blue)}.T[data-t="gha"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="other"].on{color:var(--purple)}.T[data-t="other"].on::after{background:var(--purple);left:8%;right:8%}
+.T[data-t="cache"].on{color:var(--orange)}.T[data-t="cache"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="ops"].on{color:var(--teal)}.T[data-t="ops"].on::after{background:var(--teal);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-i{color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">DevOps Practice</div><h1><em>CI/CD</em><br>Pipeline Deep Dive</h1></div>
+  <div class="sl">파이프라인 설계</div>
+  <ul class="sn">
+    <li><a data-t="design" data-s="stage-decomp" class="on"><span class="d" style="background:var(--indigo)"></span>Stage 분해</a></li>
+    <li><a data-t="design" data-s="dag-vs-seq"><span class="d" style="background:var(--indigo)"></span>DAG vs Sequential</a></li>
+    <li><a data-t="design" data-s="fan-pattern"><span class="d" style="background:var(--indigo)"></span>Fan-in/out 패턴</a></li>
+    <li><a data-t="design" data-s="matrix-build"><span class="d" style="background:var(--indigo)"></span>Matrix 빌드</a></li>
+    <li><a data-t="design" data-s="pac"><span class="d" style="background:var(--indigo)"></span>Pipeline-as-Code</a></li>
+  </ul>
+  <div class="sl">GitHub Actions</div>
+  <ul class="sn">
+    <li><a data-t="gha" data-s="reusable"><span class="d" style="background:var(--blue)"></span>Reusable Workflow</a></li>
+    <li><a data-t="gha" data-s="composite"><span class="d" style="background:var(--blue)"></span>Composite Action</a></li>
+    <li><a data-t="gha" data-s="matrix-adv"><span class="d" style="background:var(--blue)"></span>Matrix 고급</a></li>
+    <li><a data-t="gha" data-s="oidc"><span class="d" style="background:var(--blue)"></span>OIDC 클라우드 인증</a></li>
+    <li><a data-t="gha" data-s="self-hosted"><span class="d" style="background:var(--blue)"></span>Self-hosted Runner</a></li>
+  </ul>
+  <div class="sl">Jenkins / GitLab</div>
+  <ul class="sn">
+    <li><a data-t="other" data-s="jenkins-decl"><span class="d" style="background:var(--purple)"></span>Jenkins Declarative</a></li>
+    <li><a data-t="other" data-s="shared-lib"><span class="d" style="background:var(--purple)"></span>Shared Library</a></li>
+    <li><a data-t="other" data-s="gitlab-ci"><span class="d" style="background:var(--purple)"></span>GitLab CI 핵심</a></li>
+    <li><a data-t="other" data-s="tool-compare"><span class="d" style="background:var(--purple)"></span>도구 비교</a></li>
+  </ul>
+  <div class="sl">빌드 가속</div>
+  <ul class="sn">
+    <li><a data-t="cache" data-s="layer-cache"><span class="d" style="background:var(--orange)"></span>레이어 캐싱</a></li>
+    <li><a data-t="cache" data-s="buildkit"><span class="d" style="background:var(--orange)"></span>BuildKit</a></li>
+    <li><a data-t="cache" data-s="remote-cache"><span class="d" style="background:var(--orange)"></span>분산 캐시</a></li>
+    <li><a data-t="cache" data-s="test-impact"><span class="d" style="background:var(--orange)"></span>Test Impact Analysis</a></li>
+  </ul>
+  <div class="sl">파이프라인 운영</div>
+  <ul class="sn">
+    <li><a data-t="ops" data-s="flaky"><span class="d" style="background:var(--teal)"></span>Flaky Test 대응</a></li>
+    <li><a data-t="ops" data-s="quality-gate"><span class="d" style="background:var(--teal)"></span>품질 게이트</a></li>
+    <li><a data-t="ops" data-s="ci-obs"><span class="d" style="background:var(--teal)"></span>CI 관측성</a></li>
+    <li><a data-t="ops" data-s="ci-cost"><span class="d" style="background:var(--teal)"></span>CI 비용 최적화</a></li>
+  </ul>
+  <div class="S-f"><p>Pipelines are<br>products too.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="design" onclick="sw('design')">● 설계</button>
+    <button class="T" data-t="gha" onclick="sw('gha')">● GitHub Actions</button>
+    <button class="T" data-t="other" onclick="sw('other')">● Jenkins/GitLab</button>
+    <button class="T" data-t="cache" onclick="sw('cache')">● 빌드 가속</button>
+    <button class="T" data-t="ops" onclick="sw('ops')">● 운영</button>
+  </div>
+
+  <!-- ===== DESIGN ===== -->
+  <div class="P on" id="p-design">
+    <div class="PH"><div class="bg bg-i">● Pipeline Design</div><h2>파이프라인 설계 원칙</h2><p>Stage 분해, DAG 구조, Fan-in/out, Matrix, Pipeline-as-Code — 빠르고 안전한 피드백 루프를 만드는 구조 설계.</p></div>
+
+    <div class="sec" id="stage-decomp">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Foundation</div>
+        <h3>Stage 분해 원칙</h3>
+        <div class="cs">commit → build → test → package → deploy — 각 단계의 책임과 종료 조건이 분명해야 한다</div>
+        <div class="cp">파이프라인은 <strong>"실패가 빠를수록 좋다(fail fast)"</strong>는 원칙으로 설계한다. 비싼 검증(E2E, 통합 테스트, 보안 스캔)은 싼 검증(lint, unit test) 뒤로 미룬다. 각 stage의 종료 조건(exit criteria)이 명확하지 않으면 "어디서 실패했는지" 추적이 어려워진다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">표준 Stage 구성</div><div class="v"><div class="fm">1. Validate    (5초)   — lint, format, commit-msg
+2. Build       (30초)  — compile, type-check
+3. Unit Test   (1분)   — 단위 테스트 + 커버리지
+4. Package     (1분)   — Docker 이미지, 아티팩트
+5. Integration (3분)   — 컴포넌트 통합 테스트
+6. E2E         (5분)   — 전체 시나리오 (PR에서는 선택)
+7. Deploy      (2분)   — staging/canary 배포
+8. Smoke       (30초)  — 배포 후 health check</div><strong>핵심:</strong> 앞 단계 실패 시 뒤 단계 실행 안 함. 90% 이상의 실패는 앞 4단계에서 잡혀야 한다</div></div>
+          <div class="db"><div class="l">Stage 종료 조건</div><div class="v">각 stage는 <strong>"이 단계를 통과한다"가 무엇을 의미하는가</strong>를 명시:<br><br><code>build</code>: 컴파일 성공 + 산출물 검증<br><code>unit-test</code>: 모든 테스트 통과 + 커버리지 ≥ 80%<br><code>package</code>: 이미지 빌드 + 서명 + SBOM 생성<br><code>integration</code>: 외부 의존성과 연동 검증<br><br><strong>안티패턴:</strong> "테스트가 일부 실패해도 일단 진행" — 한 번 허용하면 항상 깨진 상태로 굳는다</div></div>
+          <div class="db df"><div class="l">실행 모델: PR vs Merge vs Release</div><div class="v"><strong>PR 파이프라인 (5분 이내):</strong> validate + build + unit + integration. E2E는 선택적<br><strong>Merge 파이프라인 (10분 이내):</strong> 위 + E2E + 보안 스캔 + staging 배포 + smoke<br><strong>Release 파이프라인 (수동 승인):</strong> 위 + canary → 점진적 prod 롤아웃 + 모니터링 대기<br><br>같은 파이프라인을 모든 트리거에 쓰지 말 것. <strong>피드백 속도</strong>와 <strong>검증 깊이</strong>의 트레이드오프를 트리거별로 다르게 설정해야 개발자가 PR에서 5분 내에 결과를 받을 수 있다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="dag-vs-seq">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Topology</div>
+        <h3>DAG vs Sequential — 의존성으로 모델링하라</h3>
+        <div class="cs">stage → stage 직렬 실행은 단순하지만 느리다. 의존 그래프(DAG)는 병렬도를 극대화한다</div>
+        <div class="cp">전통적인 CI는 stage가 직렬로 흐른다(Jenkins의 기본 모델). 하지만 <strong>대부분의 stage는 서로 독립적</strong>이다 — lint와 type-check는 동시에 돌아도 된다. DAG로 표현하면 wall clock time이 줄어든다.</div>
+        <div class="cg">
+          <div class="cd"><h4>Sequential (전통)</h4><p>build → test → deploy 순서로 직렬. 단순하지만 wall clock = sum(stages). lint(5s) + unit(60s) + e2e(180s) = <code>245s</code>.<br><br><strong>적합:</strong> 단순한 프로젝트, 의존 관계가 직선적인 경우</p></div>
+          <div class="cd"><h4>DAG (의존 그래프)</h4><p>각 job이 <code>needs:</code>로 선행 의존만 명시. 독립 job은 자동 병렬. <code>build → [unit, lint, sec-scan] → e2e → deploy</code>: max path = <code>~110s</code>.<br><br><strong>적합:</strong> 복잡한 빌드, 다수의 독립 검증이 있는 경우</p></div>
+          <div class="cd cf"><h4>실전 패턴: 의존성 그래프 그리기</h4><p>"이 job은 무엇이 끝나야 시작할 수 있나?" 만 답하면 된다. <code>e2e</code>는 <code>package</code>가 끝나야 시작 — <code>unit</code> 결과는 필요 없음. <code>deploy</code>는 <code>e2e</code>와 <code>sec-scan</code> 둘 다 통과해야 — fan-in.</p></div>
+        </div>
+        <div class="bx"><div class="bx-t">GitHub Actions DAG 예시</div><div class="co"><span class="k">jobs</span>:
+  <span class="f">build</span>:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">steps</span>: [<span class="s">checkout</span>, <span class="s">setup</span>, <span class="s">build</span>]
+
+  <span class="f">unit</span>:
+    <span class="k">needs</span>: build
+    <span class="k">steps</span>: [<span class="s">test --unit</span>]
+
+  <span class="f">lint</span>:
+    <span class="k">needs</span>: build       <span class="c"># build와 병렬 시작 가능 (build의 산출물만 필요)</span>
+    <span class="k">steps</span>: [<span class="s">eslint</span>]
+
+  <span class="f">sec-scan</span>:
+    <span class="k">needs</span>: build
+    <span class="k">steps</span>: [<span class="s">trivy</span>, <span class="s">semgrep</span>]
+
+  <span class="f">e2e</span>:
+    <span class="k">needs</span>: [unit, lint]    <span class="c"># fan-in: 둘 다 통과해야 시작</span>
+    <span class="k">steps</span>: [<span class="s">cypress</span>]
+
+  <span class="f">deploy</span>:
+    <span class="k">needs</span>: [e2e, sec-scan]
+    <span class="k">if</span>: github.ref == 'refs/heads/main'
+    <span class="k">steps</span>: [<span class="s">argocd sync</span>]</div></div>
+        <div class="nt o"><strong>WARN</strong> DAG의 함정: 너무 잘게 쪼개면 <strong>job 시작 오버헤드(러너 spin-up)</strong>가 누적되어 오히려 느려진다. 각 job은 최소 30초 이상의 작업을 가지도록 묶어라. GitHub Actions는 job당 평균 ~10초 startup 비용이 있다.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="fan-pattern">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Pattern</div>
+        <h3>Fan-out / Fan-in 패턴</h3>
+        <div class="cs">하나의 빌드 결과를 N개의 검증으로 분기(fan-out)하고, 모두 통과 시 다음 단계로 합치(fan-in)는 구조</div>
+        <div class="cp"><strong>Fan-out</strong>은 병렬화로 벽시계 시간을 줄인다. 단위 테스트를 4개 shard로 나누면 4배 빨라진다(이상적). <strong>Fan-in</strong>은 합류 지점에서 "모든 분기가 성공"을 강제한다 — 한 분기라도 실패하면 다음 단계 진입을 막는다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Fan-out: Test Sharding</div><div class="v"><div class="fm">jobs:
+  test:
+    strategy:
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - run: pytest --shard=${{ matrix.shard }}/4</div>4개 러너에 테스트를 분산. <strong>주의:</strong> 테스트가 독립적이어야 함. 공유 DB/파일을 쓰는 테스트는 sharding 시 race 발생</div></div>
+          <div class="db"><div class="l">Fan-in: 합류 게이트</div><div class="v"><div class="fm">deploy:
+  needs: [test, lint, sec-scan, e2e]
+  if: ${{ !contains(needs.*.result, 'failure') }}
+  steps:
+    - run: ./deploy.sh</div>4개 분기가 모두 성공해야 deploy 진입. <code>needs.*.result</code>로 모든 분기 상태 확인. <strong>한 분기가 skip되면?</strong> <code>contains(needs.*.result, 'skipped')</code>로 따로 처리</div></div>
+          <div class="db df"><div class="l">실전: 다이아몬드 패턴</div><div class="v"><div class="fm">      build
+     /  |  \
+   unit lint sec
+     \  |  /
+       e2e
+        |
+     deploy</div><strong>장점:</strong> 의존성 명시 + 자동 병렬화 + 명시적 합류점<br><strong>주의사항:</strong><br>1. Fan-out 분기에 공유 자원(DB, port) 쓰지 말 것 — 각 분기가 isolated 환경 가져야 함<br>2. Fan-in 시 부분 성공 허용 여부 명확히 — 보안 스캔은 warning이어도 통과? 정책으로 명시<br>3. 분기 수 ≥ 8개면 비용 검토 — 러너 비용은 분기 수에 비례한다</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="matrix-build">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Strategy</div>
+        <h3>Matrix 빌드 — 다차원 검증</h3>
+        <div class="cs">{OS, 언어 버전, DB 버전} 등 여러 차원을 곱해 모든 조합을 검증한다</div>
+        <div class="cp">라이브러리/CLI/오픈소스 도구는 <strong>여러 환경에서의 호환성</strong>이 핵심 가치다. Matrix 빌드는 cartesian product로 모든 조합을 자동 생성한다. 단, 조합 수가 폭발하므로 <strong>include/exclude</strong>로 핵심 조합만 골라야 한다.</div>
+        <div class="bx"><div class="bx-t">Matrix with include/exclude</div><div class="co"><span class="k">strategy</span>:
+  <span class="k">fail-fast</span>: <span class="n">false</span>          <span class="c"># 한 조합 실패해도 다른 조합은 계속</span>
+  <span class="k">matrix</span>:
+    <span class="k">os</span>: [ubuntu-latest, macos-latest, windows-latest]
+    <span class="k">node</span>: [<span class="s">'18'</span>, <span class="s">'20'</span>, <span class="s">'22'</span>]
+    <span class="k">include</span>:                <span class="c"># 추가 조합 (메인 매트릭스 외)</span>
+      - <span class="k">os</span>: ubuntu-latest
+        <span class="k">node</span>: <span class="s">'22'</span>
+        <span class="k">experimental</span>: <span class="n">true</span>     <span class="c"># 실험 플래그 추가</span>
+    <span class="k">exclude</span>:                <span class="c"># 제외할 조합 (지원 X)</span>
+      - <span class="k">os</span>: windows-latest
+        <span class="k">node</span>: <span class="s">'18'</span>          <span class="c"># node 18 + windows는 빌드 깨짐</span></div></div>
+        <div class="dt">
+          <div class="db"><div class="l">조합 수 관리</div><div class="v">3 OS × 3 Node × 2 DB = <strong>18 jobs</strong>. 각 job 5분이면 90 머신·분.<br><br><strong>전략:</strong> PR에서는 핵심 조합 3-4개만 (Linux + 최신 Node + Postgres). nightly에서 전체 매트릭스 실행. <code>fail-fast: false</code>는 매트릭스 빌드의 기본값이어야 — 한 조합만 깨졌는데 전체 멈추면 정보 손실</div></div>
+          <div class="db"><div class="l">Dynamic Matrix</div><div class="v">변경된 패키지만 테스트하는 동적 매트릭스:<div class="fm">jobs:
+  changes:
+    outputs:
+      pkgs: ${{ steps.f.outputs.pkgs }}
+    steps:
+      - id: f
+        run: |
+          PKGS=$(git diff --name-only HEAD^ \
+                 | grep -E '^pkg/' \
+                 | cut -d/ -f2 | sort -u \
+                 | jq -R . | jq -sc .)
+          echo "pkgs=$PKGS" >> $GITHUB_OUTPUT
+  test:
+    needs: changes
+    strategy:
+      matrix:
+        pkg: ${{ fromJson(needs.changes.outputs.pkgs) }}</div>모노레포에서 변경된 패키지만 테스트해 CI 시간 단축</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="pac">
+      <div class="con">
+        <div class="ct" style="color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)">Principle</div>
+        <h3>Pipeline-as-Code 원칙</h3>
+        <div class="cs">파이프라인 정의도 코드다. 코드 리뷰, 버저닝, 테스트의 대상이 되어야 한다</div>
+        <div class="cp">UI에서 클릭으로 만든 Jenkins job, 외부에 저장된 CircleCI 설정 — 이런 구성은 <strong>"누가 언제 무엇을 바꿨는지"</strong> 추적이 안 된다. 파이프라인 정의(<code>.github/workflows/*.yml</code>, <code>Jenkinsfile</code>, <code>.gitlab-ci.yml</code>)는 반드시 애플리케이션 코드와 같은 저장소에서 같은 PR로 변경되어야 한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">5가지 원칙</div><div class="v">1. <strong>코드와 같은 저장소</strong> — 파이프라인 변경이 애플리케이션 변경과 함께 PR로 검토<br>2. <strong>버저닝</strong> — 모든 변경은 git history로 추적 가능<br>3. <strong>테스트 가능</strong> — <code>act</code>(GHA), <code>gitlab-runner exec</code>로 로컬 검증<br>4. <strong>모듈화</strong> — 반복되는 패턴은 reusable workflow / shared library<br>5. <strong>리뷰 필수</strong> — <code>.github/workflows/*.yml</code> 변경은 CODEOWNERS로 보안팀 리뷰 강제</div></div>
+          <div class="db"><div class="l">위험 신호 — 안티패턴</div><div class="v"><strong>UI 클릭 설정:</strong> Jenkins Freestyle, GitHub Actions UI에서 환경변수 직접 입력<br><strong>외부 스크립트 의존:</strong> <code>curl https://example.com/script.sh | bash</code> — 변경 추적 불가<br><strong>Inline secret:</strong> 파이프라인 YAML에 토큰 평문 삽입<br><strong>여러 저장소에 분산된 정의:</strong> 한 서비스의 빌드 로직이 3곳에 흩어져 있음<br><br><strong>해법:</strong> 모든 파이프라인 정의는 git 저장소 안에. 외부 스크립트는 git submodule이나 vendor된 형태로</div></div>
+          <div class="db df"><div class="l">파이프라인 자체의 테스트</div><div class="v">파이프라인 yaml에 버그가 있으면 main branch가 빨갛게 된다. 다음으로 보호:<br><strong>1. Schema validation</strong> — <code>gh actions-validator</code>, <code>gitlab-ci-lint</code>로 PR에서 syntax 검증<br><strong>2. Dry-run</strong> — <code>act -n</code>으로 로컬 dry-run<br><strong>3. Branch protection</strong> — <code>.github/workflows/</code> 디렉토리는 별도 reviewer 필수 (CODEOWNERS)<br><strong>4. Canary on feature branch</strong> — 파이프라인 변경은 feature branch에서 충분히 돌려보고 main 머지<br><br>"파이프라인 yaml 한 줄 고치고 머지" 같은 PR도 일반 코드와 동일한 검토 절차 적용</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== GHA ===== -->
+  <div class="P" id="p-gha">
+    <div class="PH"><div class="bg bg-b">● GitHub Actions Deep Dive</div><h2>GitHub Actions 심화 패턴</h2><p>Reusable Workflow, Composite Action, Matrix 고급, OIDC 클라우드 인증, Self-hosted Runner — 대규모 조직에서 GHA를 안전·효율적으로 운영.</p></div>
+
+    <div class="sec" id="reusable">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Reuse</div>
+        <h3>Reusable Workflow vs Composite Action</h3>
+        <div class="cs">코드 중복을 줄이는 두 가지 메커니즘 — 차이를 알아야 올바르게 선택할 수 있다</div>
+        <div class="cp">한 조직에서 수십 개 저장소가 같은 빌드/테스트/배포 패턴을 쓴다면, 매번 yaml을 복제할 수 없다. GHA는 두 가지 재사용 메커니즘을 제공한다.</div>
+        <table class="tb">
+          <thead><tr><th>특징</th><th>Reusable Workflow</th><th>Composite Action</th></tr></thead>
+          <tbody>
+            <tr><td>위치</td><td>.github/workflows/*.yml</td><td>action.yml in repo or path</td></tr>
+            <tr><td>호출 방식</td><td>uses: org/repo/.github/workflows/x.yml@v1</td><td>uses: org/repo/path@v1</td></tr>
+            <tr><td>실행 단위</td><td>전체 job (러너 분리)</td><td>step들의 묶음 (호출자 러너 공유)</td></tr>
+            <tr><td>입력</td><td>inputs / secrets (named)</td><td>inputs (named)</td></tr>
+            <tr><td>출력</td><td>outputs (job-level)</td><td>outputs (step-level)</td></tr>
+            <tr><td>제약</td><td>최대 4단계 중첩</td><td>shell command 위주</td></tr>
+            <tr><td>적합한 상황</td><td>"빌드 → 테스트 → 배포" 같은 큰 흐름</td><td>"setup + cache 복원" 같은 작은 step 묶음</td></tr>
+          </tbody>
+        </table>
+        <div class="bx"><div class="bx-t">Reusable Workflow 호출</div><div class="co"><span class="c"># caller workflow</span>
+<span class="k">jobs</span>:
+  <span class="f">deploy</span>:
+    <span class="k">uses</span>: myorg/ci-templates/.github/workflows/deploy.yml@v2
+    <span class="k">with</span>:
+      <span class="k">env</span>: production
+      <span class="k">image</span>: ghcr.io/myorg/app:${{ github.sha }}
+    <span class="k">secrets</span>:
+      <span class="k">aws-role</span>: ${{ secrets.AWS_PROD_ROLE }}
+
+<span class="c"># reusable workflow 정의 (myorg/ci-templates)</span>
+<span class="k">on</span>:
+  <span class="k">workflow_call</span>:
+    <span class="k">inputs</span>:
+      <span class="k">env</span>: { <span class="k">type</span>: <span class="s">string</span>, <span class="k">required</span>: <span class="n">true</span> }
+      <span class="k">image</span>: { <span class="k">type</span>: <span class="s">string</span>, <span class="k">required</span>: <span class="n">true</span> }
+    <span class="k">secrets</span>:
+      <span class="k">aws-role</span>: { <span class="k">required</span>: <span class="n">true</span> }
+    <span class="k">outputs</span>:
+      <span class="k">url</span>:
+        <span class="k">value</span>: ${{ jobs.deploy.outputs.url }}</div></div>
+        <div class="nt g"><strong>TIP</strong> 버전 핀 <code>@v2</code> 또는 SHA <code>@abc123...</code>로 고정. <code>@main</code>은 절대 쓰지 말 것 — 외부 변경이 silent하게 파이프라인을 깨뜨린다. SHA pin은 보안적으로 가장 안전 (third-party action에 필수).</div>
+      </div>
+    </div>
+
+    <div class="sec" id="composite">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Action</div>
+        <h3>Composite Action — 작은 step 묶음</h3>
+        <div class="cs">setup + cache 복원 + 환경변수 설정 등 매번 반복되는 step 4-5개를 하나로 묶는 단위</div>
+        <div class="cp">Reusable Workflow가 "큰 흐름"이라면, Composite Action은 "자주 쓰는 step 묶음"이다. <code>actions/setup-node</code> 같은 marketplace action도 본질적으로 composite action이다.</div>
+        <div class="bx"><div class="bx-t">.github/actions/setup-app/action.yml</div><div class="co"><span class="k">name</span>: <span class="s">'Setup app environment'</span>
+<span class="k">description</span>: <span class="s">'Node setup + pnpm cache + env restore'</span>
+<span class="k">inputs</span>:
+  <span class="k">node-version</span>:
+    <span class="k">required</span>: <span class="n">true</span>
+    <span class="k">default</span>: <span class="s">'20'</span>
+<span class="k">outputs</span>:
+  <span class="k">cache-hit</span>:
+    <span class="k">value</span>: ${{ steps.cache.outputs.cache-hit }}
+<span class="k">runs</span>:
+  <span class="k">using</span>: <span class="s">'composite'</span>
+  <span class="k">steps</span>:
+    - <span class="k">uses</span>: actions/setup-node@v4
+      <span class="k">with</span>:
+        <span class="k">node-version</span>: ${{ inputs.node-version }}
+    - <span class="k">id</span>: cache
+      <span class="k">uses</span>: actions/cache@v4
+      <span class="k">with</span>:
+        <span class="k">path</span>: ~/.pnpm-store
+        <span class="k">key</span>: pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+    - <span class="k">shell</span>: bash
+      <span class="k">run</span>: corepack enable && pnpm install --frozen-lockfile</div></div>
+        <div class="nt"><strong>NOTE</strong> Composite action은 <code>shell:</code> 명시 필수 (Reusable Workflow와 다름). 호출자의 러너에서 실행되므로 별도 OS 지정 불가 — OS-specific 로직은 <code>if: runner.os == 'Linux'</code>로 분기.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="matrix-adv">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Advanced</div>
+        <h3>Matrix Strategy 고급</h3>
+        <div class="cs">동적 매트릭스, fail-fast 제어, max-parallel, continue-on-error 조합</div>
+        <div class="dt">
+          <div class="db"><div class="l">fail-fast 제어</div><div class="v"><strong>기본값 <code>true</code>:</strong> 한 조합 실패 시 다른 조합 즉시 중단 — 비용 절약, 정보 손실<br><strong>권장 <code>false</code>:</strong> 모든 조합 끝까지 실행 — 어떤 환경 조합에서 실패하는지 패턴 파악 가능<br><br><div class="fm">strategy:
+  fail-fast: false
+  max-parallel: 4   # 동시 실행 상한
+  matrix: { ... }</div><strong>max-parallel:</strong> 러너 비용 통제. 24개 조합을 한 번에 돌리면 러너 부족할 수 있음</div></div>
+          <div class="db"><div class="l">continue-on-error per matrix</div><div class="v">"실험적" 조합은 실패해도 전체 실패로 안 치고 싶을 때:<div class="fm">strategy:
+  matrix:
+    node: ['20', '22']
+    include:
+      - node: 'nightly'
+        experimental: true
+jobs:
+  test:
+    continue-on-error: ${{ matrix.experimental == true }}
+    steps: [...]</div>nightly Node에서 실패해도 PR 머지 가능. 알림은 별도로 받음</div></div>
+          <div class="db df"><div class="l">동적 매트릭스 — 변경 기반 sharding</div><div class="v">전체 테스트를 항상 다 돌리지 말고, 변경된 영역만:<div class="fm"># Stage 1: 변경 감지
+- id: changes
+  uses: dorny/paths-filter@v3
+  with:
+    filters: |
+      backend: 'services/backend/**'
+      frontend: 'apps/web/**'
+      docs: 'docs/**'
+
+# Stage 2: 동적 매트릭스 생성
+- id: matrix
+  run: |
+    SHARDS='[]'
+    [ "${{ steps.changes.outputs.backend }}" = "true" ] && SHARDS=$(echo "$SHARDS" | jq '. + ["backend"]')
+    [ "${{ steps.changes.outputs.frontend }}" = "true" ] && SHARDS=$(echo "$SHARDS" | jq '. + ["frontend"]')
+    echo "matrix=$SHARDS" >> $GITHUB_OUTPUT
+
+# Stage 3: 매트릭스 실행
+test:
+  strategy:
+    matrix:
+      area: ${{ fromJson(needs.matrix.outputs.matrix) }}</div>모노레포에서 PR당 평균 CI 시간 60% 단축 사례 흔함</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="oidc">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Security</div>
+        <h3>OIDC — 클라우드 인증의 정도(正道)</h3>
+        <div class="cs">정적 액세스 키를 secret에 박지 말 것. OIDC로 단기 토큰을 받아 써라</div>
+        <div class="cp">전통적 방식: AWS access key를 GitHub secret에 저장 → 매번 그 키로 인증. 문제는 (1) 키 유출 시 영구 권한 노출 (2) 키 회전 자동화 어려움 (3) 어떤 워크플로우가 무엇을 했는지 추적 어려움. <strong>OIDC는 이 모두를 해결</strong>한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">OIDC 동작 흐름</div><div class="v"><div class="fm">1. GHA workflow 시작 → GitHub OIDC provider가 JWT 발급
+2. JWT에 메타데이터 포함:
+   - repo: org/repo
+   - ref: refs/heads/main
+   - actor: user-name
+   - workflow: deploy.yml
+3. AWS STS에 JWT 제시 → AssumeRoleWithWebIdentity
+4. AWS는 IAM Role의 trust policy로 검증:
+   - issuer: token.actions.githubusercontent.com
+   - sub: repo:org/repo:ref:refs/heads/main
+5. 검증 통과 → 단기 자격증명 발급 (1시간)</div></div></div>
+          <div class="db"><div class="l">AWS 측 IAM Trust Policy</div><div class="v"><div class="fm">{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {
+      "Federated": "arn:aws:iam::ACCT:oidc-provider/token.actions.githubusercontent.com"
+    },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": {
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+      },
+      "StringLike": {
+        "token.actions.githubusercontent.com:sub":
+          "repo:myorg/myrepo:ref:refs/heads/main"
+      }
+    }
+  }]
+}</div><strong>핵심:</strong> <code>sub</code> 조건으로 어떤 repo의 어떤 branch만 이 Role을 쓸 수 있는지 제한. PR에서는 다른 read-only Role을 쓰도록 분리</div></div>
+          <div class="db df"><div class="l">GHA workflow 측</div><div class="v"><div class="fm">permissions:
+  id-token: write   # OIDC 토큰 요청 권한 (필수)
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::ACCT:role/gha-deploy-prod
+          aws-region: ap-northeast-2
+      - run: aws s3 sync ./dist s3://my-bucket/</div><strong>주의:</strong> <code>id-token: write</code> 권한이 없으면 OIDC 토큰을 못 받음. 워크플로우 또는 job 레벨에서 명시 필요. <strong>이걸로 정적 access key는 영원히 추방.</strong></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="self-hosted">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Runner</div>
+        <h3>Self-hosted Runner — 보안과 성능의 트레이드오프</h3>
+        <div class="cs">GitHub-hosted vs self-hosted — 언제 어떻게 쓸지의 기준</div>
+        <div class="cg">
+          <div class="cd"><h4>GitHub-hosted</h4><p>매번 깨끗한 VM에서 실행. <strong>장점:</strong> 격리, 관리 불필요. <strong>단점:</strong> 큰 빌드/큰 이미지 캐시 활용 어려움, 비용(분당 과금), 네트워크 격리 환경 접근 불가.</p></div>
+          <div class="cd"><h4>Self-hosted</h4><p>직접 운영하는 머신/k8s에서 실행. <strong>장점:</strong> 캐시 재사용, 사내망 접근, 큰 사양 가능, 비용 통제. <strong>단점:</strong> 보안 책임, 격리 깨질 위험, 운영 부담.</p></div>
+          <div class="cd cf"><h4>안전한 self-hosted 운영 5원칙</h4><p>1. <strong>Public repo에 절대 사용 금지</strong> — fork된 PR이 임의 코드 실행 가능<br>2. <strong>Ephemeral runner</strong> — 매 job마다 새 컨테이너/VM (ARC, runs-on cloud)<br>3. <strong>네트워크 분리</strong> — runner는 production 자원에 직접 접근 불가, 별도 deploy account 거침<br>4. <strong>Label로 격리</strong> — <code>runs-on: [self-hosted, prod-deploy]</code>로 워크로드별 분리<br>5. <strong>감사 로그</strong> — runner의 모든 실행 stdout/stderr 보관 (90일)</p></div>
+        </div>
+        <div class="bx"><div class="bx-t">ARC (Actions Runner Controller) — k8s 기반 ephemeral runner</div><div class="co"><span class="k">apiVersion</span>: actions.github.com/v1alpha1
+<span class="k">kind</span>: AutoscalingRunnerSet
+<span class="k">metadata</span>:
+  <span class="k">name</span>: prod-deploy-runners
+<span class="k">spec</span>:
+  <span class="k">runnerScaleSetName</span>: prod-deploy
+  <span class="k">githubConfigUrl</span>: https://github.com/myorg
+  <span class="k">minRunners</span>: <span class="n">1</span>
+  <span class="k">maxRunners</span>: <span class="n">10</span>
+  <span class="k">template</span>:
+    <span class="k">spec</span>:
+      <span class="k">containers</span>:
+      - <span class="k">name</span>: runner
+        <span class="k">image</span>: ghcr.io/actions/actions-runner:2.320.0
+        <span class="k">resources</span>:
+          <span class="k">limits</span>: { <span class="k">cpu</span>: <span class="s">"4"</span>, <span class="k">memory</span>: <span class="s">"8Gi"</span> }
+      <span class="k">serviceAccountName</span>: gha-prod-deploy   <span class="c"># IRSA로 AWS 권한</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OTHER ===== -->
+  <div class="P" id="p-other">
+    <div class="PH"><div class="bg bg-p">● Jenkins / GitLab CI</div><h2>다른 CI 도구 — Jenkins와 GitLab CI</h2><p>Jenkins Declarative Pipeline, Shared Library, GitLab CI rules/needs 패턴, 그리고 도구 간 비교 — 환경에 맞는 선택을 위한 지식.</p></div>
+
+    <div class="sec" id="jenkins-decl">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Jenkins</div>
+        <h3>Jenkins Declarative Pipeline 핵심</h3>
+        <div class="cs">Scripted vs Declarative — 신규 프로젝트는 Declarative만 쓸 것</div>
+        <div class="cp">Jenkins는 두 가지 파이프라인 문법을 지원한다. <strong>Scripted</strong>는 Groovy 코드(자유도 ↑, 검증 어려움), <strong>Declarative</strong>는 구조화된 DSL(검증 용이, 표준화). 모든 신규 파이프라인은 Declarative로 작성하고, Scripted 영역이 필요하면 <code>script {}</code> 블록 안에 격리한다.</div>
+        <div class="bx"><div class="bx-t">표준 Jenkinsfile 구조</div><div class="co"><span class="k">pipeline</span> {
+  <span class="k">agent</span> { <span class="k">label</span> <span class="s">'docker-builder'</span> }
+
+  <span class="k">options</span> {
+    <span class="f">timeout</span>(<span class="k">time</span>: <span class="n">30</span>, <span class="k">unit</span>: <span class="s">'MINUTES'</span>)
+    <span class="f">disableConcurrentBuilds</span>()
+    <span class="f">buildDiscarder</span>(<span class="f">logRotator</span>(<span class="k">numToKeepStr</span>: <span class="s">'30'</span>))
+  }
+
+  <span class="k">environment</span> {
+    <span class="n">REGISTRY</span> = <span class="s">'ghcr.io/myorg'</span>
+    <span class="n">VERSION</span> = <span class="s">"${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"</span>
+  }
+
+  <span class="k">stages</span> {
+    <span class="k">stage</span>(<span class="s">'Build'</span>) {
+      <span class="k">steps</span> { <span class="f">sh</span> <span class="s">'make build'</span> }
+    }
+    <span class="k">stage</span>(<span class="s">'Test'</span>) {
+      <span class="k">parallel</span> {
+        <span class="k">stage</span>(<span class="s">'Unit'</span>)        { <span class="k">steps</span> { <span class="f">sh</span> <span class="s">'make test-unit'</span> } }
+        <span class="k">stage</span>(<span class="s">'Integration'</span>) { <span class="k">steps</span> { <span class="f">sh</span> <span class="s">'make test-int'</span>  } }
+        <span class="k">stage</span>(<span class="s">'Lint'</span>)        { <span class="k">steps</span> { <span class="f">sh</span> <span class="s">'make lint'</span>       } }
+      }
+    }
+    <span class="k">stage</span>(<span class="s">'Deploy'</span>) {
+      <span class="k">when</span> { <span class="k">branch</span> <span class="s">'main'</span> }
+      <span class="k">steps</span> { <span class="f">sh</span> <span class="s">'./deploy.sh'</span> }
+    }
+  }
+
+  <span class="k">post</span> {
+    <span class="k">always</span>  { <span class="f">junit</span> <span class="s">'**/test-results.xml'</span> }
+    <span class="k">failure</span> { <span class="f">slackSend</span> <span class="k">channel</span>: <span class="s">'#ci'</span>, <span class="k">color</span>: <span class="s">'danger'</span>, <span class="k">message</span>: <span class="s">"Build failed: ${env.BUILD_URL}"</span> }
+  }
+}</div></div>
+        <div class="nt o"><strong>WARN</strong> Jenkins의 함정 — <code>plugins</code> 의존성 지옥. 플러그인 버전 불일치로 빌드가 silent하게 깨진다. 해법: Jenkins Configuration as Code(JCasC) + 플러그인 버전 매트릭스 고정 + 정기 업그레이드 윈도우.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="shared-lib">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Pattern</div>
+        <h3>Jenkins Shared Library</h3>
+        <div class="cs">조직 전체에서 재사용하는 파이프라인 로직을 별도 git repo로 분리</div>
+        <div class="cp">수십 개 서비스가 모두 비슷한 빌드/배포 패턴을 쓴다면, Jenkinsfile 복붙 대신 Shared Library를 쓴다. GHA의 Reusable Workflow와 같은 역할이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Shared Library 구조</div><div class="v"><div class="fm">my-jenkins-lib/
+├── vars/
+│   ├── deployToK8s.groovy      # @Library 호출자가 deployToK8s() 사용 가능
+│   └── buildDockerImage.groovy
+├── src/
+│   └── com/myorg/
+│       └── DeployHelper.groovy  # 클래스 정의
+└── resources/
+    └── templates/
+        └── deploy.yaml.tpl</div></div></div>
+          <div class="db"><div class="l">vars/deployToK8s.groovy</div><div class="v"><div class="fm">def call(Map config) {
+  assert config.image && config.namespace
+  sh """
+    helm upgrade --install ${config.app} ./chart \\
+      --namespace ${config.namespace} \\
+      --set image.repository=${config.image} \\
+      --wait --timeout 5m
+  """
+}</div>호출 측: <code>@Library('my-jenkins-lib@v3') _</code> 후 <code>deployToK8s(image: 'foo', namespace: 'prod')</code></div></div>
+          <div class="db df"><div class="l">버저닝 & 보안</div><div class="v"><strong>버전 핀:</strong> <code>@Library('lib@v3.2')</code>로 명시 — <code>@main</code>은 금지<br><strong>Trusted Library:</strong> 관리자가 Jenkins UI에서 등록한 라이브러리만 sandbox 우회 가능. 일반 사용자가 <code>@Library</code>로 임의 repo 불러오면 보안 검사<br><strong>변경 리뷰:</strong> Shared Library repo도 PR + 리뷰 필수. 한 번 버그 머지되면 모든 파이프라인이 깨진다</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="gitlab-ci">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">GitLab</div>
+        <h3>GitLab CI 핵심 — rules / needs / DAG</h3>
+        <div class="cs">GitLab은 stages 기반 직렬 + needs 기반 DAG의 하이브리드 모델</div>
+        <div class="cp">GitLab CI는 기본이 stages 직렬 모델이지만, <code>needs:</code>로 DAG 구성도 가능하다. <code>rules:</code>는 GHA의 <code>if:</code>에 해당하며, 이 둘을 능숙하게 다루는 게 GitLab CI의 핵심.</div>
+        <div class="bx"><div class="bx-t">.gitlab-ci.yml — 실전 패턴</div><div class="co"><span class="k">stages</span>: [build, test, deploy]
+
+<span class="k">workflow</span>:                       <span class="c"># 파이프라인 자체 실행 조건</span>
+  <span class="k">rules</span>:
+    - <span class="k">if</span>: $CI_PIPELINE_SOURCE == <span class="s">"merge_request_event"</span>
+    - <span class="k">if</span>: $CI_COMMIT_BRANCH == <span class="s">"main"</span>
+    - <span class="k">when</span>: never              <span class="c"># 그 외에는 파이프라인 안 돔</span>
+
+<span class="f">.template-test</span>: <span class="c"># YAML anchor 대용 — extends로 재사용</span>
+  <span class="k">stage</span>: test
+  <span class="k">image</span>: node:20
+  <span class="k">cache</span>:
+    <span class="k">key</span>: $CI_COMMIT_REF_SLUG
+    <span class="k">paths</span>: [.pnpm-store/]
+
+<span class="f">unit-test</span>:
+  <span class="k">extends</span>: .template-test
+  <span class="k">script</span>: pnpm test --unit
+  <span class="k">artifacts</span>:
+    <span class="k">reports</span>:
+      <span class="k">junit</span>: junit.xml          <span class="c"># MR에 자동 통합</span>
+      <span class="k">coverage_report</span>:
+        <span class="k">coverage_format</span>: cobertura
+        <span class="k">path</span>: coverage.xml
+
+<span class="f">e2e</span>:
+  <span class="k">stage</span>: test
+  <span class="k">needs</span>: [build]              <span class="c"># DAG: build만 끝나면 시작 (다른 test 안 기다림)</span>
+  <span class="k">script</span>: pnpm test:e2e
+  <span class="k">rules</span>:
+    - <span class="k">if</span>: $CI_PIPELINE_SOURCE == <span class="s">"merge_request_event"</span>
+      <span class="k">changes</span>: [<span class="s">'src/**/*'</span>, <span class="s">'tests/**/*'</span>]
+    - <span class="k">if</span>: $CI_COMMIT_BRANCH == <span class="s">"main"</span>
+
+<span class="f">deploy-prod</span>:
+  <span class="k">stage</span>: deploy
+  <span class="k">environment</span>: production
+  <span class="k">rules</span>:
+    - <span class="k">if</span>: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+      <span class="k">when</span>: manual           <span class="c"># 수동 승인 필요</span></div></div>
+        <div class="nt"><strong>NOTE</strong> GitLab의 <code>rules:</code>는 <code>only/except</code>의 후계자. 신규 프로젝트는 <code>rules:</code>만 쓸 것. <code>changes:</code>로 변경된 파일에 따라 job 실행 결정 — 모노레포에서 강력하다.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="tool-compare">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Compare</div>
+        <h3>도구 비교 — 무엇을 언제 쓸까</h3>
+        <table class="tb">
+          <thead><tr><th>축</th><th>GitHub Actions</th><th>GitLab CI</th><th>Jenkins</th></tr></thead>
+          <tbody>
+            <tr><td>설정 위치</td><td>repo 안 .github/workflows/</td><td>repo 안 .gitlab-ci.yml</td><td>repo + 서버 설정</td></tr>
+            <tr><td>러너 모델</td><td>SaaS hosted + self-hosted</td><td>SaaS hosted + self-hosted</td><td>주로 self-hosted</td></tr>
+            <tr><td>재사용 메커니즘</td><td>Reusable Workflow + Composite</td><td>extends + include</td><td>Shared Library</td></tr>
+            <tr><td>마켓플레이스</td><td>매우 풍부 (커뮤니티)</td><td>제한적</td><td>플러그인 (의존 지옥 위험)</td></tr>
+            <tr><td>OIDC 클라우드 인증</td><td>네이티브 지원</td><td>네이티브 지원</td><td>플러그인 필요</td></tr>
+            <tr><td>매니지드 비용</td><td>분당 과금 (private)</td><td>무료 분 + 과금</td><td>인프라 + 운영 인력</td></tr>
+            <tr><td>UI / 시각화</td><td>워크플로우 그래프</td><td>강력한 환경/배포 트래킹</td><td>Blue Ocean (deprecated 경향)</td></tr>
+            <tr><td>적합한 상황</td><td>GitHub 사용 조직, OSS</td><td>self-host 원하면서 GitLab 통합</td><td>레거시 환경, 복잡한 빌드 머신 통제</td></tr>
+          </tbody>
+        </table>
+        <div class="nt g"><strong>TIP</strong> 신규 프로젝트라면 GitHub Actions 또는 GitLab CI 중 하나. Jenkins는 <strong>이미 있는 자산이 많을 때</strong>만 유지 추천 — 신규 도입 비추. 모든 도구가 본질적으로 같은 개념(stage, job, condition, artifact)을 다루므로, 한 도구를 깊이 알면 다른 도구로 옮기기 어렵지 않다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CACHE ===== -->
+  <div class="P" id="p-cache">
+    <div class="PH"><div class="bg bg-o">● Build Cache & Speed</div><h2>빌드 캐싱 & 가속</h2><p>레이어 캐시, BuildKit, 분산 캐시(sccache, Bazel), Test Impact Analysis — CI 시간을 절반으로 줄이는 기법.</p></div>
+
+    <div class="sec" id="layer-cache">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Docker</div>
+        <h3>Docker 레이어 캐싱 — 가장 흔하고 가장 잘못 쓰이는 도구</h3>
+        <div class="cs">Dockerfile 순서가 잘못되면 캐시는 무용지물이다</div>
+        <div class="cp">Docker는 각 RUN/COPY/ADD 라인을 레이어로 캐싱한다. <strong>한 레이어가 변경되면 그 이후 모든 레이어 재실행</strong>이다. 따라서 "자주 변경되는 것"은 <strong>뒤로</strong> 가야 한다.</div>
+        <div class="cg">
+          <div class="cd"><h4>❌ 나쁜 순서</h4><p><code>COPY . .</code>를 먼저 하고 <code>RUN npm install</code>. 코드 한 줄만 바뀌어도 npm install이 재실행됨 — 매 빌드 3분 추가.</p><div class="co"><span class="k">FROM</span> node:20
+<span class="k">WORKDIR</span> /app
+<span class="k">COPY</span> . .
+<span class="k">RUN</span> npm install
+<span class="k">RUN</span> npm run build</div></div>
+          <div class="cd"><h4>✅ 좋은 순서</h4><p>의존성 파일만 먼저 복사 → install → 그 다음 코드 복사. 코드 변경 시 install 레이어 캐시 적중.</p><div class="co"><span class="k">FROM</span> node:20
+<span class="k">WORKDIR</span> /app
+<span class="k">COPY</span> package*.json ./
+<span class="k">RUN</span> npm ci
+<span class="k">COPY</span> . .
+<span class="k">RUN</span> npm run build</div></div>
+        </div>
+        <div class="bx"><div class="bx-t">Multi-stage build — 최종 이미지 슬림화</div><div class="co"><span class="c"># Stage 1: build — 큰 도구 포함</span>
+<span class="k">FROM</span> node:20 <span class="k">AS</span> build
+<span class="k">WORKDIR</span> /app
+<span class="k">COPY</span> package*.json ./
+<span class="k">RUN</span> npm ci
+<span class="k">COPY</span> . .
+<span class="k">RUN</span> npm run build && npm prune --production
+
+<span class="c"># Stage 2: runtime — 슬림 베이스 + 산출물만</span>
+<span class="k">FROM</span> node:20-slim
+<span class="k">WORKDIR</span> /app
+<span class="k">COPY</span> --from=build /app/dist ./dist
+<span class="k">COPY</span> --from=build /app/node_modules ./node_modules
+<span class="k">USER</span> node
+<span class="k">CMD</span> [<span class="s">"node"</span>, <span class="s">"dist/server.js"</span>]</div></div>
+        <div class="nt g"><strong>TIP</strong> <code>--mount=type=cache</code>(BuildKit)로 npm/apt 캐시를 레이어 밖에서 공유 — 이미지 크기 ↓ + 빌드 속도 ↑. <code>RUN --mount=type=cache,target=/root/.npm npm ci</code>처럼 사용.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="buildkit">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">BuildKit</div>
+        <h3>BuildKit — 차세대 Docker 빌더</h3>
+        <div class="cs">병렬 stage 빌드 + cache mount + secret mount + 외부 캐시 백엔드</div>
+        <div class="cp">BuildKit은 Docker 18.09부터 도입된 차세대 빌더. 레거시 builder 대비 (1) <strong>독립 stage 병렬 빌드</strong>, (2) <strong>cache mount</strong>(레이어 안 가는 캐시), (3) <strong>secret mount</strong>(빌드 시 secret 사용 후 이미지에 안 남음), (4) <strong>registry 기반 외부 캐시</strong> 등을 제공한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Cache Mount — 의존성 캐시</div><div class="v"><div class="fm"># syntax=docker/dockerfile:1.6
+FROM golang:1.22 AS build
+WORKDIR /app
+COPY go.* ./
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+COPY . .
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    go build -o /bin/app ./cmd/app</div>Go module과 build cache가 레이어 외부에 보존. 매 빌드마다 90% 캐시 히트</div></div>
+          <div class="db"><div class="l">Secret Mount — 안전한 빌드</div><div class="v"><div class="fm">RUN --mount=type=secret,id=npm_token \
+    NPM_TOKEN=$(cat /run/secrets/npm_token) \
+    npm install --legacy-peer-deps</div>호출:<div class="fm">DOCKER_BUILDKIT=1 docker build \
+  --secret id=npm_token,src=$HOME/.npm-token .</div>secret이 <strong>이미지 레이어에 절대 남지 않음</strong>. ENV로 넘기면 이미지 history에 남아 유출 위험</div></div>
+          <div class="db df"><div class="l">Registry 기반 외부 캐시 — CI에서 핵심</div><div class="v">CI 러너는 매번 새 머신이라 로컬 레이어 캐시가 없다. Registry에 캐시를 push/pull 하면 다른 러너에서도 활용 가능:<div class="fm">docker buildx build \
+  --cache-from=type=registry,ref=ghcr.io/myorg/app:cache \
+  --cache-to=type=registry,ref=ghcr.io/myorg/app:cache,mode=max \
+  --tag ghcr.io/myorg/app:${SHA} \
+  --push .</div><strong>mode=max:</strong> 모든 stage의 캐시 push (mode=min은 final stage만)<br><strong>효과:</strong> 코드 변경이 적으면 90초 빌드가 15초로 단축</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="remote-cache">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Distributed</div>
+        <h3>분산 캐시 — sccache, Bazel Remote Cache</h3>
+        <div class="cs">컴파일러 산출물을 팀 전체가 공유 — 같은 코드는 누구도 두 번 컴파일하지 않는다</div>
+        <div class="cp">대규모 C++/Rust 프로젝트는 한 번 빌드에 30분 걸리는 경우도 흔하다. <strong>같은 입력 → 같은 출력</strong>이라는 결정성을 활용해, 컴파일러 호출 단위로 결과를 공유한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">sccache — Rust/C++ 컴파일러 캐시</div><div class="v"><div class="fm"># 환경변수로 sccache를 컴파일러 wrapper로 사용
+export RUSTC_WRAPPER=sccache
+export SCCACHE_BUCKET=my-build-cache
+export SCCACHE_REGION=ap-northeast-2
+
+cargo build --release   # S3에 캐시 자동 저장/조회</div>cargo의 incremental compilation과 별개로, <strong>팀 전체가 같은 .o 파일을 공유</strong>. CI에서도 매번 클린 빌드 시 90% 캐시 적중</div></div>
+          <div class="db"><div class="l">Bazel Remote Cache</div><div class="v">Bazel은 빌드 그래프의 결정성을 보장하므로 캐시 친화적:<div class="fm"># .bazelrc
+build --remote_cache=grpcs://cache.myorg.io
+build --remote_executor=grpcs://exec.myorg.io  # remote build도 가능
+build --remote_upload_local_results=true</div>모노레포 빌드가 1시간 → 5분으로 단축되는 케이스 흔함. <strong>비결정성 제거</strong>가 선결: 시간 stamp, /tmp 경로, 환경변수 의존 모두 격리</div></div>
+          <div class="db df"><div class="l">언제 분산 캐시를 도입할까</div><div class="v"><strong>도입 가치 ↑:</strong><br>· 컴파일 시간 ≥ 5분<br>· 팀 규모 ≥ 5명 (캐시 적중 빈도)<br>· CI 빌드 ≥ 일 50회<br><br><strong>도입 가치 ↓:</strong><br>· 인터프리터 언어 (Python, JS) — 컴파일이 가벼움<br>· 빌드 시간 ≤ 1분<br>· 비결정적 빌드 (캐시 무효화 잦음)<br><br><strong>주의:</strong> 캐시 자체의 운영 비용(S3, Redis, gRPC 서버)도 고려. 작은 팀에는 BuildKit registry cache로 충분</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="test-impact">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Smart</div>
+        <h3>Test Impact Analysis — 변경된 코드만 테스트</h3>
+        <div class="cs">테스트 ↔ 코드 의존 그래프를 분석해, 변경된 코드와 무관한 테스트는 스킵</div>
+        <div class="cp">5만 개 테스트가 있는 프로젝트에서 PR마다 전체를 돌리면 30분 이상 걸린다. <strong>변경된 파일이 영향을 미치는 테스트만</strong> 골라 돌리면 평균 5%만 실행해도 충분하다 — 95% 시간 절약.</div>
+        <div class="dt">
+          <div class="db"><div class="l">파일 의존 기반 (간단)</div><div class="v"><strong>Jest:</strong> <code>jest --findRelatedTests $(git diff --name-only HEAD^)</code><br><strong>Pytest:</strong> <code>pytest-testmon</code> 플러그인 — 코드 변경에 영향받는 테스트만<br><strong>Bazel:</strong> <code>bazel test $(bazel query 'rdeps(//..., set(...changed files...))')</code><br><br>의존 그래프를 빌드 시스템이 알면 정확. 모르면 import 분석으로 근사</div></div>
+          <div class="db"><div class="l">코드 커버리지 기반 (정확)</div><div class="v"><strong>아이디어:</strong> 이전 빌드에서 "테스트 X가 어떤 코드 라인을 실행했는지" 기록. 다음 빌드에서 변경된 라인이 X의 커버리지에 포함되면 X 실행<br><br><strong>도구:</strong><br>· Microsoft TIA (Azure DevOps)<br>· Datadog Test Visibility<br>· Launchable<br><br><strong>주의:</strong> 학습 데이터(과거 커버리지)가 필요 → 도입 초기엔 효과 적음. 6개월 후 효과 본격화</div></div>
+          <div class="db df"><div class="l">실전 적용 — 점진적 도입</div><div class="v"><strong>Phase 1:</strong> 모든 PR에서 전체 테스트. 단, 디렉토리/패키지 단위로 affected만 — <code>pnpm --filter ...[origin/main] test</code><br><strong>Phase 2:</strong> 모노레포 도구(Nx, Turborepo)의 affected 활용. 변경 패키지 + 그 의존 패키지<br><strong>Phase 3:</strong> 파일 단위 TIA — Jest <code>--findRelatedTests</code> 또는 testmon<br><strong>Phase 4:</strong> 머신러닝 기반 (Launchable) — flaky 우선순위, 실패 가능성 높은 테스트 먼저<br><br><strong>안전장치:</strong> 매 nightly에 전체 테스트 1회 실행 — TIA가 놓친 영향 검증</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OPS ===== -->
+  <div class="P" id="p-ops">
+    <div class="PH"><div class="bg bg-t">● Pipeline Operations</div><h2>파이프라인 운영</h2><p>Flaky 테스트 대응, 품질 게이트, CI 관측성, 비용 최적화 — 파이프라인을 "제품"으로 운영하는 관점.</p></div>
+
+    <div class="sec" id="flaky">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Reliability</div>
+        <h3>Flaky Test — 신뢰의 가장 큰 적</h3>
+        <div class="cs">"가끔 실패하는 테스트"가 한두 개만 있어도 파이프라인 전체에 대한 신뢰가 무너진다</div>
+        <div class="cp">Flaky test는 <strong>"같은 코드, 같은 테스트, 다른 결과"</strong>다. 원인은 (1) 비동기 race, (2) 시간/날짜 의존, (3) 외부 의존성, (4) 테스트 간 상태 누수 — 거의 항상 테스트 자체가 잘못된 것이다. 한두 개만 있어도 개발자는 "또 flaky겠지"하고 진짜 실패도 무시하게 된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">탐지 — 자동화된 통계</div><div class="v">매일 같은 SHA로 테스트 N회 재실행 → 결과 분포 기록:<div class="fm">test_name           pass_rate  last_30d
+test_login          100%
+test_payment_flow    87%       <- FLAKY
+test_search          95%       <- BORDERLINE
+test_logout         100%</div><strong>도구:</strong><br>· Buildkite Test Analytics<br>· Datadog Test Visibility<br>· GitHub Actions의 retry-on-failure stats<br>· 자체 구축: junit.xml 결과를 BigQuery에 적재 → 대시보드</div></div>
+          <div class="db"><div class="l">대응 — 격리 우선</div><div class="v"><strong>1. 즉시 격리</strong> — flaky 발견 시 "skip"하지 말고 별도 job에 격리. 메인 파이프라인은 통과시키되, 격리 job 결과는 별도 추적<br><strong>2. 책임자 지정</strong> — 격리된 테스트마다 owner 자동 할당 (CODEOWNERS 기반)<br><strong>3. 24시간 SLA</strong> — flaky로 등록된 테스트는 24시간 내 수정 또는 삭제. "계속 격리"는 죽음의 침대<br><strong>4. retry는 최후 수단</strong> — flaky 원인을 찾기 전 retry로 가리는 건 부채. 단, 정말 외부(네트워크) 원인이면 명시적 retry는 OK</div></div>
+          <div class="db df"><div class="l">근본 원인 패턴</div><div class="v">대부분의 flaky는 다음 중 하나:<br><br><strong>1. 시간 의존:</strong> <code>setTimeout</code>, <code>sleep(100)</code>로 동기화 — fake timer 또는 explicit waiting 사용<br><strong>2. 순서 의존:</strong> 테스트 A가 만든 상태를 B가 기대 — 각 테스트는 setUp/tearDown으로 isolated 환경<br><strong>3. 외부 의존:</strong> 실제 API 호출 — mock 또는 contract test<br><strong>4. Race condition:</strong> 여러 비동기 작업의 완료 순서 — Promise.all + 명시적 ordering<br><strong>5. 환경 변수 누수:</strong> 이전 테스트가 설정한 env가 남음 — beforeEach에서 reset<br><br><strong>"이 테스트는 머신이 빠를 때만 실패"</strong>는 race condition이지 머신 문제 아니다. 마지막 카테고리 진단이 가장 어렵다.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="quality-gate">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Gate</div>
+        <h3>품질 게이트 — 코드 머지 직전의 최후 검증</h3>
+        <div class="cs">테스트 통과만으로는 부족하다. 커버리지, 정적 분석, 라이선스, 보안까지 자동 게이트</div>
+        <div class="cp">Quality Gate는 "이 PR이 머지될 자격이 있는가"를 자동 판정하는 룰셋이다. 사람의 코드 리뷰는 의도/설계를 보고, 게이트는 측정 가능한 품질을 본다.</div>
+        <table class="tb">
+          <thead><tr><th>게이트</th><th>측정값</th><th>임계치 예시</th><th>도구</th></tr></thead>
+          <tbody>
+            <tr><td>단위 테스트 커버리지</td><td>line/branch coverage</td><td>≥ 80% line, ≥ 70% branch</td><td>Codecov, Coveralls</td></tr>
+            <tr><td>변경 분 커버리지</td><td>diff coverage</td><td>≥ 90% (변경한 코드는 거의 다 커버)</td><td>diff-cover, Codecov</td></tr>
+            <tr><td>정적 분석 — 보안</td><td>심각 issue 수</td><td>0개 (high+)</td><td>Semgrep, SonarQube</td></tr>
+            <tr><td>의존성 보안</td><td>CVE 취약점</td><td>0개 (high+, dev 제외)</td><td>Trivy, Snyk, Dependabot</td></tr>
+            <tr><td>라이선스 컴플라이언스</td><td>금지 라이선스(GPL 등)</td><td>0개</td><td>FOSSA, license-checker</td></tr>
+            <tr><td>코드 복잡도</td><td>cyclomatic complexity</td><td>새 파일 ≤ 10</td><td>SonarQube, ESLint</td></tr>
+            <tr><td>중복 코드</td><td>duplication ratio</td><td>≤ 3%</td><td>SonarQube</td></tr>
+            <tr><td>번들 크기 (FE)</td><td>gzipped bundle size</td><td>변경 ≤ +5%</td><td>bundlewatch, size-limit</td></tr>
+          </tbody>
+        </table>
+        <div class="nt o"><strong>WARN</strong> 게이트는 <strong>점진적</strong>으로 도입할 것. 처음부터 strict하게 걸면 기존 코드 전체가 막힌다. <code>baseline</code>(현재 상태) 기준으로 "악화 금지"부터 시작 → 6개월에 걸쳐 임계치 상향. 너무 엄격하면 게이트가 머지를 막는 게 아니라 개발자가 게이트를 우회한다.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="ci-obs">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Observability</div>
+        <h3>CI 관측성 — 파이프라인도 모니터링 대상</h3>
+        <div class="cs">파이프라인의 latency, success rate, queue time을 측정하지 않으면 점점 느려지는 걸 모른다</div>
+        <div class="cp">애플리케이션의 latency p95를 측정하듯, <strong>파이프라인의 wall clock p95도 측정</strong>해야 한다. CI는 개발자 생산성에 직결되는 인프라이며, 한번 느려지면 사람이 느낄 즈음엔 이미 한참 악화된 후다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">측정해야 할 메트릭</div><div class="v"><strong>1. PR 파이프라인 wall clock p50/p95</strong> — 5분/10분 SLO<br><strong>2. Stage별 duration 분포</strong> — 어디가 병목인지<br><strong>3. Success rate (per branch type)</strong> — main green ratio, PR 첫 시도 성공률<br><strong>4. Queue time</strong> — 러너 대기 시간 (러너 부족 신호)<br><strong>5. Retry rate</strong> — 재시도 빈도 (flaky 신호)<br><strong>6. Cost per pipeline run</strong> — 비용 트렌드</div></div>
+          <div class="db"><div class="l">DORA에 연결</div><div class="v">CI 메트릭은 DORA 4 metrics에 직결:<br><br><strong>Lead Time for Changes</strong> = code commit → prod deploy<br>· CI duration이 큰 비중<br><strong>Deployment Frequency</strong> = 배포 빈도<br>· CI/CD 신뢰도가 높아야 자주 배포 가능<br><strong>Change Failure Rate</strong> = 배포 후 실패율<br>· CI quality gate가 1차 방어선<br><strong>MTTR</strong> = 복구 시간<br>· CI/CD가 빨라야 hotfix 배포도 빠름<br><br>CI 메트릭은 곧 DORA 메트릭의 leading indicator다</div></div>
+          <div class="db df"><div class="l">대시보드 — 무엇을 어떻게 보여줄까</div><div class="v"><strong>일일 헬스 보드:</strong><br>· main branch green ratio (24h, 7d)<br>· PR 파이프라인 p95 duration<br>· top 5 flaky tests<br>· top 5 slowest jobs<br><br><strong>주간 트렌드:</strong><br>· 파이프라인 duration 추이 (회귀 감지)<br>· 비용 추이<br>· quality gate 통과율 추이<br><br><strong>대시보드는 개발자가 매일 보는 자리에</strong> — Slack에 데일리 요약, 사무실 모니터에 표출. CI 헬스가 "안 보이는" 순간 악화한다</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="ci-cost">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Cost</div>
+        <h3>CI 비용 최적화</h3>
+        <div class="cs">CI 비용은 조용히 자란다 — 한 번 검토하면 30~50% 절감하는 경우가 흔하다</div>
+        <div class="cp">팀이 커지고 빌드가 늘면 CI 비용은 선형~초선형으로 증가한다. GitHub Actions 같은 매니지드 서비스는 분당 과금이라, 월 수천 달러 단위가 금방 된다. 정기 점검으로 줄일 여지가 크다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">큰 절감 — 무엇을 안 돌릴 것인가</div><div class="v"><strong>1. 중복 트리거 제거</strong> — push와 pull_request 양쪽에 같은 워크플로우 트리거 금지. branch protection은 PR만 보면 충분<br><strong>2. Skip on no-op</strong> — <code>paths-ignore</code>로 docs/README 변경 시 스킵<br><strong>3. Cancel old runs</strong> — 같은 PR의 이전 실행은 자동 취소 (<code>concurrency.cancel-in-progress: true</code>)<br><strong>4. Draft PR 스킵</strong> — draft 상태에선 가벼운 검증만<br><strong>5. Stale PR 정리</strong> — 30일 이상 inactive PR 자동 close</div></div>
+          <div class="db"><div class="l">중간 절감 — 어떻게 돌릴 것인가</div><div class="v"><strong>1. 큰 러너 신중히</strong> — 4 vCPU runner는 1 vCPU의 4배 비용. 정말 필요한 stage만<br><strong>2. Self-hosted로 이전</strong> — 빌드량 큰 워크로드는 자체 ECS/GKE에서 ARC로. 손익분기점 ≈ 월 50,000분<br><strong>3. Spot instance</strong> — self-hosted runner를 spot으로 (interruption tolerant 워크로드만)<br><strong>4. 러너 OS 선택</strong> — macOS는 Linux의 10배 비용. 진짜 macOS 빌드만 macOS<br><strong>5. Cache hit rate 모니터</strong> — 50% 이하면 캐시 키 설계 재검토</div></div>
+          <div class="db df"><div class="l">정기 점검 체크리스트 (월 1회)</div><div class="v">1. <strong>Top 10 가장 자주 도는 워크플로우</strong> — 비용 차지 비중 / 정말 모두 필요한지<br>2. <strong>Top 10 가장 느린 job</strong> — 캐시 활용 여부 / 병렬화 여지<br>3. <strong>Cancellation rate</strong> — 5% 이상이면 같은 PR 다중 실행으로 낭비 중<br>4. <strong>Failure rate</strong> — 30% 이상이면 quality gate가 잘못됐거나 flaky<br>5. <strong>비용 그래프</strong> — 전월 대비 +20% 이상이면 원인 추적<br><br><strong>행동 원칙:</strong> CI 비용을 명시적으로 보고하지 않으면 아무도 신경 안 쓴다. 매월 팀 회고에 CI 비용 요약 1페이지 포함하는 것만으로도 효과 있다.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+function sw(t){
+  document.querySelectorAll('.T').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  document.querySelectorAll('.P').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));
+}
+document.querySelectorAll('.sn a').forEach(a=>{
+  a.addEventListener('click',e=>{
+    e.preventDefault();
+    const t=a.dataset.t,s=a.dataset.s;
+    sw(t);
+    document.querySelectorAll('.sn a').forEach(x=>x.classList.toggle('on',x===a));
+    setTimeout(()=>document.getElementById(s)?.scrollIntoView({behavior:'smooth',block:'start'}),50);
+  });
+});
+</script>
+</body>
+</html>

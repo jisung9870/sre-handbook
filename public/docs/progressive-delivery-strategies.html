@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Progressive Delivery Strategies — DevOps Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--indigo);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--indigo)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--ibg);border-left-color:var(--indigo);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="basic"].on{color:var(--blue)}.T[data-t="basic"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="canary"].on{color:var(--orange)}.T[data-t="canary"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="argo"].on{color:var(--purple)}.T[data-t="argo"].on::after{background:var(--purple);left:8%;right:8%}
+.T[data-t="flagger"].on{color:var(--teal)}.T[data-t="flagger"].on::after{background:var(--teal);left:8%;right:8%}
+.T[data-t="flag"].on{color:var(--green)}.T[data-t="flag"].on::after{background:var(--green);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-i{color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-g{color:var(--green);background:var(--gbg);border:1px solid var(--gbd)}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">DevOps Practice</div><h1><em>Progressive</em><br>Delivery</h1></div>
+  <div class="sl">기본 배포 전략</div>
+  <ul class="sn">
+    <li><a data-t="basic" data-s="strategy-compare" class="on"><span class="d" style="background:var(--blue)"></span>전략 비교</a></li>
+    <li><a data-t="basic" data-s="rolling"><span class="d" style="background:var(--blue)"></span>Rolling Update</a></li>
+    <li><a data-t="basic" data-s="bluegreen"><span class="d" style="background:var(--blue)"></span>Blue/Green</a></li>
+    <li><a data-t="basic" data-s="db-migration"><span class="d" style="background:var(--blue)"></span>DB 마이그레이션</a></li>
+  </ul>
+  <div class="sl">Canary 심화</div>
+  <ul class="sn">
+    <li><a data-t="canary" data-s="canary-anatomy"><span class="d" style="background:var(--orange)"></span>Canary 구조</a></li>
+    <li><a data-t="canary" data-s="traffic-split"><span class="d" style="background:var(--orange)"></span>트래픽 분기</a></li>
+    <li><a data-t="canary" data-s="canary-analysis"><span class="d" style="background:var(--orange)"></span>자동 분석</a></li>
+    <li><a data-t="canary" data-s="abort-rollback"><span class="d" style="background:var(--orange)"></span>Abort & Rollback</a></li>
+  </ul>
+  <div class="sl">Argo Rollouts</div>
+  <ul class="sn">
+    <li><a data-t="argo" data-s="rollout-crd"><span class="d" style="background:var(--purple)"></span>Rollout CRD</a></li>
+    <li><a data-t="argo" data-s="analysis-tpl"><span class="d" style="background:var(--purple)"></span>AnalysisTemplate</a></li>
+    <li><a data-t="argo" data-s="experiment"><span class="d" style="background:var(--purple)"></span>Experiment</a></li>
+    <li><a data-t="argo" data-s="argo-mesh"><span class="d" style="background:var(--purple)"></span>Service Mesh 연동</a></li>
+  </ul>
+  <div class="sl">Flagger</div>
+  <ul class="sn">
+    <li><a data-t="flagger" data-s="flagger-canary"><span class="d" style="background:var(--teal)"></span>Canary 자동화</a></li>
+    <li><a data-t="flagger" data-s="flagger-mesh"><span class="d" style="background:var(--teal)"></span>Mesh 통합</a></li>
+    <li><a data-t="flagger" data-s="flagger-ab"><span class="d" style="background:var(--teal)"></span>A/B Testing</a></li>
+  </ul>
+  <div class="sl">Feature Flags</div>
+  <ul class="sn">
+    <li><a data-t="flag" data-s="flag-types"><span class="d" style="background:var(--green)"></span>플래그 유형</a></li>
+    <li><a data-t="flag" data-s="dark-launch"><span class="d" style="background:var(--green)"></span>Dark Launch</a></li>
+    <li><a data-t="flag" data-s="kill-switch"><span class="d" style="background:var(--green)"></span>Kill Switch</a></li>
+    <li><a data-t="flag" data-s="flag-debt"><span class="d" style="background:var(--green)"></span>플래그 부채 관리</a></li>
+  </ul>
+  <div class="S-f"><p>Decouple deploy<br>from release.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="basic" onclick="sw('basic')">● 기본</button>
+    <button class="T" data-t="canary" onclick="sw('canary')">● Canary</button>
+    <button class="T" data-t="argo" onclick="sw('argo')">● Argo Rollouts</button>
+    <button class="T" data-t="flagger" onclick="sw('flagger')">● Flagger</button>
+    <button class="T" data-t="flag" onclick="sw('flag')">● Feature Flags</button>
+  </div>
+
+  <!-- ===== BASIC ===== -->
+  <div class="P on" id="p-basic">
+    <div class="PH"><div class="bg bg-b">● Deployment Strategies</div><h2>배포 전략 — 기본기</h2><p>Recreate, Rolling, Blue/Green, Canary — 각 전략의 트레이드오프와 DB 마이그레이션 같은 까다로운 케이스 처리법.</p></div>
+
+    <div class="sec" id="strategy-compare">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Compare</div>
+        <h3>4가지 기본 전략 — 무엇을 언제 쓸까</h3>
+        <div class="cs">downtime, 리소스 비용, 롤백 속도, 사용자 영향 — 4개 축으로 비교</div>
+        <div class="cp">"어떤 배포 전략을 쓸까"는 <strong>리스크 허용도와 비용</strong>의 함수다. 사용자 0명인 사내 도구는 Recreate로 충분하고, 결제 시스템은 Canary가 필수다. 한 조직에서도 서비스마다 다른 전략을 쓰는 게 정상이다.</div>
+        <table class="tb">
+          <thead><tr><th>전략</th><th>Downtime</th><th>리소스 (peak)</th><th>롤백 속도</th><th>부분 노출</th><th>적합한 상황</th></tr></thead>
+          <tbody>
+            <tr><td>Recreate</td><td>있음 (수십 초~분)</td><td>1x</td><td>재배포 필요</td><td>X (전부 또는 무)</td><td>개발 환경, stateful 단일 인스턴스</td></tr>
+            <tr><td>Rolling</td><td>없음 (이상적)</td><td>1.25x ~ 1.5x</td><td>새 rolling 필요 (느림)</td><td>X (점진 교체지만 모두 같은 코드)</td><td>일반 API 서비스 — 가장 흔한 선택</td></tr>
+            <tr><td>Blue/Green</td><td>없음</td><td>2x (전체 복제)</td><td>즉시 (트래픽 스위치)</td><td>X</td><td>큰 변경, 즉시 롤백 필요한 미션 크리티컬</td></tr>
+            <tr><td>Canary</td><td>없음</td><td>1.05x ~ 1.5x</td><td>즉시 (canary 제거)</td><td>O (1% → 5% → 25% ...)</td><td>대규모 사용자, 실험적 변경, 결제 시스템</td></tr>
+          </tbody>
+        </table>
+        <div class="cg">
+          <div class="cd"><h4>리소스 1.5x의 의미</h4><p>Rolling 1.5x = 기존 100 pod + 새 50 pod 동시 운영(maxSurge=50%) 시점이 있음. <strong>핵심 비용 고려:</strong> peak 시점에 클러스터 capacity가 충분한가. CA(cluster autoscaler) 응답 시간 (수 분)을 고려.</p></div>
+          <div class="cd"><h4>Canary가 만능인가?</h4><p>아니다. <strong>다음 경우 Canary 부적합:</strong> (1) 사용자 수 ≤ 100 — 통계적 분석 불가, (2) DB 스키마 변경 동반, (3) 세션 sticky 필수 — canary 전환 시 사용자가 두 버전 사이 왔다 갔다.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="rolling">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Default</div>
+        <h3>Rolling Update — k8s의 기본값을 안전하게</h3>
+        <div class="cs">maxSurge / maxUnavailable / readinessProbe — 3가지 노브를 정확히 이해하라</div>
+        <div class="cp">k8s Deployment의 기본 전략. 동작은 단순해 보이지만 <strong>readinessProbe 설정이 잘못되면 트래픽이 안 받는 pod에 요청이 흘러간다</strong>. Rolling 사고의 90%는 probe 설정 실수다.</div>
+        <div class="bx"><div class="bx-t">표준 Rolling 설정</div><div class="co"><span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: <span class="n">10</span>
+  <span class="k">strategy</span>:
+    <span class="k">type</span>: RollingUpdate
+    <span class="k">rollingUpdate</span>:
+      <span class="k">maxSurge</span>: <span class="s">25%</span>          <span class="c"># 최대 12.5개까지 동시 존재 (10 + 2.5)</span>
+      <span class="k">maxUnavailable</span>: <span class="s">0</span>      <span class="c"># 0이 안전 — capacity 줄지 않음</span>
+  <span class="k">minReadySeconds</span>: <span class="n">30</span>          <span class="c"># Ready 후 30초간 더 관찰 (warm-up)</span>
+  <span class="k">progressDeadlineSeconds</span>: <span class="n">600</span>  <span class="c"># 10분 안에 안 끝나면 실패로 마킹</span>
+  <span class="k">template</span>:
+    <span class="k">spec</span>:
+      <span class="k">containers</span>:
+      - <span class="k">name</span>: app
+        <span class="k">readinessProbe</span>:
+          <span class="k">httpGet</span>: { <span class="k">path</span>: /ready, <span class="k">port</span>: <span class="n">8080</span> }
+          <span class="k">initialDelaySeconds</span>: <span class="n">10</span>
+          <span class="k">periodSeconds</span>: <span class="n">5</span>
+          <span class="k">failureThreshold</span>: <span class="n">3</span>
+        <span class="k">lifecycle</span>:
+          <span class="k">preStop</span>:
+            <span class="k">exec</span>: { <span class="k">command</span>: [<span class="s">"sleep"</span>, <span class="s">"15"</span>] }   <span class="c"># graceful shutdown</span>
+        <span class="k">terminationGracePeriodSeconds</span>: <span class="n">60</span></div></div>
+        <div class="dt">
+          <div class="db"><div class="l">readinessProbe — Live 상태 분리</div><div class="v"><strong>liveness</strong>: "이 pod 죽었나? (재시작 필요)"<br><strong>readiness</strong>: "이 pod 트래픽 받을 준비 됐나?"<br><br>두 개를 같은 endpoint로 쓰면 안 된다. <code>/health</code> 하나로 통합하면, 한순간 DB 끊김에 모든 pod가 다 unready가 되어 503 폭발.<br><br><strong>분리 원칙:</strong><br>· liveness: 프로세스 자체 헬스 (deadlock 등)<br>· readiness: 의존성 + 큐 길이 + warm-up 완료</div></div>
+          <div class="db"><div class="l">PreStop & graceful shutdown</div><div class="v">Pod 종료 시 순서:<div class="fm">1. SIGTERM → 컨테이너에 전송
+2. preStop hook 실행 (병렬: endpoint 제거)
+3. terminationGracePeriodSeconds 카운트다운
+4. SIGKILL (강제 종료)</div><strong>endpoint 제거는 비동기</strong>다. SIGTERM 받자마자 종료하면 아직 트래픽 받는 중. <code>preStop sleep 15</code>로 endpoint 제거 propagate 시간 확보. graceful shutdown은 sleep 후에야 시작</div></div>
+          <div class="db df"><div class="l">실전 사고 — Rolling이 다운타임을 만드는 패턴</div><div class="v"><strong>1. readinessProbe 빠짐</strong> — Pod가 시작 즉시 Ready. warm-up 안 끝났는데 트래픽 받음 → 첫 요청 타임아웃<br><strong>2. PDB 미설정</strong> — node drain과 deployment가 겹쳐 가용 pod ≤ 1<br><strong>3. maxUnavailable: 25%</strong> — capacity 75%로 떨어진 순간 부하 spike → 503<br><strong>4. preStop 없음</strong> — endpoint 제거 전 pod 종료 → 인 flight 요청 끊김<br><strong>5. liveness가 너무 공격적</strong> — DB 잠시 느려지면 모든 pod kill, cascading restart<br><br><strong>방어:</strong> <code>maxUnavailable: 0</code> + <code>preStop</code> + 분리된 readiness/liveness + PDB</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="bluegreen">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">B/G</div>
+        <h3>Blue/Green — 즉시 롤백의 대가</h3>
+        <div class="cs">전체 복제 환경을 만들고 트래픽을 한 번에 스위치 — 비용은 2x, 안전성은 최고</div>
+        <div class="cp">Blue(현 운영) 옆에 Green(신 버전)을 완전 배포 → 검증 후 LB/Service에서 selector 변경으로 트래픽 전환. <strong>롤백은 selector 되돌리기 한 번</strong>으로 즉시. 비용은 2x이지만, 큰 변경이나 복구 시간이 비즈니스 손실로 직결되는 경우엔 정당화된다.</div>
+        <div class="bx"><div class="bx-t">k8s Service selector swap (Argo Rollouts BlueGreen)</div><div class="co"><span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Rollout
+<span class="k">metadata</span>:
+  <span class="k">name</span>: payment-api
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: <span class="n">10</span>
+  <span class="k">strategy</span>:
+    <span class="k">blueGreen</span>:
+      <span class="k">activeService</span>: payment-api-active     <span class="c"># prod 트래픽 받는 service</span>
+      <span class="k">previewService</span>: payment-api-preview   <span class="c"># 검증용 service</span>
+      <span class="k">autoPromotionEnabled</span>: <span class="n">false</span>          <span class="c"># 수동 승인 필수</span>
+      <span class="k">scaleDownDelaySeconds</span>: <span class="n">600</span>             <span class="c"># 전환 후 10분간 old 유지 (롤백용)</span>
+      <span class="k">prePromotionAnalysis</span>:                  <span class="c"># 전환 전 자동 검증</span>
+        <span class="k">templates</span>:
+        - <span class="k">templateName</span>: smoke-test
+      <span class="k">postPromotionAnalysis</span>:                 <span class="c"># 전환 후 모니터링</span>
+        <span class="k">templates</span>:
+        - <span class="k">templateName</span>: error-rate-check</div></div>
+        <div class="dt">
+          <div class="db"><div class="l">Blue/Green이 적합한 경우</div><div class="v"><strong>1. 큰 아키텍처 변경</strong> — 새 frame, 새 ORM, 새 언어 — Rolling으로 두 버전이 동시 운영하면 호환성 문제<br><strong>2. 미션 크리티컬</strong> — 결제, 인증, 핵심 거래 — 5분 이상 다운타임 = 중대한 손실<br><strong>3. 빠른 전후 비교 필요</strong> — preview env에서 충분한 검증 후 cutover<br><strong>4. 외부 통합 테스트</strong> — preview env로 외부 파트너가 테스트 가능</div></div>
+          <div class="db"><div class="l">B/G의 함정</div><div class="v"><strong>1. DB 공유 문제</strong> — Blue와 Green이 같은 DB 쓰면 스키마 변경 시 양쪽 호환 필수 (다음 섹션 참고)<br><strong>2. 캐시 cold start</strong> — 새 환경은 캐시가 비어 있음 → 전환 직후 latency spike. preview에서 trial 트래픽으로 warm-up<br><strong>3. 세션 — sticky 의존</strong> — sticky session 쓰면 전환 후 사용자 세션 끊김<br><strong>4. 비용</strong> — 2x 리소스. 작은 서비스 다수보다 큰 서비스 하나에 적합</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="db-migration">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Hard</div>
+        <h3>DB 마이그레이션과 무중단 배포의 충돌</h3>
+        <div class="cs">스키마를 바꾸면서 어떻게 두 버전(old/new)이 같은 DB를 쓰게 할 것인가</div>
+        <div class="cp">Rolling이든 Canary든 잠시 두 버전이 공존한다. 즉 <strong>한 DB가 두 코드 버전을 동시에 만족해야 한다</strong>. 컬럼 삭제, 컬럼 이름 변경 같은 변경은 한 번에 하면 안 된다. 항상 <strong>Expand → Migrate → Contract</strong> 3단계로 분리한다.</div>
+        <div class="bx"><div class="bx-t">컬럼 이름 변경 — `user_email` → `email`</div><div class="co"><span class="c"># 한 번에 하면 안 되는 변경:</span>
+<span class="c"># ALTER TABLE users RENAME COLUMN user_email TO email;</span>
+<span class="c"># → 배포 중간 시점에 old 코드가 user_email을 읽으면 에러</span>
+
+<span class="c">─── Phase 1: EXPAND (deploy v2) ───────────────────────────────</span>
+ALTER TABLE users <span class="k">ADD COLUMN</span> email <span class="k">VARCHAR</span>(<span class="n">255</span>);
+<span class="c"># 트리거로 양쪽 동기화</span>
+<span class="k">CREATE OR REPLACE FUNCTION</span> sync_email() <span class="k">RETURNS</span> trigger <span class="k">AS</span> $$
+<span class="k">BEGIN</span>
+  <span class="k">NEW</span>.email := <span class="k">COALESCE</span>(<span class="k">NEW</span>.email, <span class="k">NEW</span>.user_email);
+  <span class="k">NEW</span>.user_email := <span class="k">COALESCE</span>(<span class="k">NEW</span>.user_email, <span class="k">NEW</span>.email);
+  <span class="k">RETURN NEW</span>;
+<span class="k">END</span>; $$ <span class="k">LANGUAGE</span> plpgsql;
+
+<span class="c"># 코드 v2: 양쪽 모두 읽고, 양쪽 모두 씀</span>
+
+<span class="c">─── Phase 2: MIGRATE (백필) ──────────────────────────────────</span>
+<span class="k">UPDATE</span> users <span class="k">SET</span> email = user_email <span class="k">WHERE</span> email <span class="k">IS NULL</span>;
+
+<span class="c"># 코드 v3: 새 컬럼만 읽고/씀</span>
+
+<span class="c">─── Phase 3: CONTRACT (deploy v4) ─────────────────────────────</span>
+ALTER TABLE users <span class="k">DROP COLUMN</span> user_email;
+<span class="k">DROP TRIGGER</span> sync_email;</div></div>
+        <div class="dt">
+          <div class="db"><div class="l">대규모 백필 주의사항</div><div class="v">1억 row 테이블 <code>UPDATE</code>는 락을 잡고 replica lag을 만든다. <strong>배치 백필</strong>:<div class="fm">DO $$
+DECLARE
+  batch_size INT := 5000;
+  affected   INT;
+BEGIN
+  LOOP
+    UPDATE users SET email = user_email
+      WHERE email IS NULL
+        AND id IN (
+          SELECT id FROM users
+            WHERE email IS NULL LIMIT batch_size
+        );
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    EXIT WHEN affected = 0;
+    PERFORM pg_sleep(0.1);  -- replica lag 회피
+    COMMIT;
+  END LOOP;
+END $$;</div></div></div>
+          <div class="db"><div class="l">위험한 변경 패턴</div><div class="v"><strong>1. NOT NULL + DEFAULT 추가 (큰 테이블)</strong> — 전체 락 위험. Postgres 11+ <code>ADD COLUMN ... DEFAULT</code>는 metadata-only, 그 이전 버전은 위험<br><strong>2. 인덱스 추가</strong> — 항상 <code>CREATE INDEX CONCURRENTLY</code> (Postgres). 그렇지 않으면 write lock<br><strong>3. ENUM 변경</strong> — Postgres ENUM은 ALTER 어려움. lookup 테이블이나 CHECK constraint 권장<br><strong>4. 외래키 추가</strong> — <code>NOT VALID</code>로 추가 후 <code>VALIDATE CONSTRAINT</code>로 비차단 검증</div></div>
+          <div class="db df"><div class="l">자동화 — 마이그레이션 도구</div><div class="v"><strong>도구 선택:</strong><br>· <code>Flyway</code> — SQL 파일 버전 관리, 단순<br>· <code>Liquibase</code> — XML/YAML, 롤백 지원<br>· <code>Atlas</code> (ariga) — declarative schema, dev/prod diff<br>· <code>sqlx migrate</code> (Rust), <code>knex</code> (Node) — 언어별 도구<br><br><strong>운영 원칙:</strong><br>1. 마이그레이션은 <strong>app과 별도 job</strong>으로 — 배포와 동시 X<br>2. <strong>idempotent</strong> 보장 — 중간 실패해도 다시 돌릴 수 있음<br>3. <strong>롤백 스크립트 필수</strong> — DROP COLUMN의 역은 ADD COLUMN 후 백필<br>4. <strong>리허설</strong> — staging에서 prod 데이터 크기로 timing 측정</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CANARY ===== -->
+  <div class="P" id="p-canary">
+    <div class="PH"><div class="bg bg-o">● Canary Release</div><h2>Canary 심화 — 점진적 위험 노출</h2><p>Canary의 본질은 "전체 영향 전에 작은 모집단에서 새 코드의 안전성을 측정"하는 것. 트래픽 분기 메커니즘과 자동 분석이 핵심.</p></div>
+
+    <div class="sec" id="canary-anatomy">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Anatomy</div>
+        <h3>Canary 배포의 구조</h3>
+        <div class="cs">"가장 작은 모집단부터 점진 확대" — 각 단계에서 검증 후 다음 단계로</div>
+        <div class="cp">Canary는 <strong>"작은 비율 → 측정 → 다음 비율"</strong>의 반복이다. 단계 수, 비율, 단계별 시간, 측정 메트릭, 자동/수동 승인 — 이 5가지가 모든 canary 시스템의 공통 노브다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">표준 단계 예시</div><div class="v"><div class="fm">Step 1:  1% canary, 10분 측정
+Step 2:  5% canary, 10분 측정
+Step 3: 25% canary, 15분 측정
+Step 4: 50% canary, 15분 측정
+Step 5: 100% (promotion)</div><strong>총 60분</strong>의 점진적 노출. 단계마다 메트릭 게이트 통과해야 다음 단계 진입. 한 단계라도 실패면 즉시 abort + 롤백</div></div>
+          <div class="db"><div class="l">단계 설계 원칙</div><div class="v"><strong>처음은 작게:</strong> 1% — 통계적으로 의미 있으면서 영향 최소<br><strong>비율 증가는 비선형:</strong> 1, 5, 25, 50 — 초기엔 보수적, 후반엔 빠르게<br><strong>단계 시간은 진단 가능 시간:</strong> 캐시 warm-up(5분) + 측정 윈도우(10분) 이상<br><strong>최소 트래픽 임계:</strong> 1%가 RPS 10도 안 되면 통계 무의미 — 절대값 floor 설정</div></div>
+          <div class="db df"><div class="l">측정 메트릭 — 무엇을 볼까</div><div class="v"><strong>SLI 기반 4개 + α:</strong><br><strong>1. Error rate</strong> — HTTP 5xx, RPC 실패 (canary vs baseline)<br><strong>2. Latency p95/p99</strong> — 회귀 시 즉시 abort<br><strong>3. Saturation</strong> — CPU/memory 비정상 상승<br><strong>4. Traffic</strong> — canary로 트래픽이 정상적으로 흐르는가<br><br><strong>비즈니스 메트릭:</strong><br>· 결제 성공률<br>· 로그인 성공률<br>· 핵심 funnel 통과율<br><br><strong>주의:</strong> canary와 baseline은 <strong>같은 시간대, 같은 사용자 분포</strong>여야 비교 의미. 1%만 받으면 RPS 작아 노이즈 큼 — Mann-Whitney U test 같은 통계 검정 필요</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="traffic-split">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Routing</div>
+        <h3>트래픽 분기 메커니즘</h3>
+        <div class="cs">replica 비율 기반 vs Service Mesh 기반 — 정밀도와 복잡도의 트레이드오프</div>
+        <div class="cp">"1% 트래픽을 canary로" 라는 단순한 명세 뒤에는 다양한 구현이 있다. <strong>replica 비율</strong>(가장 단순), <strong>L7 weighted routing</strong>(정밀, mesh 필요), <strong>header 기반</strong>(특정 사용자 그룹만) — 정밀도가 높을수록 인프라 요구사항도 높다.</div>
+        <table class="tb">
+          <thead><tr><th>방식</th><th>정밀도</th><th>요구사항</th><th>장점</th><th>단점</th></tr></thead>
+          <tbody>
+            <tr><td>Replica 비율</td><td>~replica 단위</td><td>k8s만</td><td>단순, 의존성 없음</td><td>1% canary 못 함 (replica 100개 필요), 부하 분산이 비율과 어긋날 수 있음</td></tr>
+            <tr><td>Mesh weighted (Istio/Linkerd)</td><td>임의 % (정밀)</td><td>Service Mesh</td><td>정밀, replica 수 무관</td><td>mesh 운영 부담</td></tr>
+            <tr><td>Ingress weighted (NGINX/Traefik)</td><td>임의 %</td><td>특정 ingress controller</td><td>mesh 없이 가능</td><td>edge에서만 분기 (서비스 간 호출은 분기 X)</td></tr>
+            <tr><td>Header 기반 (sticky)</td><td>사용자 단위</td><td>mesh 또는 app 로직</td><td>특정 코호트만, sticky</td><td>실제 비율 측정 어려움</td></tr>
+            <tr><td>Feature Flag 기반</td><td>사용자/기능 단위</td><td>flag 시스템</td><td>코드 레벨 제어, A/B 가능</td><td>app 코드에 logic 침투</td></tr>
+          </tbody>
+        </table>
+        <div class="bx"><div class="bx-t">Istio VirtualService로 가중치 분기</div><div class="co"><span class="k">apiVersion</span>: networking.istio.io/v1
+<span class="k">kind</span>: VirtualService
+<span class="k">metadata</span>:
+  <span class="k">name</span>: payment-api
+<span class="k">spec</span>:
+  <span class="k">hosts</span>: [<span class="s">payment-api</span>]
+  <span class="k">http</span>:
+  - <span class="k">match</span>:                     <span class="c"># 내부 직원은 무조건 canary로 (early validation)</span>
+    - <span class="k">headers</span>:
+        <span class="k">x-employee</span>: { <span class="k">exact</span>: <span class="s">"true"</span> }
+    <span class="k">route</span>:
+    - <span class="k">destination</span>: { <span class="k">host</span>: payment-api, <span class="k">subset</span>: canary }
+  - <span class="k">route</span>:                     <span class="c"># 일반 트래픽: 95% stable, 5% canary</span>
+    - <span class="k">destination</span>: { <span class="k">host</span>: payment-api, <span class="k">subset</span>: stable }
+      <span class="k">weight</span>: <span class="n">95</span>
+    - <span class="k">destination</span>: { <span class="k">host</span>: payment-api, <span class="k">subset</span>: canary }
+      <span class="k">weight</span>: <span class="n">5</span></div></div>
+        <div class="nt o"><strong>WARN</strong> Sticky session이 필요한 서비스(쇼핑카트, multi-step form)는 canary 시 사용자 단위 sticky가 필수. 그렇지 않으면 사용자가 페이지 간 이동 중 두 버전을 오가며 카트가 깨진다. <code>x-canary-cohort</code> 같은 hash-based 헤더로 사용자 → 버전 매핑 고정.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="canary-analysis">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Analysis</div>
+        <h3>자동 분석 (Automated Analysis)</h3>
+        <div class="cs">사람이 매번 메트릭을 보고 판단하면 canary는 의미 없다 — 자동화가 본질</div>
+        <div class="cp">Canary의 가치는 <strong>"자동화된 게이트"</strong>에 있다. 사람이 메트릭 대시보드를 30분간 응시하다가 "OK, 다음 단계"를 누르는 거라면 그건 canary가 아니라 "느린 배포"다. 자동 분석은 매 단계마다 <strong>측정 → 통계 검정 → 결정</strong>을 무인으로 수행한다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">분석 방법론</div><div class="v"><strong>1. 임계치 기반 (Threshold)</strong><br>· "canary error rate &lt; 0.5%이면 통과"<br>· 단순, 해석 쉬움<br>· baseline 변동에 약함<br><br><strong>2. 차이 비교 (Diff)</strong><br>· "canary error rate가 baseline 대비 +0.1% 이내"<br>· 시간대 변동 흡수<br>· 트래픽 작으면 노이즈 큼<br><br><strong>3. 통계 검정 (Statistical)</strong><br>· Mann-Whitney U, Kolmogorov-Smirnov<br>· 두 분포가 같다는 가설 검증<br>· 정확하나 데이터 양 필요</div></div>
+          <div class="db"><div class="l">메트릭 소스</div><div class="v"><strong>Prometheus</strong> — 가장 흔함:<div class="fm">sum(rate(http_requests_total{
+  app="payment", version="canary",
+  status=~"5.."
+}[5m])) / sum(rate(http_requests_total{
+  app="payment", version="canary"
+}[5m]))</div>canary 라벨로 분리해 query. <strong>Argo Rollouts</strong>, <strong>Flagger</strong> 모두 PromQL을 직접 받음<br><br><strong>다른 소스:</strong> Datadog, New Relic, Stackdriver — Argo Rollouts에 provider plugin</div></div>
+          <div class="db df"><div class="l">실전 — Argo AnalysisTemplate</div><div class="v"><div class="fm">apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: error-rate
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: error-rate
+    interval: 1m
+    successCondition: result[0] &lt;= 0.005
+    failureLimit: 3       # 3회 연속 실패 시 abort
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring:9090
+        query: |
+          sum(rate(http_requests_total{
+            service="{{args.service-name}}",
+            version="canary", status=~"5.."
+          }[1m])) /
+          sum(rate(http_requests_total{
+            service="{{args.service-name}}",
+            version="canary"
+          }[1m]))</div><strong>핵심 노브:</strong><br>· <code>interval</code>: 측정 주기<br>· <code>successCondition</code>: 통과 조건<br>· <code>failureLimit</code>: 연속 실패 허용<br>· <code>inconclusiveLimit</code>: 데이터 부족 시</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="abort-rollback">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Failure</div>
+        <h3>Abort & Rollback — 실패의 우아한 처리</h3>
+        <div class="cs">canary 실패는 흔하다. 빠르고 깔끔하게 되돌리는 메커니즘이 더 중요하다</div>
+        <div class="cp">완벽한 canary 시스템은 <strong>실패가 정상</strong>이라고 가정한다. canary 10번 중 1-2번 실패는 정상 — 그게 canary의 목적이니까. 핵심은 <strong>실패 시 사용자 영향 최소화</strong>다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Abort 흐름</div><div class="v"><div class="fm">1. AnalysisRun 실패 감지
+2. canary pod로의 트래픽 0%로 즉시 변경
+3. canary replicaset 0으로 scale down (선택)
+4. Slack/PagerDuty 알림
+5. Rollout 상태: Degraded
+6. 운영자 확인 → 원인 분석 → 재배포</div><strong>주의:</strong> canary pod를 즉시 죽이지 말 것 — 디버깅 자료 유지. 트래픽만 차단하고 pod는 유지하면 로그/profile 분석 가능</div></div>
+          <div class="db"><div class="l">자동 vs 수동 abort</div><div class="v"><strong>자동 abort 적합:</strong><br>· 5xx error rate 급등 (명확한 신호)<br>· latency p99 2배 이상<br>· readiness 실패 다수<br><br><strong>수동 검토 적합:</strong><br>· 비즈니스 메트릭 미세 변동 (전환율 -1%)<br>· 사용자 피드백 기반<br>· 통계 유의성 애매한 경우<br><br><strong>혼합:</strong> 명확한 SRE 메트릭은 자동, 비즈니스 메트릭은 알림만 + 수동 결정</div></div>
+          <div class="db df"><div class="l">Forward fix vs Rollback — 어느 쪽?</div><div class="v"><strong>롤백 우선 (default)</strong>: 알려진 안전한 버전으로 즉시 복귀. 원인 분석은 그 후<br><br><strong>Forward fix 적합한 경우:</strong><br>· 데이터 마이그레이션이 이미 진행 — 롤백이 더 위험<br>· 보안 패치 — 이전 버전이 더 위험<br>· 외부 API 호환성 변경 — 이전 버전이 외부와 불일치<br><br><strong>원칙:</strong> "정말 forward fix가 필요한가?" 의심부터. 90% 케이스는 롤백이 답. forward fix는 새 변경을 또 prod에 푸는 거라 또 다른 사고 위험<br><br><strong>롤백 자체의 함정:</strong> "롤백은 안전"이라는 가정이 항상 맞지는 않음. DB 스키마 변경 후 롤백 시 old 코드가 새 스키마를 못 다룰 수 있음 → expand/contract 설계가 필수</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ARGO ===== -->
+  <div class="P" id="p-argo">
+    <div class="PH"><div class="bg bg-p">● Argo Rollouts</div><h2>Argo Rollouts — k8s native progressive delivery</h2><p>Rollout CRD, AnalysisTemplate, Experiment, Service Mesh 통합 — Kubernetes 환경에서 가장 널리 쓰이는 progressive delivery 도구.</p></div>
+
+    <div class="sec" id="rollout-crd">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">CRD</div>
+        <h3>Rollout CRD — Deployment의 확장</h3>
+        <div class="cs">Argo Rollouts는 Deployment를 대체하는 Rollout CRD를 제공. 기존 Deployment YAML과 거의 호환</div>
+        <div class="cp">Argo Rollouts는 Deployment의 <code>strategy.type</code>을 RollingUpdate/Recreate에서 <strong>Canary/BlueGreen</strong>으로 확장한다. spec 구조는 거의 동일해 마이그레이션이 쉽다 — <code>kind: Deployment</code>를 <code>kind: Rollout</code>로 바꾸고 strategy만 추가하면 된다.</div>
+        <div class="bx"><div class="bx-t">Canary Rollout 표준 정의</div><div class="co"><span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Rollout
+<span class="k">metadata</span>:
+  <span class="k">name</span>: payment-api
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: <span class="n">10</span>
+  <span class="k">strategy</span>:
+    <span class="k">canary</span>:
+      <span class="k">canaryService</span>: payment-api-canary    <span class="c"># canary 트래픽용 service</span>
+      <span class="k">stableService</span>: payment-api-stable    <span class="c"># stable 트래픽용 service</span>
+      <span class="k">trafficRouting</span>:
+        <span class="k">istio</span>:
+          <span class="k">virtualService</span>:
+            <span class="k">name</span>: payment-api-vs
+            <span class="k">routes</span>: [<span class="s">primary</span>]
+      <span class="k">steps</span>:
+      - <span class="k">setWeight</span>: <span class="n">5</span>
+      - <span class="k">pause</span>: { <span class="k">duration</span>: <span class="s">10m</span> }
+      - <span class="k">analysis</span>:
+          <span class="k">templates</span>:
+          - <span class="k">templateName</span>: error-rate
+            <span class="k">args</span>:
+            - <span class="k">name</span>: service-name
+              <span class="k">value</span>: payment-api
+      - <span class="k">setWeight</span>: <span class="n">25</span>
+      - <span class="k">pause</span>: { <span class="k">duration</span>: <span class="s">10m</span> }
+      - <span class="k">analysis</span>:
+          <span class="k">templates</span>: [{ <span class="k">templateName</span>: error-rate, <span class="k">args</span>: [...]}]
+      - <span class="k">setWeight</span>: <span class="n">50</span>
+      - <span class="k">pause</span>: {}                          <span class="c"># 무기한 — 수동 promotion</span>
+      <span class="k">scaleDownDelaySeconds</span>: <span class="n">300</span>           <span class="c"># promotion 후 5분간 old 유지</span>
+  <span class="k">selector</span>: { <span class="k">matchLabels</span>: { <span class="k">app</span>: payment-api } }
+  <span class="k">template</span>: <span class="c"># Deployment.spec.template과 동일</span>
+    <span class="k">spec</span>: { <span class="k">containers</span>: [...] }</div></div>
+        <div class="dt">
+          <div class="db"><div class="l">step 종류</div><div class="v"><code>setWeight</code>: 트래픽 비율 변경<br><code>pause</code>: 일정 시간 또는 무기한 대기<br><code>analysis</code>: AnalysisTemplate 실행<br><code>experiment</code>: 단기간 실험 (별도 pod)<br><code>setCanaryScale</code>: replica 수 직접 제어<br><br><strong>실전 패턴:</strong> setWeight + pause + analysis 3종 세트의 반복</div></div>
+          <div class="db"><div class="l">CLI & UI</div><div class="v"><strong>kubectl plugin:</strong><div class="fm">kubectl argo rollouts get rollout payment-api
+kubectl argo rollouts promote payment-api    # 다음 step 진행
+kubectl argo rollouts abort payment-api      # 현재 진행 중단
+kubectl argo rollouts retry payment-api      # 실패한 rollout 재시도
+kubectl argo rollouts pause payment-api      # 일시정지</div><strong>UI:</strong> <code>kubectl argo rollouts dashboard</code> → localhost:3100. progress 시각화, manual promote 버튼</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="analysis-tpl">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Template</div>
+        <h3>AnalysisTemplate — 재사용 가능한 측정 정의</h3>
+        <div class="cs">"error rate &lt; 0.5%" 같은 게이트를 한 번 정의하고 모든 rollout에서 재사용</div>
+        <div class="cp">조직 표준 게이트(error rate, latency, saturation)는 AnalysisTemplate으로 한 번 정의해 모든 rollout에서 참조한다. 서비스별로 임계치만 args로 다르게 주면 된다.</div>
+        <div class="bx"><div class="bx-t">조직 표준 AnalysisTemplate 세트</div><div class="co"><span class="c"># 1) Error rate 게이트</span>
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: ClusterAnalysisTemplate          <span class="c"># 모든 namespace에서 참조 가능</span>
+<span class="k">metadata</span>: { <span class="k">name</span>: <span class="s">error-rate</span> }
+<span class="k">spec</span>:
+  <span class="k">args</span>:
+  - <span class="k">name</span>: service
+  - <span class="k">name</span>: threshold
+    <span class="k">value</span>: <span class="s">"0.005"</span>
+  <span class="k">metrics</span>:
+  - <span class="k">name</span>: error-rate
+    <span class="k">interval</span>: <span class="s">1m</span>
+    <span class="k">count</span>: <span class="n">10</span>                      <span class="c"># 10번 측정</span>
+    <span class="k">successCondition</span>: <span class="s">"result[0] &lt;= {{args.threshold}}"</span>
+    <span class="k">failureLimit</span>: <span class="n">3</span>                <span class="c"># 3번 실패하면 abort</span>
+    <span class="k">provider</span>:
+      <span class="k">prometheus</span>:
+        <span class="k">address</span>: http://prometheus.monitoring:9090
+        <span class="k">query</span>: |
+          sum(rate(http_requests_total{service="{{args.service}}",version="canary",status=~"5.."}[2m]))
+          /
+          sum(rate(http_requests_total{service="{{args.service}}",version="canary"}[2m]))
+
+<span class="c"># 2) Latency p99 게이트</span>
+<span class="c"># 3) Saturation 게이트</span>
+<span class="c"># ... (조직 공용)</span></div></div>
+        <div class="nt g"><strong>TIP</strong> <code>ClusterAnalysisTemplate</code>으로 정의하면 모든 namespace의 rollout이 참조 가능. 플랫폼 팀이 표준 게이트 셋트를 관리하고, 서비스 팀은 args만 채워 사용 — 일관성과 유지보수 둘 다 잡힘.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="experiment">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Experiment</div>
+        <h3>Experiment — 일회성 실험 단위</h3>
+        <div class="cs">canary와 별개로 "실험용 pod"를 띄워 짧게 검증 — 본 트래픽에 영향 없이 가설 검증</div>
+        <div class="cp">Canary는 실제 사용자 트래픽을 통해 검증한다. <strong>Experiment</strong>는 별도 pod를 띄워 (1) 합성 트래픽 또는 (2) 미러된 트래픽을 받아 짧게 측정한다. 본 사용자 영향이 0이라 더 공격적인 실험이 가능하다.</div>
+        <div class="bx"><div class="bx-t">Experiment 정의</div><div class="co"><span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Experiment
+<span class="k">metadata</span>: { <span class="k">name</span>: <span class="s">payment-perf-test</span> }
+<span class="k">spec</span>:
+  <span class="k">duration</span>: <span class="s">15m</span>
+  <span class="k">templates</span>:                    <span class="c"># 실험에 띄울 pod 종류</span>
+  - <span class="k">name</span>: baseline
+    <span class="k">replicas</span>: <span class="n">2</span>
+    <span class="k">spec</span>:
+      <span class="k">containers</span>:
+      - <span class="k">image</span>: payment:v1.0
+  - <span class="k">name</span>: experimental
+    <span class="k">replicas</span>: <span class="n">2</span>
+    <span class="k">spec</span>:
+      <span class="k">containers</span>:
+      - <span class="k">image</span>: payment:v1.1-experimental
+  <span class="k">analyses</span>:                     <span class="c"># 두 그룹 비교 분석</span>
+  - <span class="k">name</span>: latency-comparison
+    <span class="k">templateName</span>: compare-latency
+    <span class="k">args</span>:
+    - <span class="k">name</span>: baseline
+      <span class="k">value</span>: baseline
+    - <span class="k">name</span>: experimental
+      <span class="k">value</span>: experimental</div></div>
+      </div>
+    </div>
+
+    <div class="sec" id="argo-mesh">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Mesh</div>
+        <h3>Service Mesh / Ingress 통합</h3>
+        <div class="cs">정밀한 가중치 라우팅은 mesh가 필요. Argo Rollouts는 주요 mesh를 모두 지원</div>
+        <table class="tb">
+          <thead><tr><th>Provider</th><th>정밀도</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>Istio</td><td>임의 % (1% 단위 정밀)</td><td>VirtualService weight 자동 업데이트</td></tr>
+            <tr><td>Linkerd</td><td>임의 %</td><td>SMI TrafficSplit 사용</td></tr>
+            <tr><td>NGINX Ingress</td><td>임의 %</td><td>nginx.ingress.kubernetes.io/canary annotation</td></tr>
+            <tr><td>AWS ALB</td><td>임의 %</td><td>ALB의 weighted target group</td></tr>
+            <tr><td>Traefik</td><td>임의 %</td><td>Traefik service weight</td></tr>
+            <tr><td>없음 (mesh-less)</td><td>replica 비율</td><td>5/95 같은 "거친" 단계만 가능</td></tr>
+          </tbody>
+        </table>
+        <div class="nt"><strong>NOTE</strong> Mesh를 도입하지 못하는 환경에선 replica 비율 방식도 충분한 경우가 많다. 100 replica 중 1개를 canary로 쓰면 1% — 작은 서비스에선 절대 불가능하지만, 대규모 서비스에선 mesh 없이도 의미 있는 canary가 된다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FLAGGER ===== -->
+  <div class="P" id="p-flagger">
+    <div class="PH"><div class="bg bg-t">● Flagger</div><h2>Flagger — Service Mesh 친화 자동 canary</h2><p>Flagger는 Flux 진영의 progressive delivery 도구. Service Mesh와 깊이 통합되어 자동 canary, A/B testing, blue/green을 지원.</p></div>
+
+    <div class="sec" id="flagger-canary">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Auto</div>
+        <h3>Flagger Canary — 자동 promotion</h3>
+        <div class="cs">Flagger는 Deployment를 그대로 두고 Canary CRD로 progressive delivery를 부착</div>
+        <div class="cp">Argo Rollouts와 달리 Flagger는 <strong>기존 Deployment를 변경하지 않는다</strong>. Canary CRD가 Deployment를 "감시"하다가 image 태그 변경 감지 시 자동 canary 시작 — Argo CD/Flux 기반 GitOps에 잘 맞는 모델.</div>
+        <div class="bx"><div class="bx-t">Flagger Canary 정의 (Istio)</div><div class="co"><span class="k">apiVersion</span>: flagger.app/v1beta1
+<span class="k">kind</span>: Canary
+<span class="k">metadata</span>: { <span class="k">name</span>: <span class="s">payment-api</span> }
+<span class="k">spec</span>:
+  <span class="k">targetRef</span>:                         <span class="c"># 감시할 Deployment</span>
+    <span class="k">apiVersion</span>: apps/v1
+    <span class="k">kind</span>: Deployment
+    <span class="k">name</span>: payment-api
+  <span class="k">progressDeadlineSeconds</span>: <span class="n">600</span>
+  <span class="k">service</span>:
+    <span class="k">port</span>: <span class="n">80</span>
+    <span class="k">targetPort</span>: <span class="n">8080</span>
+    <span class="k">gateways</span>: [<span class="s">public-gateway</span>]
+    <span class="k">hosts</span>: [<span class="s">payment.example.com</span>]
+  <span class="k">analysis</span>:
+    <span class="k">interval</span>: <span class="s">1m</span>
+    <span class="k">threshold</span>: <span class="n">10</span>                       <span class="c"># 10번 실패 시 abort</span>
+    <span class="k">maxWeight</span>: <span class="n">50</span>                       <span class="c"># 최대 50%까지 canary</span>
+    <span class="k">stepWeight</span>: <span class="n">5</span>                       <span class="c"># 매 step 5% 증가</span>
+    <span class="k">metrics</span>:
+    - <span class="k">name</span>: error-rate
+      <span class="k">templateRef</span>: { <span class="k">name</span>: <span class="s">error-rate</span> }
+      <span class="k">thresholdRange</span>: { <span class="k">max</span>: <span class="n">1</span> }       <span class="c"># 1% 이하</span>
+    - <span class="k">name</span>: request-duration
+      <span class="k">thresholdRange</span>: { <span class="k">max</span>: <span class="n">500</span> }     <span class="c"># p99 500ms 이하</span>
+    <span class="k">webhooks</span>:                            <span class="c"># 외부 부하 테스트</span>
+    - <span class="k">name</span>: load-test
+      <span class="k">url</span>: http://flagger-loadtester/
+      <span class="k">metadata</span>:
+        <span class="k">cmd</span>: <span class="s">"hey -z 1m -q 10 -c 2 http://payment-api-canary/"</span></div></div>
+      </div>
+    </div>
+
+    <div class="sec" id="flagger-mesh">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Mesh</div>
+        <h3>Mesh / Ingress 지원 매트릭스</h3>
+        <div class="cs">Flagger는 Argo Rollouts보다 mesh 통합이 더 깊다 — 특히 Linkerd 환경에서</div>
+        <div class="cg">
+          <div class="cd"><h4>Istio</h4><p>VirtualService와 DestinationRule을 자동 관리. 가중치 조정이 정밀. 가장 많이 쓰이는 조합.</p></div>
+          <div class="cd"><h4>Linkerd</h4><p>SMI TrafficSplit 기반. Flagger의 "친정" — 통합이 가장 매끄럽다. Linkerd 사용 환경의 기본 선택.</p></div>
+          <div class="cd"><h4>NGINX Ingress</h4><p>canary annotation 자동 관리. mesh 없이 ingress 레벨에서만 분기 — 외부 트래픽엔 충분하지만 내부 호출은 분기 X.</p></div>
+          <div class="cd"><h4>AWS App Mesh / Gloo / Contour / Skipper</h4><p>모두 native 지원. 거의 모든 주요 mesh/ingress와 통합 — 환경에 맞춰 선택 가능.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="flagger-ab">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">A/B</div>
+        <h3>A/B Testing 모드</h3>
+        <div class="cs">트래픽 비율이 아닌 헤더/쿠키 매칭으로 사용자 코호트 단위 분기</div>
+        <div class="cp">Canary는 "임의의 5% 트래픽"이지만, A/B test는 "특정 사용자 그룹"에 새 버전 노출 — sticky하고, 비즈니스 메트릭 측정에 적합. Flagger는 같은 Canary CRD에 <code>match</code> 조건을 추가해 A/B 모드로 전환할 수 있다.</div>
+        <div class="bx"><div class="bx-t">A/B Testing 모드</div><div class="co"><span class="k">spec</span>:
+  <span class="k">analysis</span>:
+    <span class="k">interval</span>: <span class="s">1m</span>
+    <span class="k">threshold</span>: <span class="n">10</span>
+    <span class="k">iterations</span>: <span class="n">10</span>           <span class="c"># 10회 측정 후 promotion</span>
+    <span class="k">match</span>:                  <span class="c"># 트래픽 매칭 조건</span>
+    - <span class="k">headers</span>:
+        <span class="k">x-canary</span>:
+          <span class="k">exact</span>: <span class="s">"insider"</span>     <span class="c"># 내부 직원만 새 버전</span>
+    - <span class="k">headers</span>:
+        <span class="k">cookie</span>:
+          <span class="k">regex</span>: <span class="s">"^(.*?;)?(canary=true)(;.*)?$"</span>
+    <span class="k">metrics</span>:
+    - <span class="k">name</span>: conversion-rate
+      <span class="k">thresholdRange</span>: { <span class="k">min</span>: <span class="n">95</span> }   <span class="c"># 비즈니스 메트릭</span>
+      <span class="k">interval</span>: <span class="s">1m</span></div></div>
+        <div class="nt"><strong>NOTE</strong> A/B는 "새 기능이 비즈니스 KPI에 어떤 영향?"을 묻는 도구. canary가 "안전한가?"라면 A/B는 "더 좋은가?". 두 개를 혼동하지 말 것 — 보통 둘 다 필요하다 (canary로 안전 확보, A/B로 효과 측정).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FLAG ===== -->
+  <div class="P" id="p-flag">
+    <div class="PH"><div class="bg bg-g">● Feature Flags</div><h2>Feature Flags — Deploy ≠ Release</h2><p>코드 배포와 기능 노출을 분리하는 도구. Dark launch, Kill switch, percentage rollout, A/B test 모두 같은 메커니즘 위에서 동작.</p></div>
+
+    <div class="sec" id="flag-types">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Types</div>
+        <h3>플래그의 4가지 유형</h3>
+        <div class="cs">모든 플래그가 같은 게 아니다 — 수명과 목적이 다르면 관리 방식도 달라야 한다</div>
+        <table class="tb">
+          <thead><tr><th>유형</th><th>수명</th><th>목적</th><th>제거 시점</th></tr></thead>
+          <tbody>
+            <tr><td>Release toggle</td><td>주~수개월</td><td>점진적 노출 (1%→100%)</td><td>100% 도달 후 즉시</td></tr>
+            <tr><td>Experiment toggle</td><td>주</td><td>A/B 테스트</td><td>실험 종료 + 결정 후</td></tr>
+            <tr><td>Ops toggle (Kill switch)</td><td>영구</td><td>장애 시 기능 차단</td><td>제거하지 않음 (유지)</td></tr>
+            <tr><td>Permission toggle</td><td>영구</td><td>사용자별 기능 권한</td><td>제거하지 않음 (정책)</td></tr>
+          </tbody>
+        </table>
+        <div class="dt">
+          <div class="db"><div class="l">유형 구분의 중요성</div><div class="v">"수명이 짧은" 플래그(Release/Experiment)와 "영구" 플래그(Ops/Permission)를 같은 시스템에서 관리하면 혼란 발생.<br><br><strong>안티패턴:</strong> 1년 전 만든 release toggle이 아직 코드에 남아 있음 → 죽은 코드 양산<br><br><strong>해법:</strong> 플래그마다 <strong>유형 + 만료일</strong> 기록. release toggle은 만료 30일 전부터 알림</div></div>
+          <div class="db"><div class="l">Targeting Rule</div><div class="v">단순 on/off 외에 다양한 조건 매칭:<div class="fm">{
+  "key": "new-checkout-flow",
+  "rules": [
+    { "if": "user.country == 'KR'",     "value": true  },
+    { "if": "user.tier == 'enterprise'", "value": true  },
+    { "if": "user.id % 100 < 5",        "value": true  },  // 5%
+    { "default":                          "value": false }
+  ]
+}</div>SDK가 사용자 컨텍스트와 룰을 매칭해 평가</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="dark-launch">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Pattern</div>
+        <h3>Dark Launch — 코드는 배포, 기능은 비공개</h3>
+        <div class="cs">Trunk-based development의 핵심 — feature branch 없이 main에 머지하되 사용자에겐 안 보임</div>
+        <div class="cp">Long-lived feature branch는 머지 충돌 지옥과 통합 지연을 유발한다. <strong>Dark launch</strong>는 미완성 기능도 main에 머지하되 <code>if (flag.isOn("new-feature")) {...}</code>로 사용자에겐 가려진 채로 prod에 배포하는 패턴이다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">실전 예시</div><div class="v"><div class="fm">// 사용자가 보는 코드
+if (await flags.isOn('new-checkout-v2', { user })) {
+  return renderCheckoutV2();
+} else {
+  return renderCheckoutV1();
+}
+
+// 백엔드도 동일하게
+if (await flags.isOn('use-new-payment-api', { user })) {
+  return await newPaymentApi.charge(amount);
+} else {
+  return await legacyPaymentApi.charge(amount);
+}</div>flag off 상태로 main에 머지 → CI 통과 → prod 배포 → 충분히 검증 후 단계적으로 flag on</div></div>
+          <div class="db"><div class="l">Dark launch의 단계</div><div class="v"><strong>1. Build (off)</strong> — 코드 작성 + main 머지. 사용자에게 안 보임<br><strong>2. Internal (employees)</strong> — 직원에게만 on. dogfooding<br><strong>3. Beta (1-5%)</strong> — 소수 사용자. 메트릭 관찰<br><strong>4. Gradual (5→25→50→100%)</strong> — 점진적 확대<br><strong>5. Cleanup</strong> — 100% 도달 후 if 분기 + flag 모두 제거. 죽은 legacy 코드 삭제<br><br>각 단계에서 멈추거나 되돌릴 수 있음 — 배포가 아닌 "릴리즈"의 통제권 확보</div></div>
+          <div class="db df"><div class="l">Backend dark launch — Shadow Traffic</div><div class="v">"새 알고리즘을 prod에 도입하기 전에 실제 트래픽으로 검증"하고 싶을 때:<div class="fm">// 사용자에게는 old 결과 반환, 새 알고리즘은 background에서 비교용 실행
+const oldResult = await oldAlgorithm(input);
+
+if (await flags.isOn('shadow-new-algo', { user })) {
+  // 비동기로 새 알고리즘 실행, 결과 비교 + 메트릭 기록
+  newAlgorithm(input).then(newResult => {
+    metrics.record('algo_diff', { old: oldResult, new: newResult });
+    if (!equals(oldResult, newResult)) logger.warn(...);
+  }).catch(err => metrics.record('algo_error'));
+}
+
+return oldResult;  // 사용자는 항상 old 결과</div>새 알고리즘이 사용자에게 영향 없이 실제 부하/데이터로 검증됨. 차이 0이 되면 cutover</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="kill-switch">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Ops</div>
+        <h3>Kill Switch — 장애 시 차단 스위치</h3>
+        <div class="cs">새 기능에만 쓰는 게 아니다. 기존 핵심 기능도 비상시 차단할 수 있어야 한다</div>
+        <div class="cp">결제, 추천, 알림 같은 핵심 기능에 <strong>"이 기능을 잠시 비활성화"</strong>할 수 있는 ops toggle을 미리 박아두자. 장애 시 코드 변경 + 배포 없이 1초 만에 영향 차단 가능 — MTTR이 분 단위에서 초 단위로 단축.</div>
+        <div class="bx"><div class="bx-t">Kill switch 패턴</div><div class="co"><span class="c">// 외부 추천 서비스 호출 — 가끔 죽으면 전체 페이지 응답 느려짐</span>
+<span class="k">async function</span> <span class="f">getRecommendations</span>(user) {
+  <span class="k">if</span> (<span class="k">await</span> flags.isOn(<span class="s">'recommendations-killswitch'</span>)) {
+    metrics.increment(<span class="s">'recommendations.disabled'</span>);
+    <span class="k">return</span> [];               <span class="c">// 빈 결과로 graceful degradation</span>
+  }
+
+  <span class="k">try</span> {
+    <span class="k">return await</span> recommendationService.fetch(user);
+  } <span class="k">catch</span> (err) {
+    metrics.increment(<span class="s">'recommendations.error'</span>);
+    <span class="k">return</span> [];
+  }
+}</div></div>
+        <div class="dt">
+          <div class="db"><div class="l">어디에 kill switch를 박을까</div><div class="v"><strong>외부 의존:</strong> 다른 서비스/외부 API 호출 — 그 의존이 죽으면 격리<br><strong>비싼 연산:</strong> ML inference, 큰 쿼리 — 부하 spike 시 차단<br><strong>최근 변경:</strong> 신규 기능은 6개월간 kill switch 유지 → 안정화 확인 후 제거 검토<br><strong>운영 위험:</strong> 결제, 인증 같은 자체 — 더 큰 영향 막기 위한 마지막 카드<br><br>핵심 코드 경로마다 1개씩 박는 게 운영 부담 만드는 게 아니라, 운영 자유도를 높인다</div></div>
+          <div class="db"><div class="l">Kill switch의 함정</div><div class="v"><strong>1. Flag 시스템 자체 의존</strong> — flag service가 죽으면 kill switch 못 씀. <strong>SDK fallback default</strong>를 안전한 값으로 (true/false 명확)<br><strong>2. 캐시 stale</strong> — flag 변경이 즉시 반영 안 됨. SDK polling 주기 ≤ 30초<br><strong>3. 문서화 부족</strong> — runbook에 "어떤 상황에 어떤 kill switch" 명시. 새벽 3시에 어떤 스위치를 누를지 모르면 의미 없음<br><strong>4. 정기 점검 안 함</strong> — 6개월에 한 번 staging에서 모든 kill switch 토글해서 동작 검증</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="flag-debt">
+      <div class="con">
+        <div class="ct" style="color:var(--green);background:var(--gbg);border:1px solid var(--gbd)">Debt</div>
+        <h3>플래그 부채 관리</h3>
+        <div class="cs">플래그는 부채다 — 만들 때 즐겁고, 안 갚으면 코드를 갉아먹는다</div>
+        <div class="cp">Feature flag는 강력하지만 <strong>코드 분기를 영구화</strong>한다. 100개 release flag가 코드에 남아 있으면 모든 함수가 if-else 지옥. 1년 후 어떤 플래그가 살아있는지 아무도 모른다 — 새 사람 입사 시 "이 코드 뭐예요?"의 90%는 죽은 플래그.</div>
+        <div class="dt">
+          <div class="db"><div class="l">방지 — 만들 때부터 청산 계획</div><div class="v"><strong>1. 만료일 필수</strong> — 플래그 생성 시 expiration 입력. release toggle은 기본 30일<br><strong>2. Owner 명시</strong> — CODEOWNERS 매핑. 만료 시 owner에게 자동 PR<br><strong>3. Linter</strong> — <code>flag-cleanup-bot</code>: 100% rollout된 flag를 코드에서 자동 제거 PR 생성<br><strong>4. 분기당 정리 데이</strong> — 분기마다 reading day 1일 = 죽은 flag 제거<br><br>"나중에 정리하자"는 영원히 정리 안 한다. 청산 자동화가 핵심</div></div>
+          <div class="db"><div class="l">Detection — 죽은 플래그 찾기</div><div class="v"><strong>지표:</strong><br>· 100% rollout 상태로 30일 이상 — 그냥 코드에 박아도 됨<br>· 0% rollout 상태로 90일 이상 — 안 쓰는 코드, 그냥 삭제<br>· 마지막 evaluation으로부터 60일 — 코드에서 호출 안 됨<br><br><strong>도구:</strong><br>· LaunchDarkly의 "stale flag" 리포트<br>· Unleash 자체 stale 추적<br>· grep + last evaluation timestamp 조합</div></div>
+          <div class="db df"><div class="l">SDK 운영 — Flag eval의 안전성</div><div class="v">앱 내에서 매 요청 flag eval은 hot path다. 잘못 쓰면 latency 증가 또는 SPOF.<br><br><strong>1. 로컬 평가 (streaming)</strong> — SDK가 모든 flag 정의를 메모리에 보유. 외부 호출 없이 평가. LaunchDarkly/Unleash 모두 지원<br><strong>2. Bootstrap fallback</strong> — flag service 첫 연결 실패 시 fallback 값 (env var, 디스크 cache)<br><strong>3. Default 안전성</strong> — 모든 isOn() 호출에 default 값 명시. flag 시스템 죽어도 안전한 동작:<br>&nbsp;&nbsp;<code>flags.isOn('experimental-feature', false)</code> ← 죽으면 off (안전)<br>&nbsp;&nbsp;<code>flags.isOn('killswitch-payment', false)</code> ← 죽으면 off = 정상 동작 (안전)<br><strong>4. Telemetry</strong> — flag eval 횟수, 결과 분포 메트릭. anomaly 감지에 유용</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+function sw(t){
+  document.querySelectorAll('.T').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  document.querySelectorAll('.P').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));
+}
+document.querySelectorAll('.sn a').forEach(a=>{
+  a.addEventListener('click',e=>{
+    e.preventDefault();
+    const t=a.dataset.t,s=a.dataset.s;
+    sw(t);
+    document.querySelectorAll('.sn a').forEach(x=>x.classList.toggle('on',x===a));
+    setTimeout(()=>document.getElementById(s)?.scrollIntoView({behavior:'smooth',block:'start'}),50);
+  });
+});
+</script>
+</body>
+</html>

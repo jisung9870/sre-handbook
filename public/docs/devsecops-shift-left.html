@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevSecOps & Shift-Left Security — DevOps Senior Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fb;--sf:#fff;--s2:#f0f2f5;--bd:#e2e6eb;--bs:#d0d5dc;--tx:#1a1d23;--td:#5c6370;--tm:#8b929e;--blue:#0969b2;--bbg:#e8f4fd;--bbd:#a2d2f5;--purple:#7c3aed;--pbg:#f3effe;--pbd:#c4b5fd;--green:#1a7f37;--gbg:#ecf7ef;--gbd:#a6ddb5;--orange:#c2600c;--obg:#fef3eb;--obd:#f5cba7;--red:#cf222e;--rbg:#fdecea;--rbd:#f5a8a8;--teal:#0e7c6b;--tbg:#e6f7f4;--tbd:#8ed5c5;--indigo:#4338ca;--ibg:#eef2ff;--ibd:#a5b4fc;--sh:0 1px 3px rgba(0,0,0,.06);--sh2:0 2px 8px rgba(0,0,0,.08);--r:10px;--sw:256px}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;line-height:1.75}.L{display:flex;min-height:100vh}
+.S{width:var(--sw);min-width:var(--sw);background:var(--sf);border-right:1px solid var(--bd);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100;box-shadow:1px 0 8px rgba(0,0,0,.03)}.S-b{padding:0 18px 18px;border-bottom:1px solid var(--bd);margin-bottom:8px}.S-b .t{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--indigo);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600}.S-b h1{font-size:14px;font-weight:700;line-height:1.3}.S-b h1 em{font-style:normal;color:var(--indigo)}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);letter-spacing:1.5px;text-transform:uppercase;padding:11px 18px 4px;font-weight:600}.sn{list-style:none}.sn li a{display:flex;align-items:center;gap:8px;padding:6px 18px;color:var(--td);text-decoration:none;font-size:11.5px;transition:all .15s;border-left:2.5px solid transparent;cursor:pointer}.sn li a:hover{color:var(--tx);background:var(--s2)}.sn li a.on{color:var(--tx);background:var(--ibg);border-left-color:var(--indigo);font-weight:600}.sn li a .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.S-f{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--bd)}.S-f p{font-size:9px;color:var(--tm);line-height:1.4;font-family:'JetBrains Mono',monospace}
+.M{flex:1;margin-left:var(--sw)}.TT{position:sticky;top:0;z-index:50;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;box-shadow:0 1px 4px rgba(0,0,0,.04)}.T{flex:1;padding:13px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;color:var(--tm);border:none;background:none;cursor:pointer;position:relative;transition:all .2s}.T:hover{color:var(--tx);background:var(--s2)}.T::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2.5px;border-radius:2px;transition:all .25s}.T.on{color:var(--tx)}
+.T[data-t="sast"].on{color:var(--red)}.T[data-t="sast"].on::after{background:var(--red);left:8%;right:8%}
+.T[data-t="secrets"].on{color:var(--orange)}.T[data-t="secrets"].on::after{background:var(--orange);left:8%;right:8%}
+.T[data-t="iac"].on{color:var(--blue)}.T[data-t="iac"].on::after{background:var(--blue);left:8%;right:8%}
+.T[data-t="supply"].on{color:var(--purple)}.T[data-t="supply"].on::after{background:var(--purple);left:8%;right:8%}
+.T[data-t="dast"].on{color:var(--teal)}.T[data-t="dast"].on::after{background:var(--teal);left:8%;right:8%}
+.P{display:none;padding:34px 44px 80px;max-width:920px}.P.on{display:block}.PH{margin-bottom:28px}
+.bg{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:18px;margin-bottom:10px;font-weight:600}.bg-i{color:var(--indigo);background:var(--ibg);border:1px solid var(--ibd)}.bg-r{color:var(--red);background:var(--rbg);border:1px solid var(--rbd)}.bg-o{color:var(--orange);background:var(--obg);border:1px solid var(--obd)}.bg-b{color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)}.bg-p{color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)}.bg-t{color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)}
+.PH h2{font-size:23px;font-weight:700;margin-bottom:6px}.PH>p{color:var(--td);font-size:14px;max-width:660px}
+.sec{margin-top:38px;scroll-margin-top:66px}.sec>h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.con{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}.con .ct{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:14px;margin-bottom:8px;font-weight:700}.con h3{font-size:17px;font-weight:700;margin-bottom:4px}.con .cs{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tm);margin-bottom:10px;font-weight:600}.con .cp{color:var(--td);font-size:12.5px;line-height:1.75;margin-bottom:14px}.con .cp strong{color:var(--tx)}
+.dt{display:grid;grid-template-columns:1fr 1fr;gap:10px}.db{background:var(--s2);border-radius:7px;padding:12px 14px}.db .l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tm);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-weight:600}.db .v{font-size:12px;color:var(--tx);font-weight:500;line-height:1.55}.db .v code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.db .v strong{font-weight:700}.df{grid-column:1/-1}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:all .2s}.cd:hover{border-color:var(--bs);box-shadow:var(--sh2)}.cd h4{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-bottom:6px}.cd p{color:var(--td);font-size:12px;line-height:1.6}.cd code{font-family:'JetBrains Mono',monospace;background:var(--gbg);color:var(--green);padding:1px 4px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}.cf{grid-column:1/-1}
+.co{background:#1e2530;color:#e6edf3;border-radius:7px;padding:16px 18px;margin-top:10px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre}.co .c{color:#8b949e}.co .k{color:#ff7b72}.co .s{color:#a5d6ff}.co .f{color:#d2a8ff}.co .n{color:#79c0ff}.co .g{color:#3fb950}
+.nt{border-left:3px solid var(--green);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-top:14px;font-size:12px;color:var(--td);line-height:1.6}.nt.g{background:var(--gbg)}.nt.g strong{color:var(--green)}.nt.o{background:var(--obg);border-left-color:var(--orange)}.nt.o strong{color:var(--orange)}.nt.r{background:var(--rbg);border-left-color:var(--red)}.nt.r strong{color:var(--red)}.nt strong{font-family:'JetBrains Mono',monospace;font-size:10px}
+.bx{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-top:14px;overflow-x:auto;box-shadow:var(--sh)}.bx-t{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tm);letter-spacing:1px;margin-bottom:12px;font-weight:600}
+.tb{width:100%;border-collapse:collapse;font-size:12px}.tb th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--tm);padding:8px 10px;border-bottom:2px solid var(--bd);font-weight:700;background:var(--s2)}.tb td{padding:8px 10px;border-bottom:1px solid var(--s2);vertical-align:top}.tb tr:last-child td{border-bottom:none}.tb tr:hover td{background:var(--s2)}.tb td:first-child{font-weight:600}
+.fm{background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;white-space:pre-wrap;overflow-x:auto;line-height:1.7}
+.mob{display:none;position:fixed;top:10px;left:10px;z-index:200;background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 11px;color:var(--tx);font-size:17px;cursor:pointer;box-shadow:var(--sh2)}
+@media(max-width:768px){.mob{display:block}.S{transform:translateX(-100%);transition:transform .25s}.S.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.1)}.M{margin-left:0}.P{padding:28px 16px 60px}.cg,.dt{grid-template-columns:1fr!important}.T{font-size:9px;padding:10px 3px}}
+</style>
+</head>
+<body>
+<button class="mob" onclick="document.querySelector('.S').classList.toggle('open')">☰</button>
+<div class="L">
+<aside class="S">
+  <div class="S-b"><div class="t">DevOps Practice</div><h1><em>DevSecOps</em><br>Shift-Left</h1></div>
+  <div class="sl">SAST / SCA</div>
+  <ul class="sn">
+    <li><a data-t="sast" data-s="shift-left" class="on"><span class="d" style="background:var(--red)"></span>Shift-Left 원칙</a></li>
+    <li><a data-t="sast" data-s="sast-tools"><span class="d" style="background:var(--red)"></span>SAST 도구</a></li>
+    <li><a data-t="sast" data-s="sca-tools"><span class="d" style="background:var(--red)"></span>SCA / 의존성 스캔</a></li>
+    <li><a data-t="sast" data-s="triage"><span class="d" style="background:var(--red)"></span>Triage & 노이즈</a></li>
+  </ul>
+  <div class="sl">시크릿 관리</div>
+  <ul class="sn">
+    <li><a data-t="secrets" data-s="secret-scan"><span class="d" style="background:var(--orange)"></span>시크릿 스캐닝</a></li>
+    <li><a data-t="secrets" data-s="vault"><span class="d" style="background:var(--orange)"></span>Vault</a></li>
+    <li><a data-t="secrets" data-s="eso"><span class="d" style="background:var(--orange)"></span>External Secrets</a></li>
+    <li><a data-t="secrets" data-s="rotation"><span class="d" style="background:var(--orange)"></span>회전 전략</a></li>
+  </ul>
+  <div class="sl">IaC 보안</div>
+  <ul class="sn">
+    <li><a data-t="iac" data-s="iac-scan"><span class="d" style="background:var(--blue)"></span>IaC 스캐닝</a></li>
+    <li><a data-t="iac" data-s="opa"><span class="d" style="background:var(--blue)"></span>OPA / Conftest</a></li>
+    <li><a data-t="iac" data-s="kube-policy"><span class="d" style="background:var(--blue)"></span>Kubernetes 정책</a></li>
+  </ul>
+  <div class="sl">공급망 보안</div>
+  <ul class="sn">
+    <li><a data-t="supply" data-s="sbom"><span class="d" style="background:var(--purple)"></span>SBOM</a></li>
+    <li><a data-t="supply" data-s="signing"><span class="d" style="background:var(--purple)"></span>이미지 서명</a></li>
+    <li><a data-t="supply" data-s="slsa"><span class="d" style="background:var(--purple)"></span>SLSA Framework</a></li>
+    <li><a data-t="supply" data-s="admission"><span class="d" style="background:var(--purple)"></span>Admission 검증</a></li>
+  </ul>
+  <div class="sl">DAST / 런타임</div>
+  <ul class="sn">
+    <li><a data-t="dast" data-s="dast-tools"><span class="d" style="background:var(--teal)"></span>DAST 도구</a></li>
+    <li><a data-t="dast" data-s="runtime"><span class="d" style="background:var(--teal)"></span>런타임 위협 탐지</a></li>
+    <li><a data-t="dast" data-s="netpol"><span class="d" style="background:var(--teal)"></span>NetworkPolicy</a></li>
+  </ul>
+  <div class="S-f"><p>Security is<br>everyone's job.</p></div>
+</aside>
+
+<div class="M">
+  <div class="TT">
+    <button class="T on" data-t="sast" onclick="sw('sast')">● SAST/SCA</button>
+    <button class="T" data-t="secrets" onclick="sw('secrets')">● 시크릿</button>
+    <button class="T" data-t="iac" onclick="sw('iac')">● IaC 보안</button>
+    <button class="T" data-t="supply" onclick="sw('supply')">● 공급망</button>
+    <button class="T" data-t="dast" onclick="sw('dast')">● DAST/런타임</button>
+  </div>
+
+  <!-- ===== SAST ===== -->
+  <div class="P on" id="p-sast">
+    <div class="PH"><div class="bg bg-r">● Static Application Security Testing</div><h2>SAST / SCA — 코드와 의존성 정적 분석</h2><p>코드 작성 단계에서 보안 결함을 찾는 도구. SAST(자체 코드), SCA(의존성), 그리고 false positive 노이즈를 다루는 운영 기법.</p></div>
+
+    <div class="sec" id="shift-left">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Principle</div>
+        <h3>Shift-Left — 보안을 왼쪽으로 옮긴다</h3>
+        <div class="cs">"prod 직전 보안 검토"의 한계 — 결함은 빨리 찾을수록 싸다</div>
+        <div class="cp">전통적 보안은 <strong>"개발 다 끝난 다음 보안팀이 검토"</strong>였다. 이 시점에서 발견된 결함은 (1) 수정 비용이 100배 증가, (2) 일정 압박으로 무시되거나 (3) 부분 패치로 끝난다. <strong>Shift-left</strong>는 같은 검사를 IDE/PR/CI 단계로 끌어와서 <strong>결함이 만들어지자마자 잡는다</strong>.</div>
+        <table class="tb">
+          <thead><tr><th>단계</th><th>비용 (상대)</th><th>도구 예시</th><th>피드백 시간</th></tr></thead>
+          <tbody>
+            <tr><td>IDE (개발 중)</td><td>1x</td><td>Semgrep CLI, Snyk IDE plugin</td><td>실시간 (밀리초)</td></tr>
+            <tr><td>Pre-commit hook</td><td>2x</td><td>gitleaks, semgrep</td><td>커밋 시 (초)</td></tr>
+            <tr><td>PR (CI)</td><td>5x</td><td>Semgrep, Snyk, Trivy</td><td>5-10분</td></tr>
+            <tr><td>Merge / staging</td><td>20x</td><td>SAST + SCA + DAST</td><td>30분-수시간</td></tr>
+            <tr><td>Production</td><td>100x</td><td>WAF, runtime monitoring</td><td>실시간 ~ 일/주</td></tr>
+          </tbody>
+        </table>
+        <div class="dt">
+          <div class="db"><div class="l">Shift-left 5가지 통제점</div><div class="v"><strong>1. SAST</strong> — 자체 코드의 패턴 기반 결함 (SQLi, XSS, hardcoded credential)<br><strong>2. SCA</strong> — 의존성의 알려진 CVE<br><strong>3. Secret scanning</strong> — 코드/커밋에 시크릿 평문<br><strong>4. IaC scanning</strong> — Terraform/k8s 매니페스트의 잘못된 설정<br><strong>5. Container scanning</strong> — 베이스 이미지의 OS-level CVE<br><br>각 통제점이 다른 결함을 잡음 — 모두 필요. 하나라도 빠지면 그 영역은 prod에서 발견됨</div></div>
+          <div class="db"><div class="l">"Shift-left 절대주의"의 함정</div><div class="v">모든 검사를 PR로 옮기면 PR 시간이 30분 → 90분이 됨. 개발자 생산성 직격.<br><br><strong>균형:</strong><br>· 빠른 검사 (lint, secret scan, basic SAST) — PR<br>· 중간 검사 (full SAST, SCA) — merge to main 트리거<br>· 느린 검사 (DAST, fuzzing, full container scan) — nightly<br><br>"shift-left"는 모든 걸 PR로 옮기는 게 아니라 <strong>가장 빠른 적합한 단계로</strong> 옮긴다는 뜻</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="sast-tools">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">SAST</div>
+        <h3>SAST 도구 — 패턴으로 결함 잡기</h3>
+        <div class="cs">코드를 실행하지 않고 결함 패턴을 찾는다 — 빠르지만 false positive 잦음</div>
+        <div class="cp">SAST는 코드의 AST(Abstract Syntax Tree)를 분석해 위험 패턴을 찾는다. <strong>장점:</strong> 100% 코드 커버리지, 빠름. <strong>단점:</strong> 데이터 흐름 추적 한계, false positive 30~50% — 좋은 룰셋과 triage가 핵심.</div>
+        <table class="tb">
+          <thead><tr><th>도구</th><th>특징</th><th>적합한 상황</th></tr></thead>
+          <tbody>
+            <tr><td>Semgrep</td><td>YAML 룰, 빠름, OSS</td><td>커스텀 룰 작성 쉬움 — 조직별 패턴</td></tr>
+            <tr><td>SonarQube</td><td>품질 + 보안 통합, 큰 룰셋</td><td>코드 품질도 통합 관리</td></tr>
+            <tr><td>CodeQL (GitHub)</td><td>강력한 데이터 흐름 분석</td><td>GitHub 생태계, 복잡한 vuln</td></tr>
+            <tr><td>Snyk Code</td><td>ML 기반 false positive 감소</td><td>SaaS 통합 운영</td></tr>
+            <tr><td>Bandit (Python), gosec (Go), Brakeman (Rails)</td><td>언어별 OSS</td><td>단일 언어 프로젝트, 가벼움</td></tr>
+          </tbody>
+        </table>
+        <div class="bx"><div class="bx-t">Semgrep 커스텀 룰 — 조직별 패턴</div><div class="co"><span class="c"># .semgrep/rules/dangerous-eval.yml</span>
+<span class="k">rules</span>:
+  - <span class="k">id</span>: dangerous-eval
+    <span class="k">message</span>: <span class="s">"eval()은 RCE 위험. JSON.parse나 명시적 파서 사용"</span>
+    <span class="k">severity</span>: ERROR
+    <span class="k">languages</span>: [javascript, typescript]
+    <span class="k">pattern-either</span>:
+      - <span class="k">pattern</span>: eval(...)
+      - <span class="k">pattern</span>: <span class="s">new Function(...)</span>
+    <span class="k">paths</span>:
+      <span class="k">exclude</span>: [<span class="s">'**/test/**'</span>]    <span class="c"># 테스트는 제외</span>
+
+  - <span class="k">id</span>: hardcoded-jwt-secret
+    <span class="k">message</span>: <span class="s">"JWT secret은 env/secret manager에서 읽어야 함"</span>
+    <span class="k">severity</span>: ERROR
+    <span class="k">pattern</span>: jwt.sign($PAYLOAD, <span class="s">"..."</span>, ...)
+
+  - <span class="k">id</span>: deprecated-crypto
+    <span class="k">message</span>: <span class="s">"MD5/SHA1 암호화 용도 금지 — SHA-256 이상"</span>
+    <span class="k">severity</span>: WARNING
+    <span class="k">pattern-either</span>:
+      - <span class="k">pattern</span>: createHash(<span class="s">"md5"</span>)
+      - <span class="k">pattern</span>: createHash(<span class="s">"sha1"</span>)</div></div>
+        <div class="nt g"><strong>TIP</strong> Semgrep registry에 OWASP Top 10, CWE 매핑된 룰셋 무료 공개. <code>semgrep --config=p/owasp-top-ten</code>으로 즉시 시작 가능. 그 위에 조직 특화 룰 (위처럼) 추가해 나가는 게 실전 패턴.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="sca-tools">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">SCA</div>
+        <h3>SCA — 의존성의 CVE 추적</h3>
+        <div class="cs">자체 코드보다 외부 라이브러리에서 결함이 더 많이 나온다 — Log4Shell, OpenSSL Heartbleed</div>
+        <div class="cp">현대 프로젝트의 코드 95%는 외부 의존성이다. <strong>SCA(Software Composition Analysis)</strong>는 의존성 트리를 분석해 알려진 CVE와 매칭한다. SCA가 SAST보다 ROI 높은 경우가 많다 — Log4Shell처럼 한 번에 산업 전체를 위협하는 결함은 거의 항상 의존성에서 나온다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">주요 도구</div><div class="v"><strong>Trivy (OSS)</strong> — 컨테이너 + 파일시스템 + git repo<br><strong>Snyk</strong> — SaaS, fix PR 자동 생성<br><strong>Dependabot (GitHub)</strong> — GitHub 통합, 자동 업데이트 PR<br><strong>Renovate</strong> — Dependabot 대체, 더 강력한 룰<br><strong>OWASP Dependency-Check</strong> — Java 중심 OSS<br><strong>Grype</strong> — Anchore의 CLI, SBOM 입력 지원</div></div>
+          <div class="db"><div class="l">실전: PR에서 SCA 차단</div><div class="v"><div class="fm"># GitHub Action — Trivy로 의존성 스캔
+- uses: aquasecurity/trivy-action@v0.20.0
+  with:
+    scan-type: fs
+    scan-ref: .
+    severity: HIGH,CRITICAL
+    ignore-unfixed: true   # fix 없는 CVE는 스킵 (자체 노력 한계)
+    exit-code: 1           # 발견 시 PR 차단
+    format: sarif
+    output: trivy.sarif
+
+- uses: github/codeql-action/upload-sarif@v3
+  with: { sarif_file: trivy.sarif }   # GitHub Security 탭에 표시</div><strong>핵심 옵션:</strong> <code>severity</code>로 차단 임계, <code>ignore-unfixed</code>로 노이즈 감소</div></div>
+          <div class="db df"><div class="l">자동 업데이트 — Dependabot vs Renovate</div><div class="v"><strong>Dependabot (GitHub 통합)</strong>:<br>· 설정 파일 단순<br>· GitHub 네이티브<br>· 그룹/스케줄 제한적<br><br><strong>Renovate (Mend)</strong>:<br>· 강력한 그룹/스케줄 (예: "patch는 자동 머지, minor는 PR")<br>· dashboard으로 일괄 관리<br>· 모노레포 지원 우수<br>· 더 많은 매니저 지원 (Helm, Terraform 등)<br><br><strong>실전 권장:</strong><br>· 작은 프로젝트 → Dependabot<br>· 큰 모노레포 → Renovate<br>· 둘 다 자동 머지(patch만)와 매주 머지 데이를 통한 minor 처리 룰 정의<br>· "auto merge"는 CI 통과 + 변경 분량 임계 이하만</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="triage">
+      <div class="con">
+        <div class="ct" style="color:var(--red);background:var(--rbg);border:1px solid var(--rbd)">Noise</div>
+        <h3>Triage — false positive와 노이즈 관리</h3>
+        <div class="cs">SAST/SCA의 가장 큰 적은 false positive — 알람 피로로 진짜 결함도 무시당한다</div>
+        <div class="cp">10번 알람 중 8번이 잘못된 알람이면 사람들은 9번째도 무시한다. 이게 <strong>alert fatigue</strong>이고, 보안 도구 도입 후 자주 일어난다. 처음부터 "모든 결함 0개"를 목표로 하지 말고, <strong>새로 발생한 결함을 막는 것</strong>부터 시작하라.</div>
+        <div class="dt">
+          <div class="db"><div class="l">3단계 점진 도입</div><div class="v"><strong>Phase 1: Baseline 측정</strong> (1-2주)<br>현재 코드 스캔 → 결함 N개 발견. 각각의 우선순위/영향 평가. 이 N개는 "기존 부채"로 분류 (당장 안 막음)<br><br><strong>Phase 2: New만 차단</strong> (1-3개월)<br>PR이 baseline 대비 <strong>새 결함을 추가하면</strong> 차단. 기존 N개는 점진 정리. 개발자는 "내 PR이 새 문제 안 만들면 OK"<br><br><strong>Phase 3: 전체 차단</strong> (점진)<br>baseline N개를 분기마다 일정 수 줄임. 0이 되면 모든 결함 차단</div></div>
+          <div class="db"><div class="l">Suppression — 의도된 예외</div><div class="v">false positive나 비즈니스 결정으로 무시해야 할 결함:<div class="fm"># Semgrep
+// nosemgrep: dangerous-eval -- BLOG 작성자만 접근, sanitized
+const result = eval(post.expr);
+
+# Trivy
+trivyignores:
+  - id: CVE-2023-XXXX
+    expires: 2026-12-31
+    reason: |
+      이 CVE는 Linux kernel 5.x만 영향. 우리는 6.5 사용</div><strong>원칙:</strong><br>· suppression마다 <strong>이유와 만료일</strong> 명시<br>· 만료된 suppression은 자동 검토 PR<br>· suppression 추가는 보안팀 리뷰 필수 (CODEOWNERS)</div></div>
+          <div class="db df"><div class="l">SARIF — 통합된 결과 형식</div><div class="v">SARIF는 SAST/SCA/DAST 결과의 표준 JSON 포맷.<br><br><strong>장점:</strong><br>· 도구 바뀌어도 같은 워크플로우<br>· GitHub Security tab, GitLab, Sonar 모두 SARIF 입력<br>· 결과 deduplication (다른 도구가 같은 결함 보고)<br><br><strong>실전:</strong><br>1. 모든 보안 도구가 SARIF 출력하도록 설정<br>2. CI에서 모은 SARIF를 GitHub <code>upload-sarif</code>로 업로드<br>3. 결과를 코드 위에서 inline annotation으로 검토<br>4. PR에 자동 코멘트 (<code>github/codeql-action</code>)<br><br>"결과를 어디서 보지?" 문제를 해결한 게 SARIF의 본질. 도구별 dashboard 흩어짐 ↓</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECRETS ===== -->
+  <div class="P" id="p-secrets">
+    <div class="PH"><div class="bg bg-o">● Secret Management</div><h2>시크릿 관리 — 절대 코드에 박지 말 것</h2><p>시크릿 스캐닝, Vault, External Secrets Operator, 회전 전략 — secret leak은 가장 흔하고 가장 큰 사고.</p></div>
+
+    <div class="sec" id="secret-scan">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Detect</div>
+        <h3>시크릿 스캐닝 — 사전 차단과 사후 탐지</h3>
+        <div class="cs">"git push 했더니 토큰이 같이 나갔다" — 가장 흔한 보안 사고. 다층 방어 필수</div>
+        <div class="cp">시크릿이 git history에 한 번 들어가면 <strong>그 시크릿은 영원히 노출된 것으로 간주해야 한다</strong>. force-push로 제거해도 fork, 캐시, 봇이 이미 본 후일 수 있다. 따라서 (1) 들어가기 전에 막고, (2) 들어가도 빨리 발견하고, (3) 즉시 회전하는 다층 방어가 필요하다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">3단계 방어</div><div class="v"><strong>1. Pre-commit hook</strong> — 로컬에서 차단:<div class="fm"># .pre-commit-config.yaml
+- repo: https://github.com/gitleaks/gitleaks
+  rev: v8.22.0
+  hooks:
+    - id: gitleaks</div><strong>2. PR CI 검사</strong> — 이중 안전망:<div class="fm">- uses: gitleaks/gitleaks-action@v2
+  env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }</div><strong>3. Push protection</strong> — 서버 측:<br>· GitHub의 push protection (Advanced Security)<br>· 알려진 패턴 매칭 시 push 자체 거부</div></div>
+          <div class="db"><div class="l">도구</div><div class="v"><strong>gitleaks</strong> — OSS, 빠름, 가장 많이 쓰임<br><strong>truffleHog</strong> — entropy 기반, 진짜 secret 검증 (API 호출)<br><strong>GitHub Secret Scanning</strong> — Advanced Security, partner와 자동 알림<br><strong>detect-secrets (Yelp)</strong> — Python<br><strong>Trivy</strong> — 컨테이너 이미지 안 secret도 스캔<br><br><strong>truffleHog의 차별점:</strong> 패턴만 매칭하지 않고 실제 API에 인증 시도해서 "살아있는 secret"인지 검증 — false positive ↓</div></div>
+          <div class="db df"><div class="l">사고 발생 시 대응 — 회전 우선</div><div class="v">"git history에서 지웠으니 OK"는 잘못된 가정. 노출된 것으로 간주하고:<br><br><strong>1. 즉시 회전 (가장 중요)</strong><br>· 노출된 secret 즉시 폐기 + 새 secret 발급<br>· git history 정리는 그 후에<br><br><strong>2. 영향 분석</strong><br>· 그 secret이 무엇에 접근했나? (CloudTrail, audit log)<br>· 비정상 접근 흔적이 있나?<br><br><strong>3. git history 정리 (선택)</strong><br>· <code>git filter-repo</code>로 history 재작성<br>· 하지만 이미 노출은 끝난 일 — clone, fork, 봇이 본 후<br><br><strong>4. 사후 분석</strong><br>· 어떻게 들어갔나? hook 빠진 사람? CI 검사 빠진 PR?<br>· 같은 패턴 재발 막을 통제 추가<br><br><strong>회전이 어렵다는 게 secret leak 사고의 본질</strong> — 회전 가능한 구조를 평소에 만들어 두는 게 진짜 방어</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="vault">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Vault</div>
+        <h3>HashiCorp Vault — 중앙화된 secret store</h3>
+        <div class="cs">정적 secret 저장 + 동적 secret 발급 + 회전 자동화의 표준 도구</div>
+        <div class="cp">Vault는 단순한 "secret 저장소"가 아니다. <strong>(1) 정적 secret KV 저장</strong>, <strong>(2) 동적 자격증명 발급</strong>(DB user, AWS STS), <strong>(3) 자동 회전</strong>, <strong>(4) audit log</strong>를 통합한 보안 인프라다. 잘 도입하면 "secret 회전"이 사람의 일에서 시스템의 일이 된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">정적 vs 동적 secret</div><div class="v"><strong>정적 secret (KV):</strong><div class="fm">vault kv put secret/payment/stripe \
+  api_key=sk_live_xxx</div>API 키, OAuth client secret 등 외부에서 받은 값. <strong>회전 어려움</strong> — 외부 서비스 의존<br><br><strong>동적 secret:</strong><div class="fm">vault read database/creds/payment-app
+# username: v-payment-app-xK3...
+# password: A5p9...
+# lease_id: database/creds/payment-app/abc
+# lease_duration: 1h</div>요청 시 새 DB 사용자 생성 → 1시간 후 자동 폐기. <strong>회전 자체가 무의미</strong> — 매번 새로 받음</div></div>
+          <div class="db"><div class="l">애플리케이션 통합</div><div class="v"><strong>옵션 1: Vault Agent</strong> — sidecar로 secret 자동 주입<div class="fm">template {
+  source = "/etc/vault/db.tpl"
+  destination = "/secrets/db.env"
+  command = "kill -HUP $(pidof app)"   # 갱신 시 reload
+}</div>secret 갱신 시 파일이 자동 업데이트, 앱 reload<br><br><strong>옵션 2: Direct API</strong> — 앱에서 SDK로 호출<br>· 주기적 lease 갱신 필요<br>· 앱 코드에 Vault 의존<br><br><strong>옵션 3: External Secrets (k8s)</strong> — 다음 섹션 참고</div></div>
+          <div class="db df"><div class="l">k8s 인증 (Auth Method)</div><div class="v">Pod가 Vault에 어떻게 인증할까? <strong>k8s service account</strong>를 활용:<div class="fm"># Vault에 k8s auth 활성화
+vault auth enable kubernetes
+vault write auth/kubernetes/config \
+  kubernetes_host="https://kubernetes.default.svc"
+
+# Pod의 SA 토큰 → Vault Role 매핑
+vault write auth/kubernetes/role/payment \
+  bound_service_account_names=payment \
+  bound_service_account_namespaces=prod \
+  policies=payment-read \
+  ttl=1h</div>Pod의 SA 토큰을 Vault에 제시 → Vault가 k8s API로 검증 → 정책 기반 secret 접근 허용. 정적 자격증명 zero</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="eso">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">k8s</div>
+        <h3>External Secrets Operator — k8s native secret 동기화</h3>
+        <div class="cs">Vault/AWS Secrets Manager/GCP Secret Manager의 secret을 k8s Secret으로 자동 동기화</div>
+        <div class="cp">k8s Secret은 base64 인코딩일 뿐 — 평문과 다를 바 없다. 그렇다고 모든 앱이 Vault SDK를 쓰게 만들 수도 없다. <strong>External Secrets Operator (ESO)</strong>는 외부 secret store에서 값을 가져와 k8s Secret을 자동 생성·갱신해 준다. 앱은 일반 Secret을 envFrom으로 쓰면 됨.</div>
+        <div class="bx"><div class="bx-t">ExternalSecret 정의</div><div class="co"><span class="c"># 1. SecretStore — 백엔드 정의 (한 번만)</span>
+<span class="k">apiVersion</span>: external-secrets.io/v1beta1
+<span class="k">kind</span>: SecretStore
+<span class="k">metadata</span>: { <span class="k">name</span>: <span class="s">vault-backend</span>, <span class="k">namespace</span>: <span class="s">prod</span> }
+<span class="k">spec</span>:
+  <span class="k">provider</span>:
+    <span class="k">vault</span>:
+      <span class="k">server</span>: https://vault.internal:8200
+      <span class="k">path</span>: secret
+      <span class="k">version</span>: v2
+      <span class="k">auth</span>:
+        <span class="k">kubernetes</span>:
+          <span class="k">mountPath</span>: kubernetes
+          <span class="k">role</span>: payment
+          <span class="k">serviceAccountRef</span>: { <span class="k">name</span>: payment }
+
+<span class="c"># 2. ExternalSecret — secret 매핑</span>
+<span class="k">apiVersion</span>: external-secrets.io/v1beta1
+<span class="k">kind</span>: ExternalSecret
+<span class="k">metadata</span>: { <span class="k">name</span>: <span class="s">payment-secrets</span> }
+<span class="k">spec</span>:
+  <span class="k">refreshInterval</span>: <span class="s">5m</span>           <span class="c"># 5분마다 동기화</span>
+  <span class="k">secretStoreRef</span>:
+    <span class="k">name</span>: vault-backend
+    <span class="k">kind</span>: SecretStore
+  <span class="k">target</span>:
+    <span class="k">name</span>: payment-secrets         <span class="c"># 생성될 k8s Secret 이름</span>
+    <span class="k">creationPolicy</span>: Owner
+  <span class="k">data</span>:
+  - <span class="k">secretKey</span>: STRIPE_API_KEY
+    <span class="k">remoteRef</span>: { <span class="k">key</span>: payment/stripe, <span class="k">property</span>: api_key }
+  - <span class="k">secretKey</span>: DB_PASSWORD
+    <span class="k">remoteRef</span>: { <span class="k">key</span>: payment/db, <span class="k">property</span>: password }</div></div>
+        <div class="dt">
+          <div class="db"><div class="l">지원 백엔드</div><div class="v">· HashiCorp Vault<br>· AWS Secrets Manager<br>· AWS Parameter Store<br>· GCP Secret Manager<br>· Azure Key Vault<br>· 1Password Connect<br>· Kubernetes (다른 클러스터)<br>· ... 30+ providers<br><br>한 클러스터에서 여러 백엔드 동시 사용 가능. 점진적 마이그레이션에 유용</div></div>
+          <div class="db"><div class="l">갱신 동작 — Pod restart 트리거</div><div class="v">ExternalSecret이 갱신되면 k8s Secret이 변경. 그러나 <strong>Pod는 자동 재시작 안 함</strong>(Secret을 envFrom으로 쓰는 경우).<br><br><strong>해법:</strong><br>1. <code>stakater/Reloader</code> 설치 — Secret 변경 감지 시 Deployment annotation 트리거 → rollout<br>2. 또는 Secret을 volume mount → 파일 변경 시 앱이 reload<br>3. Vault Agent와 비슷하게 sidecar로 SIGHUP<br><br>"secret 회전이 자동 반영되는가?" 검증 필수 — 6개월에 한 번 staging에서 회전 시뮬레이션</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="rotation">
+      <div class="con">
+        <div class="ct" style="color:var(--orange);background:var(--obg);border:1px solid var(--obd)">Rotation</div>
+        <h3>회전 전략 — "회전 가능한 구조"</h3>
+        <div class="cs">90일 회전 정책이 있어도 회전 시 앱이 깨지면 정책은 죽은 글자</div>
+        <div class="cp">회전 사고의 90%는 <strong>"회전했더니 앱이 깨짐"</strong>이다. 원인은 (1) 새 secret이 즉시 반영 안 됨, (2) 한 secret이 N개 앱에서 쓰이는데 타이밍 어긋남, (3) 외부 third-party가 옛 secret 캐시. <strong>회전 가능한 구조를 평소에 갖춰</strong>야 회전이 일상이 된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">Dual-secret 패턴 (overlap)</div><div class="v">한 시점에 <strong>두 secret이 동시에 유효</strong>하게:<div class="fm">T+0:    secret_v1만 유효
+T+0:    secret_v2 발급, 둘 다 유효
+T+0:    앱 설정 업데이트 — secret_v2 사용
+T+1h:   모든 앱이 v2 사용 확인
+T+2h:   secret_v1 폐기</div>이 전환 윈도우 동안엔 어느 쪽 secret으로 와도 OK. <strong>외부 API key, JWT signing key</strong> 같은 곳에 적용</div></div>
+          <div class="db"><div class="l">Auto rotation 가능 vs 불가능</div><div class="v"><strong>완전 자동 가능:</strong><br>· DB password (Vault dynamic credential)<br>· AWS IAM access key<br>· TLS 인증서 (cert-manager + Let's Encrypt)<br>· k8s SA 토큰 (자동 만료)<br><br><strong>반자동 (코드 변경 없이 회전 가능, 트리거는 수동):</strong><br>· OAuth client secret<br>· webhook secret<br><br><strong>수동만 가능 (외부 의존):</strong><br>· 외부 SaaS API key (Stripe, SendGrid 등)<br>· Partner 통합 자격증명<br><br>"수동만" 카테고리도 dual-secret 지원하면 무중단 가능</div></div>
+          <div class="db df"><div class="l">회전 SLA & 검증</div><div class="v"><strong>회전 주기 결정:</strong><br>· DB credential: 1-24시간 (dynamic)<br>· 외부 API key: 90일<br>· TLS: 자동 (cert-manager)<br>· SSH 키: 사용자 1년<br>· root password: 사고 시에만 (그 외엔 사용 X)<br><br><strong>"우리는 회전 정책 있다" ≠ "회전 가능"</strong>. 검증:<br>1. 분기마다 staging에서 강제 회전 시뮬레이션<br>2. 모든 자동 회전 secret의 마지막 회전 시각 모니터링 — 정체 알람<br>3. 회전 실패 시 페이지<br>4. runbook: "이 secret 회전하려면 어떤 절차?"<br><br>회전 메커니즘 자체가 "비상시 처음 시도"가 되면 위험. 평시에 검증된 메커니즘만 사고 대응에 의존할 수 있다</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== IAC ===== -->
+  <div class="P" id="p-iac">
+    <div class="PH"><div class="bg bg-b">● IaC Security</div><h2>IaC 보안 — Terraform/k8s 매니페스트 검증</h2><p>잘못 설정된 인프라 코드는 가장 흔한 클라우드 사고의 원인. 코드 단계에서 정책 위반을 차단하는 도구와 패턴.</p></div>
+
+    <div class="sec" id="iac-scan">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">Scan</div>
+        <h3>IaC 정적 분석 도구</h3>
+        <div class="cs">"public S3 bucket", "0.0.0.0/0 SSH" — 배포 전에 잡아야 할 패턴들</div>
+        <div class="cp">클라우드 사고의 약 절반은 단순한 misconfiguration이다. AWS 계정 노출, public S3, 0.0.0.0/0 SSH ingress — 이런 패턴은 Terraform/CloudFormation 단계에서 정적 분석으로 잡힌다.</div>
+        <table class="tb">
+          <thead><tr><th>도구</th><th>대상</th><th>특징</th></tr></thead>
+          <tbody>
+            <tr><td>Checkov (Bridgecrew)</td><td>Terraform, CFN, k8s, ARM, Helm, Dockerfile</td><td>가장 폭넓음, OSS, 큰 룰셋</td></tr>
+            <tr><td>tfsec → Trivy</td><td>Terraform (Trivy로 통합)</td><td>빠름, 가벼움</td></tr>
+            <tr><td>Terrascan</td><td>Terraform, k8s, Helm, Dockerfile</td><td>OPA Rego 기반</td></tr>
+            <tr><td>kube-linter</td><td>k8s manifests, Helm</td><td>k8s 전용, 운영 best practice</td></tr>
+            <tr><td>kubescape</td><td>k8s, Helm, Kustomize</td><td>NSA/MITRE framework 매핑</td></tr>
+            <tr><td>polaris (Fairwinds)</td><td>k8s</td><td>실행 중인 클러스터 + IaC 둘 다</td></tr>
+          </tbody>
+        </table>
+        <div class="bx"><div class="bx-t">Checkov in CI</div><div class="co"><span class="c"># GitHub Actions</span>
+- <span class="k">uses</span>: bridgecrewio/checkov-action@v12
+  <span class="k">with</span>:
+    <span class="k">directory</span>: ./terraform
+    <span class="k">framework</span>: terraform
+    <span class="k">soft_fail</span>: <span class="n">false</span>            <span class="c"># violation 발견 시 fail</span>
+    <span class="k">skip_check</span>: <span class="s">CKV_AWS_18,CKV_AWS_50</span>  <span class="c"># 의도적 예외 (이유 명시)</span>
+    <span class="k">output_format</span>: sarif        <span class="c"># GitHub Security 통합</span></div></div>
+        <div class="dt">
+          <div class="db"><div class="l">자주 잡히는 패턴 — Terraform</div><div class="v">· <code>aws_s3_bucket</code> public-acl<br>· <code>aws_security_group</code> ingress 0.0.0.0/0<br>· <code>aws_db_instance</code> publicly_accessible<br>· <code>aws_iam_role_policy</code> Action: "*"<br>· <code>aws_ebs_volume</code> encrypted = false<br>· <code>aws_kms_key</code> rotation 비활성<br>· <code>aws_cloudtrail</code> 미설정<br>· <code>aws_lambda_function</code> reserved_concurrency 무제한</div></div>
+          <div class="db"><div class="l">자주 잡히는 패턴 — k8s</div><div class="v">· <code>privileged: true</code> container<br>· <code>runAsNonRoot</code> 미설정<br>· <code>readOnlyRootFilesystem: false</code><br>· <code>capabilities.add: [SYS_ADMIN]</code><br>· <code>hostNetwork: true</code><br>· resource limits 없음<br>· <code>imagePullPolicy: Always</code> 없음<br>· latest 태그 사용<br>· liveness/readiness probe 없음</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="opa">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">OPA</div>
+        <h3>OPA / Conftest — 조직 정책 코드화</h3>
+        <div class="cs">조직만의 룰을 Rego로 작성 — "주석 없는 prod 리소스 금지", "특정 region만 허용" 등</div>
+        <div class="cp">Checkov 등의 표준 룰 외에, 조직 고유 룰이 있다 — "모든 prod 리소스에 cost_center 태그 필수", "DB는 ap-northeast-2만 허용". <strong>OPA(Open Policy Agent)</strong>의 Rego 언어로 이런 정책을 코드화하고, <code>conftest</code>로 IaC 파일에 적용한다.</div>
+        <div class="bx"><div class="bx-t">정책 예시 — 필수 태그 검증</div><div class="co"><span class="c"># policy/required_tags.rego</span>
+<span class="k">package</span> main
+
+required_tags := [<span class="s">"owner"</span>, <span class="s">"cost_center"</span>, <span class="s">"environment"</span>]
+
+<span class="f">deny</span>[msg] {
+  resource := input.resource_changes[_]
+  resource.type == <span class="s">"aws_s3_bucket"</span>
+  not resource.change.after.tags
+  msg := <span class="f">sprintf</span>(<span class="s">"S3 bucket '%s'에 tags 없음"</span>, [resource.address])
+}
+
+<span class="f">deny</span>[msg] {
+  resource := input.resource_changes[_]
+  <span class="f">startswith</span>(resource.type, <span class="s">"aws_"</span>)
+  tag := required_tags[_]
+  not resource.change.after.tags[tag]
+  msg := <span class="f">sprintf</span>(
+    <span class="s">"%s에 필수 태그 '%s' 누락"</span>,
+    [resource.address, tag]
+  )
+}
+
+<span class="f">deny</span>[msg] {
+  resource := input.resource_changes[_]
+  resource.type == <span class="s">"aws_db_instance"</span>
+  resource.change.after.region != <span class="s">"ap-northeast-2"</span>
+  msg := <span class="s">"DB는 ap-northeast-2 region만 허용"</span>
+}</div></div>
+        <div class="dt">
+          <div class="db"><div class="l">CI 통합</div><div class="v"><div class="fm"># 1. Terraform plan을 JSON으로
+terraform plan -out=tf.plan
+terraform show -json tf.plan > plan.json
+
+# 2. Conftest로 정책 검증
+conftest test plan.json --policy ./policy/
+
+# 결과:
+# FAIL - plan.json - main - DB는 ap-northeast-2 region만 허용
+# 1 test, 0 passed, 1 failure</div>terraform apply 전에 실행 → 위반 시 차단. <strong>main branch protection</strong>에 status check로 강제</div></div>
+          <div class="db"><div class="l">Test 가능한 정책</div><div class="v">정책도 코드 — 테스트가 필요:<div class="fm"># policy/required_tags_test.rego
+package main
+
+test_missing_tag {
+  deny[_] with input as {
+    "resource_changes": [{
+      "address": "aws_s3_bucket.foo",
+      "type": "aws_s3_bucket",
+      "change": { "after": {} }
+    }]
+  }
+}
+
+# 실행: opa test policy/</div>정책 추가 시 테스트 필수. CI가 정책 자체의 회귀도 잡음</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="kube-policy">
+      <div class="con">
+        <div class="ct" style="color:var(--blue);background:var(--bbg);border:1px solid var(--bbd)">k8s</div>
+        <h3>Kubernetes Admission Policy</h3>
+        <div class="cs">CI에서 차단을 못 했다면 클러스터에서 다시 차단 — 다층 방어</div>
+        <div class="cp">CI 검증을 우회한 매니페스트(직접 kubectl apply, ArgoCD CRD 등)도 클러스터 진입 전에 차단해야 한다. <strong>Admission Controller</strong>가 그 역할 — Mutating(매니페스트 변경)과 Validating(거부 가능) 두 종류.</div>
+        <table class="tb">
+          <thead><tr><th>도구</th><th>특징</th><th>적합 상황</th></tr></thead>
+          <tbody>
+            <tr><td>OPA Gatekeeper</td><td>OPA Rego 기반, ConstraintTemplate</td><td>Rego 알면 자연스러움, 큰 정책 셋</td></tr>
+            <tr><td>Kyverno</td><td>YAML로 정책 작성</td><td>YAML 친화 — k8s 운영자 친숙</td></tr>
+            <tr><td>k8s native ValidatingAdmissionPolicy (v1.30+)</td><td>외부 도구 없이 CEL</td><td>가벼운 정책, 내장 솔루션</td></tr>
+            <tr><td>Pod Security Admission</td><td>built-in, 3 levels (privileged/baseline/restricted)</td><td>기본기 — namespace 단위 적용</td></tr>
+          </tbody>
+        </table>
+        <div class="bx"><div class="bx-t">Kyverno — privileged container 차단</div><div class="co"><span class="k">apiVersion</span>: kyverno.io/v1
+<span class="k">kind</span>: ClusterPolicy
+<span class="k">metadata</span>: { <span class="k">name</span>: <span class="s">disallow-privileged</span> }
+<span class="k">spec</span>:
+  <span class="k">validationFailureAction</span>: Enforce       <span class="c"># Audit (경고만) → Enforce (차단)</span>
+  <span class="k">background</span>: <span class="n">true</span>                       <span class="c"># 기존 리소스도 검사</span>
+  <span class="k">rules</span>:
+  - <span class="k">name</span>: privileged-container
+    <span class="k">match</span>:
+      <span class="k">any</span>:
+      - <span class="k">resources</span>: { <span class="k">kinds</span>: [<span class="s">Pod</span>] }
+    <span class="k">exclude</span>:
+      <span class="k">any</span>:
+      - <span class="k">resources</span>: { <span class="k">namespaces</span>: [<span class="s">kube-system</span>] }
+    <span class="k">validate</span>:
+      <span class="k">message</span>: <span class="s">"Privileged 컨테이너 금지"</span>
+      <span class="k">pattern</span>:
+        <span class="k">spec</span>:
+          <span class="f">=(initContainers)</span>:
+          - <span class="k">securityContext</span>:
+              <span class="f">=(privileged)</span>: <span class="n">false</span>
+          <span class="k">containers</span>:
+          - <span class="k">securityContext</span>:
+              <span class="f">=(privileged)</span>: <span class="n">false</span></div></div>
+        <div class="nt o"><strong>WARN</strong> 새 정책 도입 시 항상 <code>Audit</code> 모드로 시작. 기존 리소스가 다 위반하고 있을 수 있음. 1-2주 audit → 정리 → Enforce 전환. 처음부터 Enforce하면 cluster 운영 마비 위험.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SUPPLY ===== -->
+  <div class="P" id="p-supply">
+    <div class="PH"><div class="bg bg-p">● Supply Chain Security</div><h2>공급망 보안 — SBOM, 서명, SLSA</h2><p>SolarWinds, Codecov, xz-utils — 공급망 공격은 늘고 있다. 빌드 산출물의 출처와 무결성을 검증하는 체계.</p></div>
+
+    <div class="sec" id="sbom">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">SBOM</div>
+        <h3>SBOM — Software Bill of Materials</h3>
+        <div class="cs">"이 이미지에 정확히 무엇이 들어있나?" — 새 CVE 발생 시 영향 범위 파악의 기초</div>
+        <div class="cp">Log4Shell이 터졌을 때 가장 먼저 한 질문은 <strong>"우리 이미지 중 어떤 게 log4j 쓰지?"</strong>다. 각 이미지를 다시 빌드해서 확인한다면 너무 느리다. 빌드 시점에 "이 이미지의 모든 구성 요소"를 SBOM 파일로 만들어 두면, CVE 발생 시 grep만 하면 된다.</div>
+        <div class="dt">
+          <div class="db"><div class="l">SBOM 형식 — SPDX vs CycloneDX</div><div class="v"><strong>SPDX (Linux Foundation)</strong>: 라이선스 컴플라이언스 강점, 큰 생태계<br><strong>CycloneDX (OWASP)</strong>: 보안 강점, 더 풍부한 메타데이터<br><br>둘 다 JSON 직렬화 가능. 도구 대부분 양쪽 출력. <strong>실전 권장:</strong> SPDX (생태계가 더 큼) + CycloneDX (보안 도구 통합)<br><br>한 이미지의 SBOM 예시:<div class="fm">{
+  "bomFormat": "CycloneDX",
+  "components": [
+    { "type": "library", "name": "log4j-core",
+      "version": "2.15.0", "purl": "pkg:maven/..." },
+    { "type": "operating-system", "name": "alpine",
+      "version": "3.19" }
+  ]
+}</div></div></div>
+          <div class="db"><div class="l">생성 — Syft / docker buildx</div><div class="v"><strong>Syft (Anchore)</strong>:<div class="fm">syft ghcr.io/myorg/app:v1.2 \
+  -o spdx-json > sbom.spdx.json
+
+# 컨테이너 외에 git repo, dir도 가능
+syft dir:./src</div><strong>docker buildx</strong> — 빌드 시 자동 생성:<div class="fm">docker buildx build \
+  --sbom=true --provenance=true \
+  -t ghcr.io/myorg/app:v1.2 .
+
+# Pull 시 별도로:
+docker buildx imagetools inspect \
+  ghcr.io/myorg/app:v1.2 --format='{{json .SBOM}}'</div>SBOM이 이미지와 함께 registry에 attestation으로 저장됨</div></div>
+          <div class="db df"><div class="l">활용 — CVE 영향 분석</div><div class="v">새 CVE 발생 시 모든 이미지의 SBOM을 한곳에 모아 query:<div class="fm"># 모든 prod 이미지의 SBOM을 BigQuery/ClickHouse에 적재
+# 그 후 SQL 한 번으로 영향 분석:
+
+SELECT image, version
+FROM image_components
+WHERE component_name = 'log4j-core'
+  AND component_version &lt; '2.17.0';
+
+# 결과: 영향받는 이미지 12개, 4개 서비스</div><strong>도구:</strong><br>· <code>Grype</code> — SBOM에 대해 CVE 매칭<br>· <code>Dependency-Track</code> — SBOM 중앙 저장 + 알림<br>· <code>Trivy</code> — SBOM 입력 지원 (<code>trivy sbom</code>)<br><br>"SBOM 만든다"가 끝이 아니라 <strong>"SBOM을 활용 가능한 곳에 모아둔다"</strong>가 핵심</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="signing">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Sign</div>
+        <h3>이미지 서명 — Sigstore / Cosign</h3>
+        <div class="cs">"이 이미지가 정말 우리가 빌드한 것인가?" — registry 침해, MITM 방지</div>
+        <div class="cp">전통적 GPG 서명은 키 관리 부담이 커서 거의 안 쓰였다. <strong>Sigstore (Cosign)</strong>는 OIDC 기반 keyless signing으로 키 관리 없이 서명 가능 — CI에서 OIDC 토큰으로 인증 → 단기 인증서로 서명 → Rekor (transparency log)에 기록. 키가 유출될 위험이 없다.</div>
+        <div class="bx"><div class="bx-t">GitHub Actions에서 keyless signing</div><div class="co"><span class="k">jobs</span>:
+  <span class="f">build</span>:
+    <span class="k">permissions</span>:
+      <span class="k">id-token</span>: write    <span class="c"># OIDC 토큰 (cosign이 사용)</span>
+      <span class="k">packages</span>: write    <span class="c"># registry push</span>
+    <span class="k">steps</span>:
+    - <span class="k">uses</span>: docker/build-push-action@v5
+      <span class="k">id</span>: build
+      <span class="k">with</span>:
+        <span class="k">push</span>: <span class="n">true</span>
+        <span class="k">tags</span>: ghcr.io/myorg/app:${{ github.sha }}
+
+    - <span class="k">uses</span>: sigstore/cosign-installer@v3
+
+    - <span class="k">name</span>: Sign image (keyless)
+      <span class="k">env</span>: { <span class="k">COSIGN_EXPERIMENTAL</span>: <span class="s">"true"</span> }
+      <span class="k">run</span>: |
+        cosign sign --yes \
+          ghcr.io/myorg/app@${{ steps.build.outputs.digest }}
+
+    - <span class="k">name</span>: Attach SBOM as attestation
+      <span class="k">run</span>: |
+        cosign attest --yes \
+          --predicate sbom.spdx.json \
+          --type spdxjson \
+          ghcr.io/myorg/app@${{ steps.build.outputs.digest }}</div></div>
+        <div class="dt">
+          <div class="db"><div class="l">검증 — Pull 측</div><div class="v"><div class="fm">cosign verify \
+  --certificate-identity-regexp "^https://github.com/myorg/.*" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  ghcr.io/myorg/app:v1.2</div>"이 이미지가 myorg의 GitHub Actions에서 서명됐는지" 검증. 서명자(certificate-identity)와 발급자(oidc-issuer)를 모두 매칭<br><br><strong>Rekor (transparency log)</strong>:<br>· 모든 서명이 공개 로그에 기록<br>· 키 유출돼도 추가 위조 즉시 감지<br>· <code>rekor-cli search</code>로 조회</div></div>
+          <div class="db"><div class="l">왜 keyless가 더 안전한가</div><div class="v"><strong>전통 키:</strong><br>· 키를 어딘가 저장 (HSM, Vault)<br>· 회전 어려움<br>· 유출 시 모든 과거 서명 무효화 검토<br><br><strong>Keyless (Cosign):</strong><br>· 매 서명마다 단기 인증서 (5-10분)<br>· OIDC 인증 결과를 인증서에 embed<br>· 키 자체가 없음 → 유출할 게 없음<br>· Transparency log로 모든 서명 audit 가능<br><br>키 회전, HSM 운영, 서명 키 access 통제가 사라짐. <strong>OIDC 인증을 신뢰</strong>하는 모델</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="slsa">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">SLSA</div>
+        <h3>SLSA Framework — 빌드 무결성 레벨</h3>
+        <div class="cs">SLSA는 "공급망 보안 성숙도" 레벨 정의 — Build, Source, Dependencies 트랙</div>
+        <div class="cp"><strong>SLSA (Supply-chain Levels for Software Artifacts)</strong>는 Google이 제안한 공급망 보안 프레임워크다. 빌드 프로세스의 무결성을 0~3 (or L1~L4) 레벨로 정의. "우리는 SLSA L3 준수"는 <strong>"빌드 산출물이 어떤 코드/의존성에서 어떤 환경에서 만들어졌는지를 위변조 불가능하게 증명할 수 있다"</strong>는 뜻.</div>
+        <table class="tb">
+          <thead><tr><th>레벨</th><th>요구사항</th><th>달성 방법</th></tr></thead>
+          <tbody>
+            <tr><td>SLSA L1</td><td>provenance(빌드 메타데이터) 생성</td><td>빌드 시 어떤 commit/branch/builder 기록</td></tr>
+            <tr><td>SLSA L2</td><td>호스팅된 빌드 + 서명된 provenance</td><td>GitHub Actions 등 + cosign 서명</td></tr>
+            <tr><td>SLSA L3</td><td>격리된 빌드 + 위변조 불가 provenance</td><td>SLSA generator + ephemeral runner</td></tr>
+            <tr><td>SLSA L4 (deprecated)</td><td>2명 리뷰 + 재현 가능 빌드</td><td>(현재 spec에선 L3가 최고)</td></tr>
+          </tbody>
+        </table>
+        <div class="bx"><div class="bx-t">SLSA L3 — slsa-github-generator</div><div class="co"><span class="c"># Reusable workflow가 격리 환경에서 빌드 + provenance 생성</span>
+<span class="k">jobs</span>:
+  <span class="f">build</span>:
+    <span class="k">permissions</span>:
+      <span class="k">id-token</span>: write
+      <span class="k">contents</span>: read
+      <span class="k">actions</span>: read
+    <span class="k">uses</span>: slsa-framework/slsa-github-generator/.github/workflows/builder_docker-based_slsa3.yml@v2.0.0
+    <span class="k">with</span>:
+      <span class="k">image</span>: ghcr.io/myorg/app:${{ github.sha }}
+      <span class="k">builder-image</span>: docker.io/library/docker:25
+      <span class="k">config-path</span>: .slsa/build.yml
+      <span class="k">registry-username</span>: ${{ github.actor }}
+    <span class="k">secrets</span>:
+      <span class="k">registry-password</span>: ${{ secrets.GITHUB_TOKEN }}</div></div>
+        <div class="nt"><strong>NOTE</strong> SLSA는 점진 도입이 자연스럽다. L1(provenance만 생성) → L2(서명 추가) → L3(격리 builder). 처음부터 L3 시도하면 큰 변경. <strong>일단 모든 빌드에 provenance 생성</strong>하는 것만으로도 큰 가치.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="admission">
+      <div class="con">
+        <div class="ct" style="color:var(--purple);background:var(--pbg);border:1px solid var(--pbd)">Verify</div>
+        <h3>Admission에서 서명/SBOM 검증</h3>
+        <div class="cs">"서명되지 않은 이미지 거부", "특정 builder가 만든 이미지만 허용"</div>
+        <div class="cp">서명을 했는데 검증 안 하면 의미 없다. k8s admission controller에서 모든 이미지를 검증해 <strong>서명 안 된 이미지 자체를 거부</strong>한다.</div>
+        <div class="bx"><div class="bx-t">Kyverno — Cosign 서명 검증</div><div class="co"><span class="k">apiVersion</span>: kyverno.io/v1
+<span class="k">kind</span>: ClusterPolicy
+<span class="k">metadata</span>: { <span class="k">name</span>: <span class="s">verify-images</span> }
+<span class="k">spec</span>:
+  <span class="k">validationFailureAction</span>: Enforce
+  <span class="k">webhookTimeoutSeconds</span>: <span class="n">30</span>
+  <span class="k">rules</span>:
+  - <span class="k">name</span>: check-image-signature
+    <span class="k">match</span>:
+      <span class="k">any</span>:
+      - <span class="k">resources</span>: { <span class="k">kinds</span>: [<span class="s">Pod</span>] }
+    <span class="k">verifyImages</span>:
+    - <span class="k">imageReferences</span>: [<span class="s">"ghcr.io/myorg/*"</span>]
+      <span class="k">attestors</span>:
+      - <span class="k">entries</span>:
+        - <span class="k">keyless</span>:
+            <span class="k">subject</span>: <span class="s">"https://github.com/myorg/*"</span>
+            <span class="k">issuer</span>: <span class="s">"https://token.actions.githubusercontent.com"</span>
+            <span class="k">rekor</span>:
+              <span class="k">url</span>: https://rekor.sigstore.dev</div></div>
+        <div class="nt o"><strong>WARN</strong> 처음 도입 시 <code>Audit</code>로 시작. 외부 이미지(<code>nginx</code>, <code>busybox</code>)를 그대로 쓰는 곳이 있으면 차단. 외부 이미지는 별도 화이트리스트 또는 자체 registry mirror로.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DAST ===== -->
+  <div class="P" id="p-dast">
+    <div class="PH"><div class="bg bg-t">● DAST & Runtime</div><h2>DAST 및 런타임 보안</h2><p>SAST가 못 잡는 결함을 잡는 동적 분석, runtime 위협 탐지(Falco), NetworkPolicy로 lateral movement 차단.</p></div>
+
+    <div class="sec" id="dast-tools">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">DAST</div>
+        <h3>DAST — 실행 중인 앱을 공격</h3>
+        <div class="cs">SAST는 코드 패턴, DAST는 실제 동작. 둘은 보완 — 한쪽만으로는 부족하다</div>
+        <div class="cp">DAST(Dynamic Application Security Testing)는 staging 환경에 배포된 앱에 실제 공격 시도를 보내 결함을 찾는다. <strong>SAST가 못 잡는 결함</strong>: 인증 우회, 비즈니스 로직, 환경 설정 결함, 외부 의존성과의 interaction.</div>
+        <div class="dt">
+          <div class="db"><div class="l">주요 도구</div><div class="v"><strong>OWASP ZAP</strong> — 무료, GUI + CLI + API. baseline scan을 CI에 통합 가능<br><strong>Burp Suite</strong> — 상용, 펜테스트 표준<br><strong>Nuclei</strong> — YAML 템플릿 기반, 빠른 CVE 스캔<br><strong>StackHawk / Detectify / Acunetix</strong> — SaaS<br><br><strong>실전 추천:</strong><br>· OWASP ZAP baseline → CI (5분, low noise)<br>· OWASP ZAP full → nightly<br>· Nuclei → CI에서 CVE 빠른 매칭</div></div>
+          <div class="db"><div class="l">CI 통합 — ZAP baseline</div><div class="v"><div class="fm"># GitHub Actions
+- name: Deploy to staging
+  run: ./deploy.sh staging
+
+- name: ZAP Baseline Scan
+  uses: zaproxy/action-baseline@v0.13.0
+  with:
+    target: 'https://staging.myapp.io'
+    cmd_options: '-a -j -m 5'    # 인증 정보, JSON, 5분 limit
+    rules_file_name: '.zap/rules.tsv'
+    fail_action: true</div><strong>baseline scan</strong>: passive — 트래픽 보고 분석. 실제 공격 X. 5-10분 소요. 노이즈 적어 CI 적합<br><strong>full scan</strong>: active — 실제 공격 시도. 30분-수시간. nightly에만</div></div>
+          <div class="db df"><div class="l">DAST의 한계와 보완</div><div class="v"><strong>한계:</strong><br>· 인증된 영역 스캔 어려움 (login flow 자동화 필요)<br>· 비즈니스 로직 결함 못 잡음<br>· 큰 앱은 시간 ↑<br>· false positive 적지만 결함 자체 적음<br><br><strong>보완:</strong><br>· <strong>API contract 기반 fuzzing</strong> — OpenAPI spec → schemathesis로 자동 fuzz<br>· <strong>인증 자동화</strong> — ZAP authentication script로 로그인 후 스캔<br>· <strong>주기적 펜테스트</strong> — 자동 도구가 못 잡는 비즈니스 결함은 사람만 가능. 분기마다 외부 펜테스트<br><br>"DAST가 통과 = 안전"이 아니다. SAST + SCA + DAST + 펜테스트 4종 세트가 보완 관계</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="runtime">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Runtime</div>
+        <h3>런타임 위협 탐지 — Falco</h3>
+        <div class="cs">CI 모든 게이트를 통과해도 prod에서 이상 행동은 발생할 수 있다 — eBPF로 syscall 감시</div>
+        <div class="cp"><strong>Falco</strong>는 런타임 syscall을 감시해 의심 행동을 탐지한다. eBPF 기반이라 성능 오버헤드 작고 컨테이너 내부까지 가시화. 룰셋이 풍부 — "컨테이너에서 셸 실행", "passwd 파일 read", "외부 IP로 curl" 같은 패턴 즉시 탐지.</div>
+        <div class="dt">
+          <div class="db"><div class="l">기본 룰 예시</div><div class="v"><div class="fm">- rule: Terminal shell in container
+  desc: A shell was used as the entrypoint
+  condition: >
+    spawned_process and container
+    and shell_procs and proc.tty != 0
+    and container_entrypoint
+  output: >
+    Shell spawned in container
+    (user=%user.name container=%container.name
+     shell=%proc.name parent=%proc.pname)
+  priority: NOTICE
+  tags: [container, shell, mitre_execution]</div>이런 룰이 수백 개 기본 제공. CIS, MITRE ATT&CK 매핑</div></div>
+          <div class="db"><div class="l">알람 → 대응 자동화</div><div class="v"><strong>1. Falcosidekick</strong> — Falco 알람을 다양한 sink로<br>· Slack, PagerDuty<br>· OpenTelemetry<br>· webhook → Lambda<br><br><strong>2. 자동 격리 (Falco Talon)</strong>:<div class="fm">rule: container-shell-spawn
+action: kubernetes.kill-pod
+condition: priority &gt;= NOTICE</div>의심 행동 감지 시 pod 자동 종료 — "containment" 자동화. <strong>주의:</strong> false positive로 정상 pod 죽이면 더 큰 사고. audit 모드 충분히 검증 후 enforce</div></div>
+          <div class="db df"><div class="l">대안과 보완 — 다른 도구들</div><div class="v"><strong>Tetragon (Cilium)</strong> — Falco와 비슷, eBPF 기반, 더 깊은 가시성<br><strong>Tracee (Aqua)</strong> — eBPF, 더 많은 이벤트 종류<br><strong>Sysdig Secure</strong> — 상용, 통합 보안 플랫폼<br><strong>Datadog Cloud Workload Security</strong> — Datadog 통합<br><br><strong>OS-level vs container-level:</strong><br>· kernel 수준에서 syscall 보면 컨테이너 escape도 탐지<br>· 컨테이너 수준에서만 보면 일부 공격 못 봄<br><br><strong>현실적 권장:</strong><br>· 시작은 Falco — OSS, 풍부한 룰<br>· 큰 환경에서 Tetragon으로 확장<br>· 알람 Slack 통보 → 결국 자동 대응 추가</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" id="netpol">
+      <div class="con">
+        <div class="ct" style="color:var(--teal);background:var(--tbg);border:1px solid var(--tbd)">Network</div>
+        <h3>NetworkPolicy — Lateral Movement 차단</h3>
+        <div class="cs">한 pod이 침해되어도 다른 pod에 갈 수 없게 — zero trust networking</div>
+        <div class="cp">k8s 기본은 <strong>"모든 pod이 모든 pod과 통신 가능"</strong>이다. 즉 한 컨테이너 침해 = 클러스터 내 모든 곳 접근 가능. <strong>NetworkPolicy</strong>로 명시적 허용된 경로만 열어야 lateral movement(공격자 측면 이동)가 막힌다.</div>
+        <div class="bx"><div class="bx-t">기본 deny + 명시적 allow 패턴</div><div class="co"><span class="c"># 1) 모든 ingress/egress 기본 deny (namespace 단위)</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { <span class="k">name</span>: <span class="s">default-deny</span>, <span class="k">namespace</span>: <span class="s">prod</span> }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: {}
+  <span class="k">policyTypes</span>: [<span class="s">Ingress</span>, <span class="s">Egress</span>]
+
+<span class="c"># 2) payment app은 정해진 곳만 허용</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { <span class="k">name</span>: <span class="s">payment-policy</span>, <span class="k">namespace</span>: <span class="s">prod</span> }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { <span class="k">matchLabels</span>: { <span class="k">app</span>: payment } }
+  <span class="k">ingress</span>:
+  - <span class="k">from</span>:                                 <span class="c"># API gateway에서만</span>
+    - <span class="k">podSelector</span>: { <span class="k">matchLabels</span>: { <span class="k">app</span>: gateway } }
+    <span class="k">ports</span>: [{ <span class="k">protocol</span>: TCP, <span class="k">port</span>: <span class="n">8080</span> }]
+  <span class="k">egress</span>:
+  - <span class="k">to</span>:                                   <span class="c"># DB만 접근</span>
+    - <span class="k">podSelector</span>: { <span class="k">matchLabels</span>: { <span class="k">app</span>: postgres } }
+    <span class="k">ports</span>: [{ <span class="k">protocol</span>: TCP, <span class="k">port</span>: <span class="n">5432</span> }]
+  - <span class="k">to</span>:                                   <span class="c"># DNS</span>
+    - <span class="k">namespaceSelector</span>: { <span class="k">matchLabels</span>: { <span class="k">name</span>: kube-system } }
+      <span class="k">podSelector</span>: { <span class="k">matchLabels</span>: { <span class="k">k8s-app</span>: kube-dns } }
+    <span class="k">ports</span>: [{ <span class="k">protocol</span>: UDP, <span class="k">port</span>: <span class="n">53</span> }]
+  - <span class="k">to</span>:                                   <span class="c"># 외부 Stripe API (CIDR allowlist)</span>
+    - <span class="k">ipBlock</span>:
+        <span class="k">cidr</span>: <span class="s">"54.187.0.0/16"</span>
+    <span class="k">ports</span>: [{ <span class="k">protocol</span>: TCP, <span class="k">port</span>: <span class="n">443</span> }]</div></div>
+        <div class="dt">
+          <div class="db"><div class="l">CNI 지원 — 일부 기능은 CNI마다 다름</div><div class="v">k8s NetworkPolicy 표준은 L3/L4까지만. <strong>L7 (HTTP path, gRPC method)은 CNI 확장</strong>:<br><br>· <strong>Calico</strong>: GlobalNetworkPolicy, L7 (Calico Cloud)<br>· <strong>Cilium</strong>: CiliumNetworkPolicy — L7 강력 (HTTP, gRPC, DNS, Kafka)<br>· <strong>Antrea</strong>: ClusterNetworkPolicy<br><br>표준 NetworkPolicy로 시작 → 필요 시 CNI 확장 사용. <strong>주의:</strong> CNI 종속 코드는 마이그레이션 비용</div></div>
+          <div class="db"><div class="l">실전 도입 단계</div><div class="v"><strong>Phase 1: 가시화</strong> (1-2주)<br>· <code>cilium hubble</code> 또는 service mesh로 현재 트래픽 흐름 시각화<br>· "어떤 pod이 어떤 pod과 통신하는가" 확보<br><br><strong>Phase 2: namespace 격리</strong> (2-4주)<br>· namespace 간 통신 제한 (prod ↔ staging 막음)<br>· 같은 namespace 내는 일단 허용<br><br><strong>Phase 3: pod 단위 정책</strong> (점진)<br>· 핵심 서비스부터 (payment, auth)<br>· 차차 모든 서비스로 확대<br><br><strong>주의:</strong> 처음부터 deny-all 하면 클러스터 정지. 점진적 + audit 단계 필수</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+function sw(t){
+  document.querySelectorAll('.T').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  document.querySelectorAll('.P').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));
+}
+document.querySelectorAll('.sn a').forEach(a=>{
+  a.addEventListener('click',e=>{
+    e.preventDefault();
+    const t=a.dataset.t,s=a.dataset.s;
+    sw(t);
+    document.querySelectorAll('.sn a').forEach(x=>x.classList.toggle('on',x===a));
+    setTimeout(()=>document.getElementById(s)?.scrollIntoView({behavior:'smooth',block:'start'}),50);
+  });
+});
+</script>
+</body>
+</html>
